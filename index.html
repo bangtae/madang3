@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PORTAL BANG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- 1단: 상단 헤더 (Top Navigation) -->
+    <header class="top-header">
+      <div class="header-brand">
+        <button type="button" id="btn-toggle-sidebar" class="btn-toggle-sidebar" title="사이드바 열기/닫기">
+          <span class="toggle-icon">☰</span>
+        </button>
+        <span class="brand-icon">⚡</span>
+        <h1 class="brand-title">PORTAL BANG</h1>
+      </div>
+      <nav class="top-nav">
+        <button id="nav-top-main" class="nav-top-btn active" data-view="main">
+          <span class="icon">🏠</span> 메인
+        </button>
+        <button id="nav-top-api" class="nav-top-btn" data-view="api">
+          <span class="icon">🔌</span> API
+        </button>
+      </nav>
+      <div class="header-user">
+        <span class="user-badge">Vibe Developer</span>
+      </div>
+    </header>
+
+    <!-- 2단 & 3단: 좌측 사이드바 + 중앙 본문 영역 -->
+    <div class="body-layout">
+      <!-- 2단: 좌측 사이드바 (Left Sidebar) -->
+      <aside class="left-sidebar" id="left-sidebar">
+        <div class="sidebar-section">
+          <h2 class="sidebar-title">메뉴</h2>
+          <ul class="sidebar-menu">
+            <!-- 상단 메뉴 선택에 따라 사이드바 항목 동적 전환 -->
+            <li class="menu-item" id="side-menu-main">
+              <button class="nav-side-btn active" data-side="dashboard">
+                <span class="icon">📊</span> 대시보드
+              </button>
+            </li>
+            <li class="menu-item hidden" id="side-menu-api">
+              <button class="nav-side-btn" data-side="api-info">
+                <span class="icon">📚</span> API 정보
+              </button>
+            </li>
+          </ul>
+        </div>
+        <div class="sidebar-footer">
+          <p>💡 Tip: URL만 입력하면 AI가 적절한 카테고리를 추천합니다.</p>
+        </div>
+      </aside>
+
+      <!-- 3단: 중앙 본문 영역 (Main Content) -->
+      <main class="main-content">
+        <!-- 뷰 1: 메인 대시보드 -->
+        <section id="view-dashboard" class="content-view active">
+          <div class="view-header">
+            <h2>대시보드</h2>
+            <p>등록된 API 현황 및 통계를 한눈에 확인하세요.</p>
+          </div>
+          
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon purple">📦</div>
+              <div class="stat-info">
+                <span class="stat-label">총 등록 API</span>
+                <span class="stat-value" id="stat-total-apis">0</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon cyan">🏷️</div>
+              <div class="stat-info">
+                <span class="stat-label">카테고리 수</span>
+                <span class="stat-value" id="stat-total-categories">0</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green">⚡</div>
+              <div class="stat-info">
+                <span class="stat-label">최근 추가일</span>
+                <span class="stat-value" id="stat-latest-date">-</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-recent">
+            <h3>Recent Added APIs</h3>
+            <div class="recent-list" id="recent-api-list">
+              <!-- JS로 최근 등록된 API 렌더링 -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 뷰 2: API 정보 관리 -->
+        <section id="view-api-info" class="content-view hidden">
+          <div class="view-header">
+            <h2>API 정보 관리</h2>
+            <p>프로그램 개발 시 사용할 API 서비스 및 사용법 문서를 등록하고 조회하세요.</p>
+          </div>
+
+          <!-- API 신규 등록 폼 -->
+          <div class="card form-card">
+            <h3>✨ 신규 API 정보 등록</h3>
+            <form id="api-form" class="api-form">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="input-title">API 이름 *</label>
+                  <input type="text" id="input-title" placeholder="예: Kakao Map API" required />
+                </div>
+                <div class="form-group">
+                  <label for="input-service-url">API 서비스 URL *</label>
+                  <input type="url" id="input-service-url" placeholder="https://api.kakao.com" required />
+                </div>
+                <div class="form-group">
+                  <label for="input-docs-url">사용법 사이트 URL *</label>
+                  <input type="url" id="input-docs-url" placeholder="https://developers.kakao.com/docs" required />
+                </div>
+                <div class="form-group">
+                  <label for="input-category">카테고리 (자동추천 / 직접입력)</label>
+                  <div class="category-input-wrapper">
+                    <input type="text" id="input-category" placeholder="URL 입력 시 AI 자동 생성" />
+                    <button type="button" id="btn-auto-category" class="btn btn-secondary btn-sm">✨ AI 추천</button>
+                  </div>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">API 등록하기</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- API 목록 및 필터 & 다운로드 -->
+          <div class="api-list-header">
+            <div class="search-filter-box">
+              <input type="text" id="search-input" placeholder="API 이름 검색..." />
+              <select id="category-filter">
+                <option value="ALL">전체 카테고리</option>
+              </select>
+              <div class="download-btn-group">
+                <button type="button" id="btn-force-upload" class="btn btn-primary btn-sm" title="현재 로컬 98개 데이터를 서버로 강제 저장">
+                  📤 98개 서버 업로드
+                </button>
+                <button type="button" id="btn-sync-data" class="btn btn-secondary btn-sm" title="중앙 데이터(apis.json)와 즉시 동기화">
+                  🔄 데이터 동기화
+                </button>
+                <button type="button" id="btn-download-json" class="btn btn-secondary btn-sm" title="선택한 카테고리의 API 정보를 JSON 파일로 다운로드">
+                  📥 JSON 다운로드
+                </button>
+                <button type="button" id="btn-download-csv" class="btn btn-secondary btn-sm" title="선택한 카테고리의 API 정보를 CSV 파일로 다운로드">
+                  📊 CSV 다운로드
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="api-cards-grid" id="api-cards-grid">
+            <!-- API 카드들이 JS로 동적 렌더링됩니다 -->
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- API 정보 수정 모달 팝업 -->
+  <div id="edit-modal-overlay" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>✏️ API 정보 수정</h3>
+        <button type="button" id="btn-close-edit-modal" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="edit-api-form" class="modal-form">
+        <input type="hidden" id="edit-input-id" />
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="edit-input-title">API 이름 *</label>
+          <input type="text" id="edit-input-title" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="edit-input-service-url">API 서비스 URL *</label>
+          <input type="url" id="edit-input-service-url" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="edit-input-docs-url">사용법 사이트 URL *</label>
+          <input type="url" id="edit-input-docs-url" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label for="edit-input-category">카테고리</label>
+          <input type="text" id="edit-input-category" />
+        </div>
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" id="btn-cancel-edit" class="btn btn-secondary">취소</button>
+          <button type="submit" class="btn btn-primary">수정 저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="sidebar-overlay" class="sidebar-overlay"></div>
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- 순서대로 스크립트 로드 (file:// 로컬 파일 모드 100% 지원) -->
+  <script src="app/core/config.js"></script>
+  <script src="app/models/apiModel.js"></script>
+  <script src="app/utils/llmHelper.js"></script>
+  <script src="app/utils/downloadHelper.js"></script>
+  <script src="app/views/uiView.js"></script>
+  <script src="app/controllers/appController.js"></script>
+  <script src="app/main.js"></script>
+</body>
+</html>
