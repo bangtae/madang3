@@ -37,20 +37,20 @@ window.ApiModel = {
    * LocalStorage 데이터 직접 가져오기 (기존 등록 데이터 유실 방지)
    */
   getApisFromLocal() {
-    const fallbackApis = window.PORTAL_DATA_APIS || window.CONFIG.INITIAL_APIS || [];
+    const fallbackApis = window.PORTAL_DATA_APIS || (window.CONFIG ? window.CONFIG.INITIAL_APIS : []) || [];
     const rawData = localStorage.getItem(window.CONFIG.STORAGE_KEY);
     if (!rawData) {
       localStorage.setItem(window.CONFIG.STORAGE_KEY, JSON.stringify(fallbackApis));
       return fallbackApis;
     }
     try {
-      const parsed = JSON.parse(rawData);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        // 기존 저장이 데모 2개뿐이거나 fallback보다 적으면 병합하여 풍부한 데이터 제공
-        if (parsed.length < fallbackApis.length) {
-          const merged = this.mergeApis(parsed, fallbackApis);
-          localStorage.setItem(window.CONFIG.STORAGE_KEY, JSON.stringify(merged));
-          return merged;
+      let parsed = JSON.parse(rawData);
+      if (Array.isArray(parsed)) {
+        // 옛날 2개짜리 데모 데이터만 들어있거나 10개 미만인 경우 전체 300개 데이터로 강제 업데이트
+        const hasOnlyDemo = parsed.every(item => item.id && item.id.startsWith('api_demo_'));
+        if (hasOnlyDemo || parsed.length < fallbackApis.length) {
+          parsed = this.mergeApis(parsed.filter(item => !item.id.startsWith('api_demo_')), fallbackApis);
+          localStorage.setItem(window.CONFIG.STORAGE_KEY, JSON.stringify(parsed));
         }
         return parsed;
       }
