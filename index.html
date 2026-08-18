@@ -27,6 +27,15 @@
         <button id="nav-top-api" class="nav-top-btn" data-view="api">
           <span class="icon">🔌</span> API
         </button>
+        <button id="nav-top-ai" class="nav-top-btn" data-view="ai">
+          <span class="icon">🤖</span> AI
+        </button>
+        <button id="nav-top-work" class="nav-top-btn" data-view="work">
+          <span class="icon">💼</span> 업무
+        </button>
+        <button id="nav-top-admin" class="nav-top-btn" data-view="admin">
+          <span class="icon">⚙️</span> 관리
+        </button>
       </nav>
       <div class="header-user">
         <span class="user-badge">Vibe Developer</span>
@@ -51,6 +60,36 @@
                 <span class="icon">📚</span> API 정보
               </button>
             </li>
+            <li class="menu-item hidden" id="side-menu-ai">
+              <button class="nav-side-btn active" data-side="ai-models">
+                <span class="icon">🤖</span> AI 서비스 정보
+              </button>
+              <button class="nav-side-btn" data-side="ai-terms">
+                <span class="icon">🧠</span> AI 용어 & 마인드맵
+              </button>
+              <button class="nav-side-btn" data-side="agent-builder">
+                <span class="icon">🧩</span> AI 에이전트 Builder
+              </button>
+            </li>
+            <li class="menu-item hidden" id="side-menu-work">
+              <button class="nav-side-btn active" data-side="sap-terms">
+                <span class="icon">🏢</span> SAP용어 & 마인드맵
+              </button>
+            </li>
+            <li class="menu-item hidden" id="side-menu-admin">
+              <button class="nav-side-btn active" data-side="ip-whitelist">
+                <span class="icon">🛡️</span> IP 화이트리스트
+              </button>
+              <button class="nav-side-btn" data-side="ip-blacklist">
+                <span class="icon">⛔</span> IP 블랙리스트
+              </button>
+              <button class="nav-side-btn" data-side="ip-logs">
+                <span class="icon">🌐</span> 외부 유입 IP
+              </button>
+              <button class="nav-side-btn" data-side="batch-register">
+                <span class="icon">📥</span> 일괄등록
+              </button>
+            </li>
           </ul>
         </div>
         <div class="sidebar-footer">
@@ -64,22 +103,36 @@
         <section id="view-dashboard" class="content-view active">
           <div class="view-header">
             <h2>대시보드</h2>
-            <p>등록된 API 현황 및 통계를 한눈에 확인하세요.</p>
+            <p>등록현황 및 통계를 한눈에 확인하세요.</p>
           </div>
           
           <div class="stats-grid">
-            <div class="stat-card">
+            <div class="stat-card stat-clickable" id="card-stat-apis" style="cursor: pointer;" title="클릭 시 API 정보 화면으로 이동">
               <div class="stat-icon purple">📦</div>
               <div class="stat-info">
                 <span class="stat-label">총 등록 API</span>
                 <span class="stat-value" id="stat-total-apis">0</span>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon cyan">🏷️</div>
+            <div class="stat-card stat-clickable" id="card-stat-ai-services" style="cursor: pointer;" title="클릭 시 AI 서비스 정보 화면으로 이동">
+              <div class="stat-icon blue">🤖</div>
               <div class="stat-info">
-                <span class="stat-label">카테고리 수</span>
-                <span class="stat-value" id="stat-total-categories">0</span>
+                <span class="stat-label">총 등록 AI서비스</span>
+                <span class="stat-value" id="stat-total-ai">0</span>
+              </div>
+            </div>
+            <div class="stat-card stat-clickable" id="card-stat-ai-terms" style="cursor: pointer;" title="클릭 시 AI 용어 & 마인드맵 학습 화면으로 이동">
+              <div class="stat-icon pink">🧠</div>
+              <div class="stat-info">
+                <span class="stat-label">총 등록 AI용어</span>
+                <span class="stat-value" id="stat-total-ai-terms">0</span>
+              </div>
+            </div>
+            <div class="stat-card stat-clickable" id="card-stat-sap-terms" style="cursor: pointer;" title="클릭 시 SAP용어 & 마인드맵 학습 화면으로 이동">
+              <div class="stat-icon purple">🏢</div>
+              <div class="stat-info">
+                <span class="stat-label">총 등록 SAP용어</span>
+                <span class="stat-value" id="stat-total-sap-terms">0</span>
               </div>
             </div>
             <div class="stat-card">
@@ -88,13 +141,6 @@
                 <span class="stat-label">최근 추가일</span>
                 <span class="stat-value" id="stat-latest-date">-</span>
               </div>
-            </div>
-          </div>
-
-          <div class="dashboard-recent">
-            <h3>Recent Added APIs</h3>
-            <div class="recent-list" id="recent-api-list">
-              <!-- JS로 최근 등록된 API 렌더링 -->
             </div>
           </div>
         </section>
@@ -124,11 +170,8 @@
                   <input type="url" id="input-docs-url" placeholder="https://developers.kakao.com/docs" required />
                 </div>
                 <div class="form-group">
-                  <label for="input-category">카테고리 (자동추천 / 직접입력)</label>
-                  <div class="category-input-wrapper">
-                    <input type="text" id="input-category" placeholder="URL 입력 시 AI 자동 생성" />
-                    <button type="button" id="btn-auto-category" class="btn btn-secondary btn-sm">✨ AI 추천</button>
-                  </div>
+                  <label for="input-category">카테고리</label>
+                  <input type="text" id="input-category" placeholder="예: 지도, AI, 데이터 등" />
                 </div>
               </div>
               <div class="form-actions">
@@ -145,11 +188,11 @@
                 <option value="ALL">전체 카테고리</option>
               </select>
               <div class="download-btn-group">
-                <button type="button" id="btn-force-upload" class="btn btn-primary btn-sm" title="현재 로컬 98개 데이터를 서버로 강제 저장">
-                  📤 98개 서버 업로드
+                <button type="button" id="btn-sync-to-file" class="btn btn-primary btn-sm" title="현재 화면의 모든 API 데이터를 서버 데이터 파일(apis.json & initialApis.js)로 즉시 강제 동기화(밀어넣기)">
+                  🔄 데이터 파일 강제 동기화 (밀어넣기)
                 </button>
-                <button type="button" id="btn-sync-data" class="btn btn-secondary btn-sm" title="중앙 데이터(apis.json)와 즉시 동기화">
-                  🔄 데이터 동기화
+                <button type="button" id="btn-open-category-batch-modal" class="btn btn-secondary btn-sm" title="선택한 카테고리 이름을 새로운 명칭으로 일괄 변경">
+                  🏷️ 카테고리 일괄 변경
                 </button>
                 <button type="button" id="btn-download-json" class="btn btn-secondary btn-sm" title="선택한 카테고리의 API 정보를 JSON 파일로 다운로드">
                   📥 JSON 다운로드
@@ -163,6 +206,583 @@
 
           <div class="api-cards-grid" id="api-cards-grid">
             <!-- API 카드들이 JS로 동적 렌더링됩니다 -->
+          </div>
+        </section>
+
+        <!-- 뷰 4: AI 서비스 정보 관리 -->
+        <section id="view-ai-models" class="content-view hidden">
+          <div class="view-header">
+            <h2>AI 서비스 정보 관리</h2>
+            <p>업무 및 개발 시 사용할 AI 서비스 및 사용법 문서를 등록하고 조회하세요.</p>
+          </div>
+
+          <!-- AI 서비스 신규 등록 폼 -->
+          <div class="card form-card">
+            <h3>✨ 신규 AI 서비스 정보 등록</h3>
+            <form id="ai-url-form" class="api-form">
+              <div class="form-grid">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                  <label for="input-ai-url">AI 서비스 URL *</label>
+                  <div style="display: flex; gap: 10px;">
+                    <input type="url" id="input-ai-url" placeholder="예: https://openai.com/index/gpt-4o-realtime-api/ 또는 https://ollama.com" required style="flex: 1;" />
+                    <button type="button" id="btn-analyze-ai-url" class="btn btn-secondary">⚡ URL 자동 조사</button>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="input-ai-title">AI 서비스 이름 *</label>
+                  <input type="text" id="input-ai-title" placeholder="예: GPT-4o" required />
+                </div>
+                <div class="form-group">
+                  <label for="input-ai-developer">개발사</label>
+                  <input type="text" id="input-ai-developer" placeholder="예: OpenAI, Anthropic, Meta 등" />
+                </div>
+                <div class="form-group">
+                  <label for="input-ai-category">카테고리</label>
+                  <select id="input-ai-category">
+                    <option value="LLM / 멀티모달">LLM / 멀티모달</option>
+                    <option value="LLM / 코딩">LLM / 코딩</option>
+                    <option value="LLM / 추론전문">LLM / 추론전문</option>
+                    <option value="AI 검색 / 지식조사">AI 검색 / 지식조사</option>
+                    <option value="이미지 생성">이미지 생성</option>
+                    <option value="오픈소스 / 온디바이스">오픈소스 / 온디바이스</option>
+                    <option value="음성 인식 / TTS / STT">음성 인식 / TTS / STT</option>
+                    <option value="음악 / 오디오 생성">음악 / 오디오 생성</option>
+                    <option value="기타 AI">기타 AI</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="input-ai-tags">태그 (쉼표로 구분)</label>
+                  <input type="text" id="input-ai-tags" placeholder="예: LLM, 멀티모달, 코딩전문, 무료" />
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                  <label for="input-ai-summary">초보자용 핵심 요약 *</label>
+                  <textarea id="input-ai-summary" rows="2" placeholder="이 AI 서비스가 무엇인지 1~2줄로 쉽게 요약 설명" required></textarea>
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                  <label for="input-ai-garage-ideas">🛠️ 활용 아이디어</label>
+                  <input type="text" id="input-ai-garage-ideas" placeholder="예: 실시간 통화 챗봇, 사진 분석 자동 데이터 입력기" />
+                </div>
+
+                <div class="form-group">
+                  <label for="input-ai-quickstart">🚀 Quick Start 가이드</label>
+                  <input type="text" id="input-ai-quickstart" placeholder="예: 1) 가입 -> 2) 웹/앱 대화 -> 3) 구독 또는 API 연동" />
+                </div>
+                <div class="form-group">
+                  <label for="input-ai-pricing">요금 체계</label>
+                  <input type="text" id="input-ai-pricing" placeholder="예: 무료 플랜 / Plus 구독 ($20/월) / API 별도" />
+                </div>
+                <div class="form-group">
+                  <label for="input-ai-country">🌐 개발 국가</label>
+                  <input type="text" id="input-ai-country" placeholder="예: 🇺🇸 미국, 🇨🇳 중국, 🇰🇷 대한민국, 🇫🇷 프랑스 등" />
+                </div>
+                <div class="form-group">
+                  <label for="input-ai-similar">🔄 유사 / 경쟁 서비스</label>
+                  <input type="text" id="input-ai-similar" placeholder="예: Claude 3.5 Sonnet, Gemini 2.0, DeepSeek R1" />
+                </div>
+                <div class="form-group" style="display:none;">
+                  <input type="url" id="input-ai-docs-url" />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">AI 서비스 등록하기</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- AI 서비스 목록 및 검색 & 필터 & 동기화 -->
+          <div class="api-list-header">
+            <div class="search-filter-box">
+              <input type="text" id="search-ai-input" placeholder="AI 서비스 이름 검색..." />
+              <select id="category-ai-filter">
+                <option value="ALL">전체 카테고리</option>
+                <option value="LLM / 멀티모달">LLM / 멀티모달</option>
+                <option value="LLM / 코딩">LLM / 코딩</option>
+                <option value="LLM / 추론전문">LLM / 추론전문</option>
+                <option value="AI 검색 / 지식조사">AI 검색 / 지식조사</option>
+                <option value="이미지 생성">이미지 생성</option>
+                <option value="오픈소스 / 온디바이스">오픈소스 / 온디바이스</option>
+                <option value="음성 인식 / TTS / STT">음성 인식 / TTS / STT</option>
+                <option value="음악 / 오디오 생성">음악 / 오디오 생성</option>
+                <option value="기타 AI">기타 AI</option>
+              </select>
+              <div class="download-btn-group">
+                <button type="button" id="btn-sync-ai-to-file" class="btn btn-primary btn-sm" title="현재 AI 데이터를 서버 파일(aiModels.json & initialAiModels.js)로 즉시 강제 동기화(밀어넣기)">
+                  🔄 데이터 파일 강제 동기화 (밀어넣기)
+                </button>
+                <button type="button" id="btn-download-ai-json" class="btn btn-secondary btn-sm" title="AI 서비스 목록을 JSON 파일로 다운로드">
+                  📥 JSON 다운로드
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="api-cards-grid" id="ai-cards-grid">
+            <!-- AI 카드들이 JS로 동적 렌더링됩니다 -->
+          </div>
+        </section>
+
+        <!-- 뷰 5: AI 용어 & 마인드맵 학습 관리 -->
+        <section id="view-ai-terms" class="content-view hidden">
+          <div class="view-header">
+            <h2>🧠 AI 용어 & 마인드맵 학습 관리</h2>
+            <p>AI 관련 개념, 모델, 아키텍처, 학습 기법을 등록하고 용어 간의 연관성(예: AI - LLM - 제미나이)을 인터랙티브 마인드맵으로 시각적으로 학습하세요.</p>
+          </div>
+
+          <!-- 1. 인터랙티브 마인드맵 시각화 카드 -->
+          <div class="card mindmap-card">
+            <div class="card-header-flex">
+              <h3>🎨 그래픽 마인드맵 시각화 (용어 연결고리)</h3>
+              <div class="mindmap-controls" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="mindmap-search-input" class="input-sm" placeholder="마인드맵 용어 즉시 찾기..." />
+                <select id="select-mindmap-layout" class="input-sm" style="background: rgba(15, 23, 42, 0.8); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); padding: 4px 8px; border-radius: 6px; font-size: 0.82rem;">
+                  <option value="radial">🌟 방사형 스마트 정렬</option>
+                  <option value="tree">🌳 계층형 트리 정렬</option>
+                  <option value="concentric">⭕ 동심원 정렬</option>
+                </select>
+                <button type="button" id="btn-arrange-mindmap" class="btn btn-primary btn-sm">✨ 자동 정렬 실행</button>
+                <button type="button" id="btn-reset-mindmap" class="btn btn-secondary btn-sm">🎯 위치 초기화</button>
+              </div>
+            </div>
+            <div id="mindmap-container" class="mindmap-container">
+              <canvas id="mindmap-canvas"></canvas>
+              <div class="mindmap-guide-overlay">
+                <span>💡 Tip: 마우스 휠(확대/축소), 마우스 드래그(이동), 노드 클릭(상세 정보)</span>
+              </div>
+            </div>
+            <!-- 선택한 용어 상세 정보 팝업 패널 -->
+            <div id="mindmap-term-detail" class="mindmap-detail-panel hidden">
+              <div class="detail-panel-header">
+                <h4 id="detail-term-title">용어명</h4>
+                <button type="button" id="btn-close-term-detail" class="btn-close-sm">&times;</button>
+              </div>
+              <div class="detail-panel-body">
+                <div class="detail-meta">
+                  <span id="detail-term-parent" class="badge-parent">상위: -</span>
+                </div>
+                <p id="detail-term-summary" class="detail-summary">핵심 공부 요약 정보가 표시됩니다.</p>
+                <div id="detail-term-connected-box" class="detail-connected-box" style="margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px;">
+                  <strong style="color: #a78bfa; font-size: 0.85rem; display: block; margin-bottom: 6px;">🔗 연결된 연관 용어:</strong>
+                  <div id="detail-term-connected-tags" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. AI 용어 신규 등록 폼 -->
+          <div class="card form-card" style="margin-top: 24px;">
+            <h3>✨ 신규 AI 용어 & 기술 정보 등록</h3>
+            <form id="ai-term-form" class="api-form">
+              <div class="form-grid">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                  <label for="input-term-name">용어 / 기술명 *</label>
+                  <input type="text" id="input-term-name" placeholder="예: LLM, Gemini, RAG, Transformer 등" required />
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                  <label for="input-term-parent">상위 연결 용어 (마인드맵 부모 노드)</label>
+                  <select id="input-term-parent">
+                    <option value="">-- 최상위 노드 (부모 없음) --</option>
+                  </select>
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                  <label for="input-term-summary">핵심 공부 요약 및 개념 설명 *</label>
+                  <textarea id="input-term-summary" rows="3" placeholder="공부용 용어 핵심 내용 1~3줄 요약 설명" required></textarea>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">AI 용어 등록하기</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- 3. AI 용어 목록 및 동기화 -->
+          <div class="api-list-header" style="margin-top: 24px;">
+            <div class="search-filter-box">
+              <input type="text" id="search-term-input" placeholder="AI 용어 검색..." />
+              <div class="download-btn-group">
+                <button type="button" id="btn-sync-terms-to-file" class="btn btn-primary btn-sm" title="현재 용어 데이터를 서버 파일(aiTerms.json & initialAiTerms.js)로 밀어넣기">
+                  🔄 데이터 파일 강제 동기화 (밀어넣기)
+                </button>
+                <button type="button" id="btn-download-terms-json" class="btn btn-secondary btn-sm" title="용어 목록을 JSON 파일로 다운로드">
+                  📥 JSON 다운로드
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="api-cards-grid" id="ai-term-cards-grid">
+            <!-- AI 용어 카드들이 JS로 동적 렌더링됩니다 -->
+          </div>
+        </section>
+
+        <!-- 뷰 6: SAP 용어 & 마인드맵 학습 관리 -->
+        <section id="view-sap-terms" class="content-view hidden">
+          <div class="view-header">
+            <h2>🏢 SAP 용어 & 마인드맵 학습 관리</h2>
+            <p>SAP ERP, S/4HANA, ABAP, Fiori, BTP 및 각 코어 모듈(MM, SD, FI, CO 등) 개념을 등록하고 용어 간의 연관성을 인터랙티브 마인드맵으로 학습하세요.</p>
+          </div>
+
+          <!-- 1. 인터랙티브 마인드맵 시각화 카드 -->
+          <div class="card mindmap-card">
+            <div class="card-header-flex">
+              <h3>🎨 SAP 그래픽 마인드맵 시각화 (용어 연결고리)</h3>
+              <div class="mindmap-controls" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="sap-mindmap-search-input" class="input-sm" placeholder="SAP 용어 즉시 찾기..." />
+                <select id="sap-select-mindmap-layout" class="input-sm" style="background: rgba(15, 23, 42, 0.8); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); padding: 4px 8px; border-radius: 6px; font-size: 0.82rem;">
+                  <option value="radial">🌟 방사형 스마트 정렬</option>
+                  <option value="tree">🌳 계층형 트리 정렬</option>
+                  <option value="concentric">⭕ 동심원 정렬</option>
+                </select>
+                <button type="button" id="btn-arrange-sap-mindmap" class="btn btn-primary btn-sm">✨ 자동 정렬 실행</button>
+                <button type="button" id="btn-reset-sap-mindmap" class="btn btn-secondary btn-sm">🎯 위치 초기화</button>
+              </div>
+            </div>
+            <div id="sap-mindmap-container" class="mindmap-container">
+              <canvas id="sap-mindmap-canvas"></canvas>
+              <div class="mindmap-guide-overlay">
+                <span>💡 Tip: 마우스 휠(확대/축소), 마우스 드래그(이동), 노드 클릭(상세 정보)</span>
+              </div>
+            </div>
+            <!-- 선택한 SAP 용어 상세 정보 팝업 패널 -->
+            <div id="sap-mindmap-term-detail" class="mindmap-detail-panel hidden">
+              <div class="detail-panel-header">
+                <h4 id="sap-detail-term-title">용어명</h4>
+                <button type="button" id="btn-close-sap-term-detail" class="btn-close-sm">&times;</button>
+              </div>
+              <div class="detail-panel-body">
+                <div class="detail-meta">
+                  <span id="sap-detail-term-parent" class="badge-parent">상위: -</span>
+                </div>
+                <p id="sap-detail-term-summary" class="detail-summary">핵심 공부 요약 정보가 표시됩니다.</p>
+                <div id="sap-detail-term-connected-box" class="detail-connected-box" style="margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px;">
+                  <strong style="color: #c084fc; font-size: 0.85rem; display: block; margin-bottom: 6px;">🔗 연결된 연관 용어:</strong>
+                  <div id="sap-detail-term-connected-tags" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. SAP 용어 신규 등록 폼 -->
+          <div class="card form-card" style="margin-top: 24px;">
+            <h3 style="margin-bottom: 16px;">✨ 신규 SAP 용어 & 기술 정보 등록</h3>
+            <form id="sap-term-form" class="api-form">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="input-sap-term-name">용어 / 기술명 *</label>
+                  <input type="text" id="input-sap-term-name" placeholder="예: SAP S/4HANA, ABAP, MM, Fiori 등" required />
+                </div>
+                <div class="form-group">
+                  <label for="select-sap-term-category">카테고리</label>
+                  <select id="select-sap-term-category">
+                    <option value="모듈 / 코어">모듈 / 코어 (MM/SD/FI/CO/PP 등)</option>
+                    <option value="개발 / ABAP">개발 / ABAP (CDS, RAP, Fiori 등)</option>
+                    <option value="아키텍처 / 플랫폼">아키텍처 / 플랫폼 (HANA DB, BTP 등)</option>
+                    <option value="데이터 / 분석">데이터 / 분석 (SAC, BW/BI 등)</option>
+                    <option value="운영 / 관리">운영 / 관리 (Basis, Security 등)</option>
+                    <option value="기타">기타</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="input-sap-term-parent">상위 연결 용어 (마인드맵 부모 노드)</label>
+                  <select id="input-sap-term-parent">
+                    <option value="">-- 최상위 노드 (부모 없음) --</option>
+                  </select>
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                  <label for="input-sap-term-summary">핵심 공부 요약 및 개념 설명 *</label>
+                  <textarea id="input-sap-term-summary" rows="3" placeholder="공부용 용어 핵심 내용 1~3줄 요약 설명" required></textarea>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">SAP 용어 등록하기</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- 3. SAP 용어 목록 및 동기화 -->
+          <div class="api-list-header" style="margin-top: 24px;">
+            <div class="search-filter-box">
+              <input type="text" id="search-sap-term-input" placeholder="SAP 용어 검색..." />
+              <select id="category-sap-term-filter">
+                <option value="ALL">전체 카테고리</option>
+                <option value="모듈 / 코어">모듈 / 코어</option>
+                <option value="개발 / ABAP">개발 / ABAP</option>
+                <option value="아키텍처 / 플랫폼">아키텍처 / 플랫폼</option>
+                <option value="데이터 / 분석">데이터 / 분석</option>
+                <option value="운영 / 관리">운영 / 관리</option>
+              </select>
+              <div class="download-btn-group">
+                <button type="button" id="btn-sync-sap-terms-to-file" class="btn btn-primary btn-sm" title="현재 용어 데이터를 서버 파일(sapTerms.json & initialSapTerms.js)로 밀어넣기">
+                  🔄 데이터 파일 강제 동기화 (밀어넣기)
+                </button>
+                <button type="button" id="btn-download-sap-terms-json" class="btn btn-secondary btn-sm" title="용어 목록을 JSON 파일로 다운로드">
+                  📥 JSON 다운로드
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="api-cards-grid" id="sap-term-cards-grid">
+            <!-- SAP 용어 카드들이 JS로 동적 렌더링됩니다 -->
+          </div>
+        </section>
+
+        <!-- 뷰 3: IP 화이트리스트 관리 -->
+        <section id="view-ip-whitelist" class="content-view hidden">
+          <div class="view-header">
+            <h2>🛡️ IP 화이트리스트 관리</h2>
+            <p>접속을 허용할 IP 주소 또는 Subnet 대역(예: 192.168.219.*)을 추가하고 관리합니다.</p>
+          </div>
+
+          <div class="card form-card">
+            <h3>➕ 신규 허용 IP 등록</h3>
+            <form id="ip-form" class="api-form">
+              <div class="form-grid">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                  <label for="input-ip-address">허용할 IP 주소 또는 패턴 *</label>
+                  <input type="text" id="input-ip-address" placeholder="예: 192.168.219.25 또는 192.168.219.*" required />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">IP 추가하기</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card" style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+              <h3 style="margin: 0;">📋 현재 허용된 IP 목록</h3>
+              <button type="button" id="btn-save-ips" class="btn btn-primary btn-sm">💾 서버에 저장</button>
+            </div>
+            <div id="ip-list-container" class="ip-list-container">
+              <!-- IP 목록이 JS로 동적 렌더링됩니다 -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 뷰 4: IP 블랙리스트 관리 -->
+        <section id="view-ip-blacklist" class="content-view hidden">
+          <div class="view-header">
+            <h2>⛔ IP 블랙리스트 관리</h2>
+            <p>사이트 접속을 절대적으로 차단할 IP 주소 또는 Subnet 대역(예: 192.168.1.*)을 추가하고 관리합니다.</p>
+          </div>
+
+          <div class="card form-card">
+            <h3>➕ 신규 차단 IP 등록</h3>
+            <form id="ip-blocked-form" class="api-form">
+              <div class="form-grid">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                  <label for="input-blocked-ip-address">차단할 IP 주소 또는 패턴 *</label>
+                  <input type="text" id="input-blocked-ip-address" placeholder="예: 211.123.45.67 또는 211.123.*" required />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-danger">IP 차단 등록</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card" style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+              <h3 style="margin: 0;">📋 현재 차단된 IP (블랙리스트) 목록</h3>
+              <button type="button" id="btn-save-blocked-ips" class="btn btn-primary btn-sm">💾 서버에 저장</button>
+            </div>
+            <div id="ip-blacklist-container" class="ip-list-container">
+              <!-- 블랙리스트 목록이 JS로 동적 렌더링됩니다 -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 뷰 5: 외부 유입 IP 접속 로그 -->
+        <section id="view-ip-logs" class="content-view hidden">
+          <div class="view-header">
+            <h2>🌐 외부 유입 IP 접속 로그</h2>
+            <p>서버에 접속을 시도한 IP 기록입니다. 각 IP 항목의 [허용] 또는 [차단] 버튼을 눌러 승인/차단 상태를 직접 변경할 수 있습니다.</p>
+          </div>
+
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+              <h3 style="margin: 0;">📜 실시간 접속 IP 기록 목록</h3>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" id="btn-refresh-logs" class="btn btn-secondary btn-sm">🔄 새로고침</button>
+                <button type="button" id="btn-clear-logs" class="btn btn-danger btn-sm">🗑️ 로그 전체 삭제</button>
+              </div>
+            </div>
+            <div id="ip-logs-container" class="ip-logs-container">
+              <!-- 유입 로그 목록이 JS로 동적 렌더링됩니다 -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 뷰 6: API 일괄등록 (엑셀 파일 업로드) -->
+        <section id="view-batch-register" class="content-view hidden">
+          <div class="view-header">
+            <h2>📥 API 정보 엑셀 일괄등록</h2>
+            <p>엑셀 파일(.xlsx, .xls)을 업로드하여 API 정보를 한 번에 신규 등록하거나 기존 정보를 업데이트합니다.</p>
+          </div>
+
+          <!-- 엑셀 가이드 및 업로드 드롭존 카드 -->
+          <div class="card form-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+              <h3 style="margin: 0;">📁 엑셀 파일 선택 및 업로드</h3>
+              <button type="button" id="btn-download-sample-excel" class="btn btn-secondary btn-sm">
+                📥 샘플 엑셀 다운로드
+              </button>
+            </div>
+
+            <div class="excel-notice-box">
+              <p class="notice-title">💡 엑셀 업로드 가이드 및 처리 방식</p>
+              <ul class="notice-list">
+                <li><strong>컬럼 구성:</strong> <code>API 이름</code> | <code>API 서비스 URL</code> | <code>사용법 사이트 URL</code> | <code>카테고리</code></li>
+                <li><strong>하이퍼링크 자동 추출:</strong> <code>API 서비스 URL</code> 셀에 하이퍼링크가 설정된 경우 텍스트 대신 <strong>실제 링크 주소</strong>를 자동으로 추출하여 반영합니다.</li>
+                <li><strong>중복 URL 처리:</strong> 이미 등록된 <code>API 서비스 URL</code>이 존재할 경우 기존 데이터를 <strong>업데이트(Update)</strong>하며, 존재하지 않으면 <strong>신규 추가(Insert)</strong>합니다.</li>
+                <li><strong>안전성 보장:</strong> 업로드하는 엑셀에 없는 기존 API 데이터는 삭제되거나 변경되지 않고 안전하게 유지됩니다.</li>
+              </ul>
+            </div>
+
+            <div id="excel-dropzone" class="excel-dropzone">
+              <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden-file-input" />
+              <div class="dropzone-content" id="dropzone-prompt">
+                <span class="dropzone-icon">📊</span>
+                <p class="dropzone-text">엑셀 파일을 이곳에 끌어다 놓거나 <strong>[파일 선택]</strong> 버튼을 누르세요</p>
+                <p class="dropzone-subtext">지원 확장자: .xlsx, .xls</p>
+                <button type="button" id="btn-select-excel-file" class="btn btn-primary" style="margin-top: 12px;">
+                  📂 엑셀 파일 선택
+                </button>
+              </div>
+              <div id="excel-selected-file-info" class="selected-file-info hidden">
+                <span class="file-icon">📄</span>
+                <span id="excel-filename" class="file-name">파일명.xlsx</span>
+                <span id="excel-filesize" class="file-size">(0 KB)</span>
+                <button type="button" id="btn-remove-excel-file" class="btn-icon-danger" title="선택 취소">&times;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 파싱 미리보기 카드 -->
+          <div id="excel-preview-container" class="card hidden" style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <h3 style="margin: 0;">📋 데이터 분석 미리보기</h3>
+                <span id="preview-summary-badge" class="stat-badge">총 0건 분석됨</span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" id="btn-process-batch-excel" class="btn btn-primary">
+                  🚀 API 일괄 등록/업데이트 실행
+                </button>
+                <button type="button" id="btn-clear-batch-excel" class="btn btn-secondary">
+                  🗑️ 초기화
+                </button>
+              </div>
+            </div>
+
+            <div class="preview-stats-bar">
+              <span class="stat-pill new">✨ 신규 추가 예정: <strong id="preview-count-new">0</strong>건</span>
+              <span class="stat-pill update">🔄 기존 업데이트 예정: <strong id="preview-count-update">0</strong>건</span>
+              <span class="stat-pill error" id="preview-pill-error">⚠️ URL 누락 (제외): <strong id="preview-count-error">0</strong>건</span>
+            </div>
+
+            <div class="table-responsive" style="margin-top: 16px; max-height: 450px; overflow-y: auto;">
+              <table class="excel-preview-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">#</th>
+                    <th style="width: 160px;">API 이름</th>
+                    <th>API 서비스 URL</th>
+                    <th>사용법 사이트 URL</th>
+                    <th style="width: 100px;">카테고리</th>
+                    <th style="width: 130px;">처리 구분</th>
+                  </tr>
+                </thead>
+                <tbody id="excel-preview-tbody">
+                  <!-- 파싱 데이터가 JS로 동적 렌더링됩니다 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 뷰 9: AI 에이전트 & 오토메이션 Builder -->
+        <section id="view-agent-builder" class="content-view hidden">
+          <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+            <div>
+              <h2>🧩 AI 에이전트 & 오토메이션 Builder</h2>
+              <p>등록된 API 및 AI 서비스 자원을 조합하여 시스템 플로우를 구성하고, 프로그램 기획·설계·로드맵을 자동 생성하세요.</p>
+            </div>
+            <div class="ab-toolbar-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button type="button" id="btn-ab-clear" class="btn btn-secondary btn-sm" title="캔버스 전체 초기화">
+                🧹 초기화
+              </button>
+              <button type="button" id="btn-ab-load" class="btn btn-secondary btn-sm" title="저장된 워크플로우 불러오기">
+                📂 불러오기
+              </button>
+              <button type="button" id="btn-ab-save" class="btn btn-secondary btn-sm" title="캔버스 저장">
+                💾 저장
+              </button>
+              <button type="button" id="btn-generate-architecture" class="btn btn-primary" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); font-weight: 600;">
+                🚀 프로그램 설계서 & 로드맵 생성
+              </button>
+            </div>
+          </div>
+
+          <div class="ab-main-layout">
+            <!-- 1단 (좌측): 등록 자원 탐색 패널 -->
+            <div class="ab-left-panel">
+              <div class="ab-panel-header">
+                <h3>📚 자원 및 노드 추가</h3>
+                <p class="ab-panel-sub">클릭 시 캔버스에 노드로 추가됩니다.</p>
+              </div>
+
+              <!-- ✨ 자주 쓰는 커스텀 노드 추가 (상단 이동) -->
+              <div class="ab-custom-nodes-section">
+                <h4>✨ 커스텀 노드 추가</h4>
+                <div class="ab-custom-btn-group">
+                  <button type="button" id="btn-ab-add-trigger" class="btn-ab-custom trigger">+ 🚀 트리거 스텝</button>
+                  <button type="button" id="btn-ab-add-action" class="btn-ab-custom action">+ ⚙️ 액션 스텝</button>
+                  <button type="button" id="btn-ab-add-note" class="btn-ab-custom note">+ 📝 메모 노드</button>
+                </div>
+              </div>
+
+              <div class="ab-search-box" style="margin-top: 8px;">
+                <input type="text" id="ab-search-resource" placeholder="API / AI 모델 검색..." />
+              </div>
+
+              <div class="ab-tabs">
+                <button type="button" class="ab-tab-btn active" data-tab="all">전체</button>
+                <button type="button" class="ab-tab-btn" data-tab="api">API (<span id="ab-count-apis">0</span>)</button>
+                <button type="button" class="ab-tab-btn" data-tab="ai">AI서비스 (<span id="ab-count-ais">0</span>)</button>
+              </div>
+
+              <div id="ab-resource-list" class="ab-resource-list">
+                <!-- 동적 자원 리스트 렌더링 -->
+              </div>
+            </div>
+
+            <!-- 2단 (중앙): 워크플로우 캔버스 영역 -->
+            <div class="ab-center-panel">
+              <div class="ab-canvas-header">
+                <span class="ab-canvas-title">🎨 시스템 흐름(Flow) 캔버스</span>
+                <span class="ab-canvas-tip">💡 팁: 노드 하단 '🔌 연결' 포트를 드래그하여 다른 노드로 연결선(화살표)을 이어주세요.</span>
+              </div>
+              <div id="ab-canvas-container" class="ab-canvas-container">
+                <svg id="ab-svg-layer" class="ab-svg-layer"></svg>
+                <div id="ab-nodes-layer" class="ab-nodes-layer"></div>
+              </div>
+            </div>
+
+            <!-- 3단 (우측): 선택 노드 속성 편집기 -->
+            <div class="ab-right-panel">
+              <div class="ab-panel-header">
+                <h3>⚙️ 선택 노드 상세 설정</h3>
+              </div>
+              <div id="ab-node-prop-editor" class="ab-prop-editor">
+                <div class="ab-prop-empty">
+                  <p>🖱️ 캔버스의 노드를 클릭하면 세부 스텝 속성(명칭, 입출력 규격, 세부 지침)을 수정할 수 있습니다.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>
@@ -202,14 +822,188 @@
     </div>
   </div>
 
+  <!-- 카테고리 일괄 변경 모달 팝업 -->
+  <div id="category-batch-modal-overlay" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🏷️ 카테고리 일괄 변경</h3>
+        <button type="button" id="btn-close-category-batch-modal" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="category-batch-form" class="modal-form">
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="batch-old-category">변경할 기존 카테고리 선택 *</label>
+          <select id="batch-old-category" required>
+            <option value="">-- 변경할 카테고리 선택 --</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 24px;">
+          <label for="batch-new-category">새로운 카테고리 이름 *</label>
+          <input type="text" id="batch-new-category" placeholder="예: 개발, 건강, 기타 등" required />
+        </div>
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" id="btn-cancel-category-batch" class="btn btn-secondary">취소</button>
+          <button type="submit" class="btn btn-primary">일괄 변경 적용</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- AI 용어 정보 수정 모달 팝업 -->
+  <div id="edit-term-modal-overlay" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>✏️ AI 용어 정보 수정</h3>
+        <button type="button" id="btn-close-edit-term-modal" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="edit-term-form" class="modal-form">
+        <input type="hidden" id="edit-term-id" />
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="edit-term-name">용어 / 기술명 *</label>
+          <input type="text" id="edit-term-name" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="edit-term-parent">상위 연결 용어 (마인드맵 부모 노드)</label>
+          <select id="edit-term-parent">
+            <option value="">-- 최상위 노드 (부모 없음) --</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="edit-term-summary">핵심 공부 요약 *</label>
+          <textarea id="edit-term-summary" rows="3" required></textarea>
+        </div>
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" id="btn-cancel-edit-term" class="btn btn-secondary">취소</button>
+          <button type="submit" class="btn btn-primary">수정 저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SAP 용어 정보 수정 모달 팝업 -->
+  <div id="edit-sap-term-modal-overlay" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>✏️ SAP 용어 정보 수정</h3>
+        <button type="button" id="btn-close-edit-sap-term-modal" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="edit-sap-term-form" class="modal-form">
+        <input type="hidden" id="edit-sap-term-id" />
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="edit-sap-term-name">용어 / 기술명 *</label>
+          <input type="text" id="edit-sap-term-name" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="edit-sap-term-category">카테고리</label>
+          <select id="edit-sap-term-category">
+            <option value="모듈 / 코어">모듈 / 코어</option>
+            <option value="개발 / ABAP">개발 / ABAP</option>
+            <option value="아키텍처 / 플랫폼">아키텍처 / 플랫폼</option>
+            <option value="데이터 / 분석">데이터 / 분석</option>
+            <option value="운영 / 관리">운영 / 관리</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="edit-sap-term-parent">상위 연결 용어 (마인드맵 부모 노드)</label>
+          <select id="edit-sap-term-parent">
+            <option value="">-- 최상위 노드 (부모 없음) --</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="edit-sap-term-summary">핵심 공부 요약 *</label>
+          <textarea id="edit-sap-term-summary" rows="3" required></textarea>
+        </div>
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" id="btn-cancel-edit-sap-term" class="btn btn-secondary">취소</button>
+          <button type="submit" class="btn btn-primary">수정 저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 🚀 프로그램 설계서 & 개발 로드맵 모달 -->
+  <div id="ab-output-modal" class="modal-overlay hidden">
+    <div class="modal-card ab-doc-modal-card">
+      <div class="modal-header">
+        <h3>🚀 종합 프로그램 설계서 & 개발 로드맵</h3>
+        <button type="button" id="btn-ab-modal-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="ab-modal-toolbar">
+        <button type="button" id="btn-copy-generated-doc" class="btn btn-primary btn-sm">
+          📋 전체 복사 (클립보드)
+        </button>
+        <button type="button" id="btn-download-generated-md" class="btn btn-secondary btn-sm">
+          💾 .md 파일 다운로드
+        </button>
+      </div>
+      <div class="ab-modal-body">
+        <div id="ab-output-content" class="ab-doc-viewer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 💾 워크플로우 명칭 지정 저장 모달 -->
+  <div id="ab-save-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>💾 워크플로우 명칭 지정 저장</h3>
+        <button type="button" id="btn-ab-save-close" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="ab-save-form" class="modal-form">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="ab-save-name">워크플로우 이름 *</label>
+          <input type="text" id="ab-save-name" placeholder="예: 쇼핑몰 AI CS 자동화 에이전트" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="ab-save-desc">간단 설명 (선택)</label>
+          <textarea id="ab-save-desc" rows="3" placeholder="예: 카카오톡 API와 GPT-4o를 연동한 3단계 처리 구조"></textarea>
+        </div>
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" id="btn-ab-save-cancel" class="btn btn-secondary">취소</button>
+          <button type="submit" class="btn btn-primary">💾 저장하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 📂 저장된 워크플로우 목록 불러오기 모달 -->
+  <div id="ab-load-modal" class="modal-overlay hidden">
+    <div class="modal-card ab-load-modal-card" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3>📂 저장된 워크플로우 목록</h3>
+        <button type="button" id="btn-ab-load-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px;">
+        <div id="ab-saved-list" class="ab-saved-list">
+          <!-- 동적 저장 목록 렌더링 -->
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid var(--border-color);">
+        <button type="button" id="btn-ab-load-cancel" class="btn btn-secondary">닫기</button>
+      </div>
+    </div>
+  </div>
+  <div id="ab-modal-overlay"></div>
+
   <div id="sidebar-overlay" class="sidebar-overlay"></div>
   <div id="toast-container" class="toast-container"></div>
 
   <!-- 순서대로 스크립트 로드 (file:// 로컬 파일 모드 100% 지원) -->
   <script src="app/core/config.js"></script>
+  <script src="data/initialApis.js"></script>
+  <script src="data/initialAiModels.js"></script>
+  <script src="data/initialAiTerms.js"></script>
+  <script src="data/initialSapTerms.js"></script>
   <script src="app/models/apiModel.js"></script>
-  <script src="app/utils/llmHelper.js"></script>
+  <script src="app/models/aiModel.js"></script>
+  <script src="app/models/aiTermModel.js"></script>
+  <script src="app/models/sapTermModel.js"></script>
+  <script src="app/models/ipModel.js"></script>
+  <script src="app/utils/xlsx.full.min.js"></script>
+  <script src="app/utils/excelHelper.js"></script>
   <script src="app/utils/downloadHelper.js"></script>
+  <script src="app/views/mindmapView.js"></script>
+  <script src="app/views/agentBuilderView.js"></script>
   <script src="app/views/uiView.js"></script>
   <script src="app/controllers/appController.js"></script>
   <script src="app/main.js"></script>

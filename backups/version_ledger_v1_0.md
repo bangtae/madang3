@@ -21,11 +21,3 @@
 | 2026-08-09 23:35 | appController_v1_2.js | app/controllers/appController.js | 카테고리 일괄 변경 이벤트 핸들러 추가 사전 백업 |
 | 2026-08-09 23:35 | style_v1_2.css | style.css | 카테고리 일괄 변경 모달 스타일링 사전 백업 |
 | 2026-08-09 23:38 | index_v1_6.html | index.html | edit-modal-overlay 닫는 태그 수정 사전 백업 |
-| 2026-08-15 01:08 | decision_log_v1_0.md | decision_log.md | DART 자동화 의사결정 추가 사전 백업 |
-| 2026-08-15 01:08 | version_ledger_v1_0.md | version_ledger.md | DART 자동화 작업 이력 기록 사전 백업 |
-| 2026-08-15 01:08 | progress_v1_0.md | progress.md | DART 자동화 작업 진행률 갱신 사전 백업 |
-| 2026-08-15 01:09 | dart_crawler.ps1 | dart_automation/dart_crawler.ps1 | DART 공시 크롤링 및 파싱 모듈 신규 생성 |
-| 2026-08-15 01:09 | dart_filter.ps1 | dart_automation/dart_filter.ps1 | 핵심 키워드/관심기업 필터링 모듈 신규 생성 |
-| 2026-08-15 01:09 | dart_exporter.ps1 | dart_automation/dart_exporter.ps1 | UTF-8 BOM 엑셀 CSV 및 JSON 내보내기 모듈 신규 생성 |
-| 2026-08-15 01:09 | main.ps1 | dart_automation/main.ps1 | DART 자동화 대화형 메뉴 및 모니터링 컨트롤러 신규 생성 |
-| 2026-08-16 07:48 | (삭제) | dart_automation/ | dart_automation 폴더 및 관련 소스 파일 일체 삭제 |

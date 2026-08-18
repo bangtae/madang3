@@ -1,0 +1,26 @@
+[
+    {
+        "ip":  "192.168.219.110",
+        "firstAccess":  "2026-08-09 20:53:17",
+        "lastAccess":  "2026-08-09 20:54:04",
+        "count":  94,
+        "status":  "ALLOWED",
+        "lastPath":  "/api/apis"
+    },
+    {
+        "ip":  "192.168.219.115",
+        "firstAccess":  "2026-08-09 20:53:01",
+        "lastAccess":  "2026-08-09 20:54:54",
+        "count":  65,
+        "status":  "ALLOWED",
+        "lastPath":  "/api/access-logs"
+    },
+    {
+        "ip":  "127.0.0.1",
+        "firstAccess":  "2026-08-09 20:52:31",
+        "lastAccess":  "2026-08-09 20:56:35",
+        "count":  2,
+        "status":  "ALLOWED",
+        "lastPath":  "/api/apis"
+    }
+]

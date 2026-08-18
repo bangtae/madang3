@@ -13,4 +13,3 @@
 | Step 6 | Phase 5: 최종 테스트 및 UI Polish | ⏳ 검증 중 | 로컬 서버(3000포트) 실행 중 |
 | Step 7 | 카테고리별 API 정보 JSON/CSV 다운로드 기능 추가 | ✅ 완료 | DownloadHelper 유틸리티 추가 및 엑셀 호환 CSV/JSON 다운로드 구현 |
 | Step 8 | API 정보 수정 버튼 및 수정 모달 구현 | ✅ 완료 | 카드 삭제 버튼 왼쪽에 수정 버튼 추가 및 Edit Modal 연동 완료 |
-| Step 9 | DART 전자공시 자동화 시스템 | 🗑️ 소스 삭제 완료 | dart_automation 폴더 및 관련 스크립트 삭제 |

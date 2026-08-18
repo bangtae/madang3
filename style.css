@@ -156,6 +156,12 @@ body {
   pointer-events: auto;
 }
 
+@media screen and (min-width: 769px) {
+  .sidebar-overlay {
+    display: none !important;
+  }
+}
+
 /* 2단: Left Sidebar */
 .left-sidebar {
   width: 240px;
@@ -287,6 +293,17 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.stat-clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-clickable:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary-color, #6366f1);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
 .stat-icon {
   width: 48px;
   height: 48px;
@@ -384,31 +401,26 @@ body {
   color: var(--text-muted);
 }
 
-input, select {
+input, select, textarea {
   background: rgba(15, 23, 42, 0.8);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 10px 14px;
   color: var(--text-main);
   font-size: 0.9rem;
+  font-family: inherit;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   width: 100%;
+  resize: vertical;
 }
 
-input:focus, select:focus {
+input:focus, select:focus, textarea:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
 }
 
-.category-input-wrapper {
-  display: flex;
-  gap: 8px;
-}
 
-.category-input-wrapper input {
-  flex: 1;
-}
 
 .form-actions {
   display: flex;
@@ -788,13 +800,7 @@ input:focus, select:focus {
     grid-template-columns: 1fr;
   }
 
-  .category-input-wrapper {
-    flex-direction: column;
-  }
 
-  .category-input-wrapper button {
-    width: 100%;
-  }
 
   .api-cards-grid {
     grid-template-columns: 1fr;
@@ -814,3 +820,1159 @@ input:focus, select:focus {
     padding: 16px;
   }
 }
+
+/* ==========================================================================
+   IP Whitelist Component Styles
+   ========================================================================== */
+.ip-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ip-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.ip-item-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.ip-item-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ip-address-text {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.ip-type-tag {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(6, 182, 212, 0.15);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.btn-delete-ip {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-delete-ip:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ffffff;
+}
+
+.ip-type-tag.danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Access Log Container & Cards */
+.ip-logs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ip-log-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background-color: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ip-log-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ip-log-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ip-log-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 12px;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.status-badge.allowed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-badge.blocked {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.ip-log-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-allow-ip {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-allow-ip:hover {
+  background: rgba(34, 197, 94, 0.4);
+  color: #ffffff;
+}
+
+.btn-block-ip {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-block-ip:hover {
+  background: rgba(239, 68, 68, 0.4);
+  color: #ffffff;
+}
+
+/* 엑셀 일괄등록 스타일 (Batch Excel Upload UI) */
+.excel-notice-box {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+
+.excel-notice-box .notice-title {
+  font-weight: 600;
+  color: #a5b4fc;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.excel-notice-box .notice-list {
+  padding-left: 20px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.excel-notice-box .notice-list code {
+  background: rgba(0, 0, 0, 0.3);
+  color: #38bdf8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.excel-dropzone {
+  border: 2px dashed rgba(99, 102, 241, 0.4);
+  border-radius: 12px;
+  padding: 36px 24px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.5);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.excel-dropzone:hover, .excel-dropzone.dragover {
+  border-color: var(--primary-color);
+  background: rgba(99, 102, 241, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2);
+}
+
+.hidden-file-input {
+  display: none !important;
+}
+
+.dropzone-icon {
+  font-size: 2.8rem;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.dropzone-text {
+  font-size: 1.05rem;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.dropzone-subtext {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.selected-file-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(30, 41, 59, 0.9);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--primary-color);
+}
+
+.selected-file-info .file-name {
+  font-weight: 600;
+  color: #a5b4fc;
+}
+
+.selected-file-info .file-size {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.btn-icon-danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-icon-danger:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.preview-stats-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.stat-pill.new {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.stat-pill.update {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.stat-pill.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.excel-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.excel-preview-table th {
+  background: rgba(15, 23, 42, 0.9);
+  color: #a5b4fc;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.excel-preview-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+  vertical-align: middle;
+}
+
+.excel-preview-table tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.badge-status-new {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-status-update {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-status-error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-link {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.url-subtext {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+/* AI Model Card Styles */
+.ai-card {
+  border-left: 4px solid #3b82f6;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+}
+
+.ai-tag {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  word-break: keep-all;
+  display: inline-block;
+}
+
+.ai-pricing-badge {
+  display: inline-block;
+  font-size: 0.78rem;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  word-break: keep-all;
+  line-height: 1.4;
+  max-width: 100%;
+}
+
+/* ==========================================================================
+   AI Terms & Mindmap Graphics Custom Styles
+   ========================================================================== */
+.mindmap-card {
+  position: relative;
+  background: #0f172a;
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.mindmap-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mindmap-container {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.mindmap-container canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.mindmap-guide-overlay {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+/* 마인드맵 용어 상세 정보 패널 */
+.mindmap-detail-panel {
+  position: absolute;
+  top: 70px;
+  right: 24px;
+  width: 320px;
+  max-width: calc(100% - 48px);
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(167, 139, 250, 0.4);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+  z-index: 50;
+  animation: fadeIn 0.2s ease;
+}
+
+.mindmap-detail-panel.hidden {
+  display: none;
+}
+
+.detail-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.detail-panel-header h4 {
+  font-size: 1.05rem;
+  color: #a78bfa;
+  margin: 0;
+}
+
+.btn-close-sm {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.btn-close-sm:hover {
+  color: var(--text-main);
+}
+
+.detail-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.badge-importance {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.badge-parent {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+}
+
+.detail-summary {
+  font-size: 0.85rem;
+  color: var(--text-main);
+  line-height: 1.5;
+  margin-bottom: 10px;
+  word-break: keep-all;
+}
+
+.detail-rel-box {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* AI 용어 카드 */
+.term-card {
+  border-left: 4px solid #8b5cf6;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+}
+
+/* ==========================================================================
+   AI 에이전트 & 오토메이션 Builder (Flow Canvas & Architecture Generator)
+   ========================================================================== */
+
+.ab-main-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr 280px;
+  gap: 16px;
+  margin-top: 16px;
+  min-height: calc(100vh - 180px);
+}
+
+@media (max-width: 1200px) {
+  .ab-main-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 1단: 좌측 등록 자원 탐색 패널 */
+.ab-left-panel, .ab-right-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 800px;
+  overflow-y: auto;
+}
+
+.ab-panel-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+
+.ab-panel-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ab-search-box input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input, rgba(15, 23, 42, 0.6));
+  color: var(--text-main);
+  font-size: 0.82rem;
+}
+
+.ab-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.ab-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ab-tab-btn.active, .ab-tab-btn:hover {
+  background: var(--primary-color, #6366f1);
+  color: #fff;
+}
+
+.ab-resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex: 1;
+  max-height: 480px;
+  padding-right: 4px;
+}
+
+.ab-resource-card {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.ab-resource-card:hover {
+  transform: translateY(-2px);
+  border-color: #6366f1;
+}
+
+.ab-res-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ab-res-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.badge-purple { background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.4); }
+.badge-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+
+.ab-res-cat {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.ab-res-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.ab-res-desc {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.btn-ab-add-node {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.btn-ab-add-node:hover {
+  background: #6366f1;
+  color: #fff;
+}
+
+.ab-custom-nodes-section {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.ab-custom-nodes-section h4 {
+  font-size: 0.82rem;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.ab-custom-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btn-ab-custom {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed var(--border-color);
+  color: var(--text-main);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.btn-ab-custom.trigger:hover { border-color: #f59e0b; color: #fbbf24; background: rgba(245, 158, 11, 0.1); }
+.btn-ab-custom.action:hover { border-color: #10b981; color: #34d399; background: rgba(16, 185, 129, 0.1); }
+.btn-ab-custom.note:hover { border-color: #06b6d4; color: #22d3ee; background: rgba(6, 182, 212, 0.1); }
+
+/* 2단 (중앙): 워크플로우 캔버스 영역 */
+.ab-center-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  min-height: 600px;
+}
+
+.ab-canvas-header {
+  padding: 12px 16px;
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ab-canvas-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.ab-canvas-tip {
+  font-size: 0.75rem;
+  color: #38bdf8;
+}
+
+.ab-canvas-container {
+  flex: 1;
+  position: relative;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-color: #0b0f19;
+  width: 100%;
+  height: 100%;
+  min-height: 650px;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.ab-svg-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ab-svg-layer path, .ab-svg-layer circle {
+  pointer-events: auto;
+}
+
+.ab-nodes-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* 캔버스 노드 카드 */
+.ab-node-card {
+  position: absolute;
+  width: 220px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  cursor: move;
+  user-select: none;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.ab-node-card.selected {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.node-type-api { border-top: 4px solid #8b5cf6; }
+.node-type-ai { border-top: 4px solid #3b82f6; }
+.node-type-trigger { border-top: 4px solid #f59e0b; }
+.node-type-action { border-top: 4px solid #10b981; }
+.node-type-note { border-top: 4px solid #06b6d4; }
+
+.ab-node-header {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ab-node-icon { font-size: 1.1rem; }
+
+.ab-node-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.ab-node-btn-del {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.ab-node-btn-del:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.ab-node-body {
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ab-node-desc {
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ab-node-note-preview {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ab-node-footer {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.ab-node-cat {
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.ab-node-port {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: crosshair;
+  transition: all 0.2s;
+}
+
+.ab-node-port:hover {
+  background: #6366f1;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+}
+
+/* SVG 커넥터 스타일 */
+.ab-conn-path-bg {
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 5px;
+  fill: none;
+}
+
+.ab-conn-path {
+  stroke: #6366f1;
+  stroke-width: 3px;
+  fill: none;
+  transition: stroke 0.2s;
+}
+
+.ab-connection-group:hover .ab-conn-path {
+  stroke: #38bdf8;
+  stroke-width: 4px;
+}
+
+.ab-conn-temp {
+  stroke: #38bdf8;
+  stroke-width: 3px;
+  stroke-dasharray: 5, 5;
+  fill: none;
+}
+
+.ab-conn-del-btn {
+  fill: #ef4444;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 10px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.ab-connection-group:hover .ab-conn-del-btn {
+  opacity: 1;
+}
+
+/* 3단: 우측 선택 노드 속성 편집기 */
+.ab-prop-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ab-prop-form h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.ab-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ab-form-group label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.ab-form-group input, .ab-form-group textarea {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text-main);
+  font-size: 0.8rem;
+}
+
+.btn-ab-primary {
+  background: var(--primary-color, #6366f1);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+
+.btn-ab-primary:hover {
+  background: #4f46e5;
+}
+
+.ab-prop-empty {
+  padding: 20px 10px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+/* 🚀 결과물 마크다운 모달 & 뷰어 */
+.ab-doc-modal-card {
+  width: 90%;
+  max-width: 900px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ab-modal-toolbar {
+  display: flex;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(15, 23, 42, 0.6);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ab-modal-body {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background: #0f172a;
+}
+
+.ab-doc-viewer {
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.ab-doc-h1 { font-size: 1.4rem; color: #38bdf8; border-bottom: 2px solid rgba(56, 189, 248, 0.3); padding-bottom: 8px; margin-bottom: 16px; }
+.ab-doc-h2 { font-size: 1.15rem; color: #a78bfa; margin-top: 24px; margin-bottom: 12px; }
+.ab-doc-h3 { font-size: 1rem; color: #f472b6; margin-top: 16px; margin-bottom: 8px; }
+.ab-code-block { background: #020617; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; font-family: monospace; font-size: 0.84rem; overflow-x: auto; color: #38bdf8; }
+.ab-inline-code { background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+.ab-doc-quote { border-left: 4px solid #6366f1; background: rgba(99, 102, 241, 0.1); padding: 8px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; color: #cbd5e1; }
+
+/* 저장된 워크플로우 목록 카탈로그 스타일 */
+.ab-saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.ab-saved-item-card {
+  background: var(--bg-card, #1e293b);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.ab-saved-item-card:hover {
+  border-color: #6366f1;
+  transform: translateY(-2px);
+}
+
+.ab-saved-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.ab-saved-item-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main, #f8fafc);
+}
+
+.ab-saved-item-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1.4;
+}
+
+.ab-saved-item-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.73rem;
+  color: #a5b4fc;
+  margin-top: 4px;
+}
+
+.ab-saved-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+
+
+
+
