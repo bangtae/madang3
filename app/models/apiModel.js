@@ -46,6 +46,12 @@ window.ApiModel = {
     try {
       const parsed = JSON.parse(rawData);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        // 기존 저장이 데모 2개뿐이거나 fallback보다 적으면 병합하여 풍부한 데이터 제공
+        if (parsed.length < fallbackApis.length) {
+          const merged = this.mergeApis(parsed, fallbackApis);
+          localStorage.setItem(window.CONFIG.STORAGE_KEY, JSON.stringify(merged));
+          return merged;
+        }
         return parsed;
       }
       return fallbackApis;
