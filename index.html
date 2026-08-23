@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PORTAL BANG</title>
+  <script>
+    (function() {
+      var u = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+      if (!u) {
+        window.location.replace('login.html');
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -92,9 +100,6 @@
               <button class="nav-side-btn" data-side="batch-register">
                 <span class="icon">📥</span> 일괄등록
               </button>
-              <a href="https://supabase.com/dashboard" target="_blank" class="nav-side-btn" style="text-decoration: none; color: #38bdf8; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                <span class="icon">⚡</span> Supabase DB 대시보드 ↗
-              </a>
             </li>
           </ul>
         </div>
@@ -540,11 +545,8 @@
           <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
             <div>
               <h2>🛡️ IP 화이트리스트 및 시스템 관리</h2>
-              <p>접속 허용 IP 주소 및 공유 클라우드 데이터베이스(Supabase)를 통합 관리합니다.</p>
+              <p>접속 허용 IP 주소 및 시스템 환경을 통합 관리합니다.</p>
             </div>
-            <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; font-weight: 600;">
-              <span>⚡ Supabase 콘솔 바로가기 (supabase.com) ↗</span>
-            </a>
           </div>
 
           <div class="card form-card">
