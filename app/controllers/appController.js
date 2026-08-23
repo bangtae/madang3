@@ -165,41 +165,9 @@ window.AppController = {
     if (searchInput) searchInput.addEventListener('input', () => this.applySearchAndFilter());
     if (categoryFilter) categoryFilter.addEventListener('change', () => this.applySearchAndFilter());
 
-    // 6. 데이터 강제 동기화 (밀어넣기) 및 다운로드 버튼 이벤트 (JSON / CSV)
-    const btnSyncToFile = document.getElementById('btn-sync-to-file');
+    // 6. 데이터 다운로드 버튼 이벤트 (JSON / CSV)
     const btnDownloadJson = document.getElementById('btn-download-json');
     const btnDownloadCsv = document.getElementById('btn-download-csv');
-
-    if (btnSyncToFile) {
-      btnSyncToFile.addEventListener('click', async () => {
-        let apis = window.ApiModel.getApis();
-        const fallbackApis = window.PORTAL_DATA_APIS || window.CONFIG.INITIAL_APIS || [];
-        apis = window.ApiModel.mergeApis(apis, fallbackApis);
-        window.ApiModel.apis = apis;
-
-        if (!apis || apis.length === 0) {
-          window.UiView.showToast('⚠️ 동기화할 API 데이터가 없습니다.', 'error');
-          return;
-        }
-
-        btnSyncToFile.disabled = true;
-        const originalText = btnSyncToFile.innerText;
-        btnSyncToFile.innerText = '⏳ 밀어넣는 중...';
-
-        try {
-          // LocalStorage 저장 및 서버 apis.json / initialApis.js로 전송
-          window.ApiModel.saveAllApis(apis);
-          this.refreshAllViews();
-          window.UiView.showToast(`✅ ${apis.length}개의 API 데이터가 서버 파일(apis.json & initialApis.js)로 성공적으로 밀어넣어졌습니다!`);
-        } catch (err) {
-          console.error(err);
-          window.UiView.showToast('❌ 동기화 중 오류가 발생했습니다.', 'error');
-        } finally {
-          btnSyncToFile.disabled = false;
-          btnSyncToFile.innerText = originalText;
-        }
-      });
-    }
 
     if (btnDownloadJson) {
       btnDownloadJson.addEventListener('click', () => this.handleDownload('json'));
@@ -634,30 +602,6 @@ window.AppController = {
     if (searchAiInput) searchAiInput.addEventListener('input', () => this.applyAiSearchAndFilter());
     if (categoryAiFilter) categoryAiFilter.addEventListener('change', () => this.applyAiSearchAndFilter());
 
-    const btnSyncAi = document.getElementById('btn-sync-ai-to-file');
-    if (btnSyncAi) {
-      btnSyncAi.addEventListener('click', async () => {
-        if (!window.AiModel) return;
-        let models = window.AiModel.getAiModels();
-        const fallbackModels = window.PORTAL_DATA_AI_MODELS || [];
-        models = window.AiModel.mergeModels(models, fallbackModels);
-
-        btnSyncAi.disabled = true;
-        const origText = btnSyncAi.innerText;
-        btnSyncAi.innerText = '⏳ 밀어넣는 중...';
-        try {
-          window.AiModel.saveAllModels(models);
-          this.loadAndRenderAiModels();
-          window.UiView.showToast(`✅ ${models.length}개의 AI 모델 데이터가 서버 파일(aiModels.json & initialAiModels.js)로 밀어넣어졌습니다!`);
-        } catch (e) {
-          window.UiView.showToast('❌ 동기화 중 오류가 발생했습니다.');
-        } finally {
-          btnSyncAi.disabled = false;
-          btnSyncAi.innerText = origText;
-        }
-      });
-    }
-
     const btnDownloadAiJson = document.getElementById('btn-download-ai-json');
     if (btnDownloadAiJson) {
       btnDownloadAiJson.addEventListener('click', () => {
@@ -804,31 +748,6 @@ window.AppController = {
       btnCloseTermDetail.addEventListener('click', () => window.UiView.hideTermDetailPanel());
     }
 
-    // 16. AI 용어 강제 파일 동기화 & JSON 다운로드
-    const btnSyncTerms = document.getElementById('btn-sync-terms-to-file');
-    if (btnSyncTerms) {
-      btnSyncTerms.addEventListener('click', async () => {
-        if (!window.AiTermModel) return;
-        let terms = window.AiTermModel.getTerms();
-        const fallbackTerms = window.PORTAL_DATA_AI_TERMS || [];
-        terms = window.AiTermModel.mergeTerms(terms, fallbackTerms);
-
-        btnSyncTerms.disabled = true;
-        const origText = btnSyncTerms.innerText;
-        btnSyncTerms.innerText = '⏳ 밀어넣는 중...';
-        try {
-          window.AiTermModel.saveAllTerms(terms);
-          this.loadAndRenderAiTerms();
-          window.UiView.showToast(`✅ ${terms.length}개의 AI 용어 데이터가 서버 파일(aiTerms.json & initialAiTerms.js)로 밀어넣어졌습니다!`);
-        } catch (e) {
-          window.UiView.showToast('❌ 동기화 중 오류가 발생했습니다.');
-        } finally {
-          btnSyncTerms.disabled = false;
-          btnSyncTerms.innerText = origText;
-        }
-      });
-    }
-
     const btnDownloadTermsJson = document.getElementById('btn-download-terms-json');
     if (btnDownloadTermsJson) {
       btnDownloadTermsJson.addEventListener('click', () => {
@@ -972,31 +891,6 @@ window.AppController = {
 
     if (btnCloseSapTermDetail) {
       btnCloseSapTermDetail.addEventListener('click', () => window.UiView.hideSapTermDetailPanel());
-    }
-
-    // 21. SAP 용어 강제 파일 동기화 & JSON 다운로드
-    const btnSyncSapTerms = document.getElementById('btn-sync-sap-terms-to-file');
-    if (btnSyncSapTerms) {
-      btnSyncSapTerms.addEventListener('click', async () => {
-        if (!window.SapTermModel) return;
-        let terms = window.SapTermModel.getTerms();
-        const fallbackTerms = window.PORTAL_DATA_SAP_TERMS || [];
-        terms = window.SapTermModel.mergeTerms(terms, fallbackTerms);
-
-        btnSyncSapTerms.disabled = true;
-        const origText = btnSyncSapTerms.innerText;
-        btnSyncSapTerms.innerText = '⏳ 밀어넣는 중...';
-        try {
-          window.SapTermModel.saveAllTerms(terms);
-          this.loadAndRenderSapTerms();
-          window.UiView.showToast(`✅ ${terms.length}개의 SAP 용어 데이터가 서버 파일(sapTerms.json & initialSapTerms.js)로 밀어넣어졌습니다!`);
-        } catch (e) {
-          window.UiView.showToast('❌ 동기화 중 오류가 발생했습니다.');
-        } finally {
-          btnSyncSapTerms.disabled = false;
-          btnSyncSapTerms.innerText = origText;
-        }
-      });
     }
 
     const btnDownloadSapTermsJson = document.getElementById('btn-download-sap-terms-json');
