@@ -4,9 +4,9 @@ window.CONFIG = {
   STORAGE_KEY: 'portal_api_items',
   DEFAULT_CATEGORIES: ['AI / LLM', '지도 / 위치', '날씨', '소셜 / 인증', '기타'],
   
-  // Supabase 클라우드 DB 접속 설정 (환경변수 또는 지정된 템플릿 키 활용)
-  SUPABASE_URL: window.ENV_SUPABASE_URL || 'https://your-supabase-project.supabase.co',
-  SUPABASE_ANON_KEY: window.ENV_SUPABASE_ANON_KEY || 'your-supabase-anon-key',
+  // Supabase 클라우드 DB 접속 설정 (공용 DB 연동)
+  SUPABASE_URL: window.ENV_SUPABASE_URL || 'https://vouwdahhvvfxlcpyywij.supabase.co',
+  SUPABASE_ANON_KEY: window.ENV_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvdXdkYWhodnZmeGxjcHl5d2lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMzM4NDEsImV4cCI6MjEwMjgwOTg0MX0.L4Jh3gNS3p21S3skGnP_r2ID6cuaQuuIPNoFSy-IETw',
 
   get INITIAL_APIS() {
     return window.PORTAL_DATA_APIS || [];
