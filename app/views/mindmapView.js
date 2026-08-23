@@ -422,14 +422,49 @@ class MindmapRenderer {
       this.render();
     }, { passive: false });
 
-    // 마우스 누름 (드래그 시작)
-    this.canvas.addEventListener('mousedown', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+    // 모바일 터치 및 브라우저 스크롤 방지 CSS 설정
+    this.canvas.style.touchAction = 'none';
 
-      const worldX = (mouseX - this.camera.x) / this.camera.zoom;
-      const worldY = (mouseY - this.camera.y) / this.camera.zoom;
+    // -------------------------------------------------------------
+    // PC 마우스 및 모바일 터치 통합 이벤트 헬퍼 유틸리티
+    // -------------------------------------------------------------
+    const getPos = (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      if (e.touches && e.touches.length > 0) {
+        return {
+          x: e.touches[0].clientX - rect.left,
+          y: e.touches[0].clientY - rect.top
+        };
+      }
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    };
+
+    const getTouchDistance = (touches) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    let initialPinchDistance = 0;
+    let initialPinchZoom = 1;
+
+    // 드래그/터치 시작
+    const handleStart = (e) => {
+      if (e.touches && e.touches.length === 2) {
+        // 멀티터치 (핀치 줌) 시작
+        this.isDraggingNode = false;
+        this.isDraggingCamera = false;
+        initialPinchDistance = getTouchDistance(e.touches);
+        initialPinchZoom = this.camera.zoom;
+        return;
+      }
+
+      const pos = getPos(e);
+      const worldX = (pos.x - this.camera.x) / this.camera.zoom;
+      const worldY = (pos.y - this.camera.y) / this.camera.zoom;
 
       const clickedNode = this.nodes.find(node => {
         const dx = worldX - node.x;
@@ -448,20 +483,31 @@ class MindmapRenderer {
         }
       } else {
         this.isDraggingCamera = true;
-        this.dragStartPos = { x: mouseX - this.camera.x, y: mouseY - this.camera.y };
+        this.dragStartPos = { x: pos.x - this.camera.x, y: pos.y - this.camera.y };
       }
-    });
+    };
 
-    // 마우스 이동
-    this.canvas.addEventListener('mousemove', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+    // 드래그/터치 이동
+    const handleMove = (e) => {
+      if (e.touches && e.touches.length === 2) {
+        // 멀티터치 (핀치 줌) 이동
+        if (e.cancelable) e.preventDefault();
+        const currentDist = getTouchDistance(e.touches);
+        if (initialPinchDistance > 0) {
+          const scale = currentDist / initialPinchDistance;
+          const newZoom = Math.min(Math.max(0.4, initialPinchZoom * scale), 3.0);
+          this.camera.zoom = newZoom;
+          this.render();
+        }
+        return;
+      }
 
-      const worldX = (mouseX - this.camera.x) / this.camera.zoom;
-      const worldY = (mouseY - this.camera.y) / this.camera.zoom;
+      const pos = getPos(e);
+      const worldX = (pos.x - this.camera.x) / this.camera.zoom;
+      const worldY = (pos.y - this.camera.y) / this.camera.zoom;
 
       if (this.isDraggingNode && this.draggedNode) {
+        if (e.cancelable) e.preventDefault();
         this.draggedNode.x = worldX;
         this.draggedNode.y = worldY;
         this.render();
@@ -469,12 +515,14 @@ class MindmapRenderer {
       }
 
       if (this.isDraggingCamera) {
-        this.camera.x = mouseX - this.dragStartPos.x;
-        this.camera.y = mouseY - this.dragStartPos.y;
+        if (e.cancelable) e.preventDefault();
+        this.camera.x = pos.x - this.dragStartPos.x;
+        this.camera.y = pos.y - this.dragStartPos.y;
         this.render();
         return;
       }
 
+      // 호버 처리 (마우스 호버)
       const hoveredNode = this.nodes.find(node => {
         const dx = worldX - node.x;
         const dy = worldY - node.y;
@@ -494,14 +542,32 @@ class MindmapRenderer {
           this.render();
         }
       }
-    });
+    };
 
-    // 마우스 뗌
-    window.addEventListener('mouseup', () => {
+    // 드래그/터치 종료
+    const handleEnd = () => {
       this.isDraggingNode = false;
       this.draggedNode = null;
       this.isDraggingCamera = false;
-    });
+      initialPinchDistance = 0;
+    };
+
+    // PC 마우스 이벤트 바인딩
+    this.canvas.addEventListener('mousedown', handleStart);
+    this.canvas.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    // 모바일/스마트폰 터치 이벤트 바인딩 (Touch Events)
+    this.canvas.addEventListener('touchstart', (e) => {
+      handleStart(e);
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchmove', (e) => {
+      handleMove(e);
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchend', handleEnd, { passive: true });
+    this.canvas.addEventListener('touchcancel', handleEnd, { passive: true });
   }
 }
 
