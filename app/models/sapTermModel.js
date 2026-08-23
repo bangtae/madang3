@@ -54,26 +54,64 @@ window.SapTermModel = {
    */
   mergeTerms(listA = [], listB = []) {
     const combined = [...(listA || []), ...(listB || [])];
-    const seen = new Set();
-    const result = [];
+    const map = new Map();
 
     for (const item of combined) {
+      if (!item || !item.term) continue;
       const normKey = (item.term || '').trim().toLowerCase();
-      if (!normKey) continue;
-      if (!seen.has(normKey)) {
-        seen.add(normKey);
-        result.push(item);
+
+      if (map.has(normKey)) {
+        const existing = map.get(normKey);
+        const mergedObj = { ...existing };
+        for (const [k, v] of Object.entries(item)) {
+          if (v !== undefined && v !== null && v !== '') {
+            mergedObj[k] = v;
+          }
+        }
+        map.set(normKey, mergedObj);
+      } else {
+        map.set(normKey, item);
       }
     }
-    return result;
+
+    return Array.from(map.values());
   },
 
   async initSync() {
     if (this.isSyncing) return;
     this.isSyncing = true;
     const localTerms = this.getTermsFromLocal();
-    let synced = false;
 
+    // 1. Supabase Cloud DB 연동 확인
+    if (window.isSupabaseEnabled()) {
+      try {
+        const supabase = window.getSupabaseClient();
+        const { data, error } = await supabase.from('sap_terms').select('*').order('created_at', { ascending: false });
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const formattedFromDb = data.map(dbItem => ({
+            id: dbItem.id,
+            term: dbItem.term,
+            definition: dbItem.definition || '',
+            summary: dbItem.definition || '',
+            category: dbItem.category || '모듈 / 코어',
+            tags: dbItem.tags || [],
+            createdAt: dbItem.created_at
+          }));
+          this.sapTerms = this.mergeTerms(formattedFromDb, localTerms);
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.sapTerms));
+          this.isSyncing = false;
+          if (window.AppController && typeof window.AppController.refreshAllViews === 'function') {
+            window.AppController.refreshAllViews();
+          }
+          return;
+        }
+      } catch (e) {
+        console.warn('[Supabase SapTermModel Sync Error]:', e);
+      }
+    }
+
+    // 2. Supabase 미연동 시 REST API 폴백
+    let synced = false;
     const urls = this.getApiUrls();
     for (const url of urls) {
       try {

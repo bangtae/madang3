@@ -1,8 +1,10 @@
 # Sensitive & Configuration Files (보안 민감 데이터 차단)
 .env
-.env.local
+.env.*
+!.env.example
 *.key
 *.pem
+*.zip
 
 # Dependencies & Build Outputs (불필요 빌드 파일 차단)
 node_modules/
@@ -11,6 +13,7 @@ build/
 
 # Local Database & Log Files (로컬 개인 데이터 차단)
 data/apis.json
+data/user_export_apis.json
 *.log
 
 # System & OS Files (시스템 임시 파일 차단)
@@ -21,3 +24,4 @@ desktop.ini
 # IDE Settings (개인 IDE 설정)
 .vscode/
 .idea/
+

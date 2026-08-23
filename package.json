@@ -1,0 +1,15 @@
+{
+  "name": "portal-bang",
+  "version": "1.0.0",
+  "description": "PORTAL BANG Integrated Data & AI Portal System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

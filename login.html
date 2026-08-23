@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PORTAL BANG - 로그인</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #0f172a 100%);
+      --glass-bg: rgba(30, 41, 59, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --accent: #818cf8;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      color: var(--text-main);
+    }
+
+    /* Ambient background glow effects */
+    .glow-circle-1 {
+      position: absolute;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(0,0,0,0) 70%);
+      top: -100px;
+      left: -100px;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .glow-circle-2 {
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.2) 0%, rgba(0,0,0,0) 70%);
+      bottom: -120px;
+      right: -120px;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .login-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 44px 40px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 30px rgba(56, 189, 248, 0.1);
+      z-index: 10;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .brand-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .brand-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(129, 140, 248, 0.2) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 16px;
+      font-size: 28px;
+      margin-bottom: 14px;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+    }
+
+    .brand-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      color: var(--text-muted);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 14px 14px 44px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+      background: rgba(15, 23, 42, 0.8);
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+      border: none;
+      border-radius: 10px;
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    .error-msg {
+      display: none;
+      color: #f87171;
+      font-size: 0.85rem;
+      margin-top: 12px;
+      text-align: center;
+      background: rgba(239, 68, 68, 0.1);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <div class="glow-circle-1"></div>
+  <div class="glow-circle-2"></div>
+
+  <div class="login-card">
+    <div class="brand-header">
+      <div class="brand-logo">⚡</div>
+      <h1 class="brand-title">PORTAL BANG</h1>
+      <p class="brand-subtitle">통합 데이터 & AI 자산 관리 포털 시스템</p>
+    </div>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label for="username" class="form-label">아이디 (Username)</label>
+        <div class="input-wrapper">
+          <span class="input-icon">👤</span>
+          <input type="text" id="username" class="form-input" placeholder="아이디를 입력하세요" required autocomplete="username">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="form-label">비밀번호 (Password)</label>
+        <div class="input-wrapper">
+          <span class="input-icon">🔒</span>
+          <input type="password" id="password" class="form-input" placeholder="비밀번호를 입력하세요" required autocomplete="current-password">
+        </div>
+      </div>
+
+      <div id="error-message" class="error-msg"></div>
+
+      <button type="submit" class="btn-submit">로그인 (Login) ➔</button>
+    </form>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // 이미 로그인 세션이 유효하면 메인 페이지로 자동 이동
+      if (sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user')) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const form = document.getElementById('login-form');
+      const errorMsg = document.getElementById('error-message');
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const u = document.getElementById('username').value.trim();
+        const p = document.getElementById('password').value.trim();
+
+        if (!u || !p) {
+          errorMsg.textContent = '아이디와 비밀번호를 모두 입력해 주세요.';
+          errorMsg.style.display = 'block';
+          return;
+        }
+
+        // 기본 관리자 계정 인증 검증 (아이디: admin, 비밀번호: admin1234)
+        if ((u === 'admin' && p === 'admin1234') || (u === 'bangtae' && p === 'admin1234')) {
+          const sessionUser = {
+            username: u,
+            role: '최고 관리자',
+            loginAt: new Date().toISOString()
+          };
+
+          sessionStorage.setItem('portal_auth_user', JSON.stringify(sessionUser));
+          localStorage.setItem('portal_auth_user', JSON.stringify(sessionUser));
+
+          // 메인 index.html 페이지로 이동
+          window.location.href = 'index.html';
+        } else {
+          errorMsg.textContent = '⚠️ 아이디 또는 비밀번호가 일치하지 않습니다.';
+          errorMsg.style.display = 'block';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

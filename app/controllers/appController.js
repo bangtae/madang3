@@ -6,8 +6,24 @@ window.AppController = {
   parsedBatchRows: [],
 
   init() {
+    this.checkAuthGuard();
     this.bindEvents();
     this.refreshAllViews();
+  },
+
+  checkAuthGuard() {
+    const rawUser = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+    if (!rawUser) {
+      window.location.href = 'login.html';
+      return;
+    }
+    try {
+      const user = JSON.parse(rawUser);
+      const badge = document.getElementById('user-display-badge');
+      if (badge && user.username) {
+        badge.textContent = `${user.username} (${user.role || '개발자'})`;
+      }
+    } catch(e) {}
   },
 
   refreshAllViews() {
@@ -24,6 +40,17 @@ window.AppController = {
   },
 
   bindEvents() {
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        if (confirm('안전하게 로그아웃하시겠습니까?')) {
+          sessionStorage.removeItem('portal_auth_user');
+          localStorage.removeItem('portal_auth_user');
+          window.location.href = 'login.html';
+        }
+      });
+    }
+
     // 메인 대시보드 통계 카드 클릭 -> 해당 메뉴 화면 이동 숏컷
     const cardStatApis = document.getElementById('card-stat-apis');
     if (cardStatApis) {

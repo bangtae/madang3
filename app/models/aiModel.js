@@ -1,4 +1,4 @@
-﻿// app/models/aiModel.js - LocalStorage 및 중앙 서버(aiModels.json) 양방향 동기화 AI 모델 데이터 관리 모듈
+// app/models/aiModel.js - LocalStorage 및 중앙 서버(aiModels.json) 양방향 동기화 AI 모델 데이터 관리 모듈
 
 window.AiModel = {
   aiModels: [],
@@ -24,7 +24,7 @@ window.AiModel = {
   getAiModelsFromLocal() {
     const fallbackModels = window.PORTAL_DATA_AI_MODELS || [];
     const rawData = localStorage.getItem(this.STORAGE_KEY);
-    if (!rawData) {
+    if (!rawData || rawData === '[]' || rawData === 'null') {
       if (fallbackModels.length > 0) {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(fallbackModels));
       }
@@ -33,8 +33,9 @@ window.AiModel = {
     try {
       const parsed = JSON.parse(rawData);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return this.mergeModels(parsed, fallbackModels);
       }
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(fallbackModels));
       return fallbackModels;
     } catch (e) {
       return fallbackModels;
@@ -42,6 +43,9 @@ window.AiModel = {
   },
 
   getAiModels() {
+    if (Array.isArray(this.aiModels) && this.aiModels.length > 0) {
+      return this.aiModels;
+    }
     const localModels = this.getAiModelsFromLocal();
     const fallbackModels = window.PORTAL_DATA_AI_MODELS || [];
     const merged = this.mergeModels(localModels, fallbackModels);
@@ -61,39 +65,42 @@ window.AiModel = {
     if (this.isSyncing) return;
     this.isSyncing = true;
     const localModels = this.getAiModelsFromLocal();
-    let synced = false;
 
-    const urls = this.getApiUrls();
-    for (const url of urls) {
+    // 1. Supabase Cloud DB 연동 확인
+    if (window.isSupabaseEnabled()) {
       try {
-        const res = await fetch(url, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' },
-          cache: 'no-cache'
-        });
-
-        if (res.ok) {
-          const text = await res.text();
-          const cleanText = text.replace(/^\uFEFF/, '').trim();
-          const serverModels = JSON.parse(cleanText || '[]');
-          if (Array.isArray(serverModels) && serverModels.length > 0) {
-            const merged = this.mergeModels(localModels, serverModels);
-            this.aiModels = merged;
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(merged));
-            this.syncToServer(merged);
-            synced = true;
-            break;
+        const supabase = window.getSupabaseClient();
+        const { data, error } = await supabase.from('ai_models').select('*').order('created_at', { ascending: false });
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const formattedFromDb = data.map(dbItem => ({
+            id: dbItem.id,
+            title: dbItem.title,
+            category: dbItem.category || 'LLM / 멀티모달',
+            developer: dbItem.provider || 'AI Provider',
+            provider: dbItem.provider || 'AI Provider',
+            description: dbItem.description || '',
+            summary: dbItem.description || '',
+            createdAt: dbItem.created_at
+          }));
+          
+          this.aiModels = this.mergeModels(formattedFromDb, localModels);
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.aiModels));
+          this.isSyncing = false;
+          if (window.AppController && typeof window.AppController.refreshAllViews === 'function') {
+            window.AppController.refreshAllViews();
           }
+          return;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[Supabase AiModel Sync Error]:', e);
+      }
     }
 
-    if (!synced) {
-      const fallbackModels = window.PORTAL_DATA_AI_MODELS || [];
-      const merged = this.mergeModels(localModels, fallbackModels);
-      this.aiModels = merged;
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(merged));
-    }
+    // 2. Supabase 미연동 또는 DB 비어있을 시 Local / REST API 폴백
+    const fallbackModels = window.PORTAL_DATA_AI_MODELS || [];
+    const merged = this.mergeModels(localModels, fallbackModels);
+    this.aiModels = merged;
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(merged));
 
     this.isSyncing = false;
     if (window.AppController && typeof window.AppController.refreshAllViews === 'function') {
@@ -146,33 +153,31 @@ window.AiModel = {
    */
   deduplicateModels(modelsList) {
     const rawList = modelsList || this.aiModels || [];
-    if (!Array.isArray(rawList) || rawList.length === 0) return rawList;
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
-    const seen = new Set();
-    const cleanModels = [];
+    const map = new Map();
 
     for (const model of rawList) {
-      const canonicalS = this.getCanonicalUrl(model.serviceUrl) || model.serviceUrl;
+      if (!model) continue;
       const titleKey = (model.title || '').trim().toLowerCase();
-      
-      // 대표 식별 키: canonical service URL 또는 타이틀
-      const uniqueKey = canonicalS ? `url:${canonicalS.toLowerCase().replace(/\/+$/, '')}` : `title:${titleKey}`;
+      const uniqueKey = model.id ? `id:${model.id}` : (titleKey ? `title:${titleKey}` : `rand_${Math.random()}`);
 
-      if (!seen.has(uniqueKey)) {
-        seen.add(uniqueKey);
-        // serviceUrl을 canonical 형태로 보정하여 저장
-        cleanModels.push({
-          ...model,
-          serviceUrl: canonicalS || model.serviceUrl
-        });
+      if (map.has(uniqueKey)) {
+        const existing = map.get(uniqueKey);
+        const mergedObj = { ...existing };
+        for (const [k, v] of Object.entries(model)) {
+          if (v !== undefined && v !== null && v !== '') {
+            mergedObj[k] = v;
+          }
+        }
+        map.set(uniqueKey, mergedObj);
+      } else {
+        map.set(uniqueKey, model);
       }
     }
 
-    if (cleanModels.length !== rawList.length) {
-      this.aiModels = cleanModels;
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cleanModels));
-      this.syncToServer(cleanModels);
-    }
+    const cleanModels = Array.from(map.values());
+    this.aiModels = cleanModels;
     return cleanModels;
   },
 

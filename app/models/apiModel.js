@@ -7,6 +7,9 @@ window.ApiModel = {
   /**
    * 서버 REST API URL 및 폴백 URL 목록 구하기
    */
+  /**
+   * 서버 REST API URL 및 폴백 URL 목록 구하기
+   */
   getApiUrls() {
     if (window.location.protocol.startsWith('http')) {
       return ['/api/apis', './data/apis.json'];
@@ -23,9 +26,12 @@ window.ApiModel = {
   },
 
   /**
-   * 저장된 전체 API 목록 조회 (로컬 저장소 + 기본 236개 API 100% 보장 병합)
+   * 저장된 전체 API 목록 조회
    */
   getApis() {
+    if (Array.isArray(this.apis) && this.apis.length > 0) {
+      return this.apis;
+    }
     const localApis = this.getApisFromLocal();
     const fallbackApis = window.PORTAL_DATA_APIS || (window.CONFIG ? window.CONFIG.INITIAL_APIS : []) || [];
     const merged = this.mergeApis(localApis, fallbackApis);
@@ -34,7 +40,7 @@ window.ApiModel = {
   },
 
   /**
-   * LocalStorage 데이터 직접 가져오기 (기존 등록 데이터 유실 방지)
+   * LocalStorage 데이터 가져오기
    */
   getApisFromLocal() {
     const fallbackApis = (Array.isArray(window.PORTAL_DATA_APIS) && window.PORTAL_DATA_APIS.length > 0)
@@ -80,14 +86,63 @@ window.ApiModel = {
   },
 
   /**
-   * 서버 데이터와 LocalStorage 양방향 동기화
+   * 서버 및 Supabase 클라우드 DB와 양방향/실시간 동기화
    */
   async initSync() {
     if (this.isSyncing) return;
     this.isSyncing = true;
     const localApis = this.getApisFromLocal();
-    let synced = false;
 
+    // 1. Supabase Cloud DB 연동 우선 확인
+    if (window.isSupabaseEnabled()) {
+      try {
+        const supabase = window.getSupabaseClient();
+        const { data, error } = await supabase.from('apis').select('*').order('created_at', { ascending: false });
+        
+        if (!error && Array.isArray(data)) {
+          if (data.length === 0 && localApis.length > 0) {
+            // DB가 비어있는 경우 기존 데이터 자동 시딩(Seeding)
+            const seedPayload = localApis.map(item => ({
+              id: item.id || `api_${Date.now()}_${Math.random()}`,
+              title: item.title,
+              category: item.category || '기타',
+              service_url: item.serviceUrl || '',
+              description: item.docsUrl || item.description || '',
+              tags: item.tags || []
+            }));
+            await supabase.from('apis').upsert(seedPayload);
+            this.apis = localApis;
+          } else {
+            // DB 데이터를 앱 포맷으로 변환
+            const formattedApis = data.map(dbItem => ({
+              id: dbItem.id,
+              title: dbItem.title,
+              category: dbItem.category,
+              serviceUrl: dbItem.service_url,
+              docsUrl: dbItem.description,
+              tags: dbItem.tags,
+              isNotice: dbItem.is_notice,
+              createdAt: dbItem.created_at
+            }));
+            this.apis = formattedApis;
+          }
+          localStorage.setItem(window.CONFIG.STORAGE_KEY, JSON.stringify(this.apis));
+          
+          // Realtime 다중 사용자 실시간 동기화 리스너 등록
+          this.subscribeRealtime();
+          this.isSyncing = false;
+          if (window.AppController && typeof window.AppController.refreshAllViews === 'function') {
+            window.AppController.refreshAllViews();
+          }
+          return;
+        }
+      } catch (e) {
+        console.warn('[Supabase Sync Error] Supabase DB 조회 실패. 폴백 동기화 시도:', e);
+      }
+    }
+
+    // 2. Supabase 미연동 시 기존 REST API & LocalStorage 동기화
+    let synced = false;
     const urls = this.getApiUrls();
     for (const url of urls) {
       try {
@@ -129,6 +184,27 @@ window.ApiModel = {
   },
 
   /**
+   * Supabase Realtime 다중 사용자 동시 갱신 구독
+   */
+  subscribeRealtime() {
+    if (!window.isSupabaseEnabled() || this.realtimeSubscribed) return;
+    try {
+      const supabase = window.getSupabaseClient();
+      supabase
+        .channel('public:apis')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'apis' }, payload => {
+          console.log('[Realtime DB Update] API 변경 감지:', payload);
+          // 실시간 DB 변경 시 목록 재로드
+          this.initSync();
+        })
+        .subscribe();
+      this.realtimeSubscribed = true;
+    } catch (e) {
+      console.warn('[Realtime Subscription Error]:', e);
+    }
+  },
+
+  /**
    * 서버 (data/apis.json)로 데이터 저장 전송
    */
   async syncToServer(apis) {
@@ -159,6 +235,21 @@ window.ApiModel = {
     };
     apis.unshift(newApi);
     this.saveAllApis(apis);
+
+    // Supabase DB에 신규 항목 추가
+    if (window.isSupabaseEnabled()) {
+      const supabase = window.getSupabaseClient();
+      supabase.from('apis').insert([{
+        id: newApi.id,
+        title: newApi.title,
+        category: newApi.category,
+        service_url: newApi.serviceUrl,
+        description: newApi.docsUrl
+      }]).then(({ error }) => {
+        if (error) console.error('Supabase API Insert Error:', error);
+      });
+    }
+
     return newApi;
   },
 
@@ -168,6 +259,15 @@ window.ApiModel = {
   deleteApi(id) {
     const apis = this.getApis().filter(item => item.id !== id);
     this.saveAllApis(apis);
+
+    // Supabase DB에서 삭제
+    if (window.isSupabaseEnabled()) {
+      const supabase = window.getSupabaseClient();
+      supabase.from('apis').delete().eq('id', id).then(({ error }) => {
+        if (error) console.error('Supabase API Delete Error:', error);
+      });
+    }
+
     return apis;
   },
 
@@ -187,6 +287,20 @@ window.ApiModel = {
         updatedAt: new Date().toISOString()
       };
       this.saveAllApis(apis);
+
+      // Supabase DB에 수정사항 반영
+      if (window.isSupabaseEnabled()) {
+        const supabase = window.getSupabaseClient();
+        supabase.from('apis').update({
+          title: updatedData.title,
+          category: updatedData.category || '기타',
+          service_url: updatedData.serviceUrl,
+          description: updatedData.docsUrl
+        }).eq('id', id).then(({ error }) => {
+          if (error) console.error('Supabase API Update Error:', error);
+        });
+      }
+
       return apis[index];
     }
     return null;
@@ -210,16 +324,17 @@ window.ApiModel = {
 
     if (updatedCount > 0) {
       this.saveAllApis(apis);
+
+      if (window.isSupabaseEnabled()) {
+        const supabase = window.getSupabaseClient();
+        supabase.from('apis').update({ category: newCategory }).eq('category', oldCategory);
+      }
     }
     return updatedCount;
   },
 
   /**
    * 엑셀 등에서 추출된 API 리스트를 일괄 등록 / 업데이트 (Upsert)
-   * serviceUrl 기준으로 기존 등록된 URL이 존재하면 업데이트, 없으면 신규 추가
-   * 기존 등록된 다른 API 항목들은 삭제되거나 손상되지 않음
-   * @param {Array} incomingApis - [{ title, serviceUrl, docsUrl, category }, ...]
-   * @returns {{ addedCount: number, updatedCount: number, totalProcessed: number, totalApis: number }}
    */
   batchUpsertApis(incomingApis) {
     if (!Array.isArray(incomingApis) || incomingApis.length === 0) {
@@ -229,7 +344,6 @@ window.ApiModel = {
     const apis = [...this.getApis()];
     let addedCount = 0;
     let updatedCount = 0;
-
     const normalizeUrl = (url) => (url || '').trim().toLowerCase().replace(/\/+$/, '');
 
     incomingApis.forEach(incoming => {
@@ -239,7 +353,6 @@ window.ApiModel = {
       const existingIndex = apis.findIndex(item => normalizeUrl(item.serviceUrl) === normIncomingUrl);
 
       if (existingIndex !== -1) {
-        // 기존 중복 항목 업데이트 (기존 id, createdAt 보존)
         apis[existingIndex] = {
           ...apis[existingIndex],
           title: incoming.title || apis[existingIndex].title,
@@ -250,7 +363,6 @@ window.ApiModel = {
         };
         updatedCount++;
       } else {
-        // 신규 항목 등록
         const newApi = {
           id: `api_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
           title: incoming.title || '이름 없음',
@@ -266,6 +378,19 @@ window.ApiModel = {
 
     if (addedCount > 0 || updatedCount > 0) {
       this.saveAllApis(apis);
+
+      // Supabase 일괄 Upsert
+      if (window.isSupabaseEnabled()) {
+        const supabase = window.getSupabaseClient();
+        const payload = apis.map(item => ({
+          id: item.id,
+          title: item.title,
+          category: item.category || '기타',
+          service_url: item.serviceUrl || '',
+          description: item.docsUrl || ''
+        }));
+        supabase.from('apis').upsert(payload);
+      }
     }
 
     return {
@@ -286,7 +411,7 @@ window.ApiModel = {
   }
 };
 
-// DOM 준비 시 서버 동기화 자동 시작
+// DOM 준비 시 서버 및 Supabase 동기화 자동 시작
 document.addEventListener('DOMContentLoaded', () => {
   window.ApiModel.initSync();
 });

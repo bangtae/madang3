@@ -15,15 +15,21 @@ window.UiView = {
 
     if (totalEl) totalEl.textContent = apis.length;
     if (totalAiEl) {
-      const models = aiModels || (window.AiModel ? window.AiModel.getAiModels() : []);
+      const models = (Array.isArray(aiModels) && aiModels.length > 0)
+        ? aiModels
+        : (window.AiModel ? window.AiModel.getAiModels() : []);
       totalAiEl.textContent = models.length;
     }
     if (totalAiTermsEl) {
-      const terms = aiTerms || (window.AiTermModel ? window.AiTermModel.getTerms() : []);
+      const terms = (Array.isArray(aiTerms) && aiTerms.length > 0)
+        ? aiTerms
+        : (window.AiTermModel ? window.AiTermModel.getTerms() : []);
       totalAiTermsEl.textContent = terms.length;
     }
     if (totalSapTermsEl) {
-      const sTerms = sapTerms || (window.SapTermModel ? window.SapTermModel.getTerms() : []);
+      const sTerms = (Array.isArray(sapTerms) && sapTerms.length > 0)
+        ? sapTerms
+        : (window.SapTermModel ? window.SapTermModel.getTerms() : []);
       totalSapTermsEl.textContent = sTerms.length;
     }
 
@@ -434,8 +440,10 @@ window.UiView = {
     }
 
     gridEl.innerHTML = models.map(model => {
-      const tags = Array.isArray(model.tags) ? model.tags : (model.tags ? model.tags.split(',') : []);
+      const tags = Array.isArray(model.tags) ? model.tags : (typeof model.tags === 'string' ? model.tags.split(',') : []);
       const tagsHtml = tags.map(t => `<span class="ai-tag">#${this.escapeHtml(t.trim())}</span>`).join(' ');
+      const summaryText = model.summary || model.description || '상세 정보가 제공되는 AI 서비스입니다.';
+      const devText = model.developer || model.provider || 'AI 개발사';
 
       return `
         <div class="api-card ai-card" data-id="${model.id}">
@@ -443,13 +451,13 @@ window.UiView = {
             <div style="flex:1;">
               <span class="api-card-title" style="font-size: 1.1rem; font-weight: 700; color: #60a5fa;">${this.escapeHtml(model.title)}</span>
               <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">
-                🏢 ${this.escapeHtml(model.developer || '개발사')} ${model.country ? `<span style="margin-left: 6px; background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px; color: #cbd5e1;">🌐 ${this.escapeHtml(model.country)}</span>` : ''}
+                🏢 ${this.escapeHtml(devText)} ${model.country ? `<span style="margin-left: 6px; background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px; color: #cbd5e1;">🌐 ${this.escapeHtml(model.country)}</span>` : ''}
               </div>
             </div>
             <span class="badge-category" style="background: rgba(96, 165, 250, 0.15); color: #93c5fd; border: 1px solid rgba(96, 165, 250, 0.3);">${this.escapeHtml(model.category || 'AI')}</span>
           </div>
 
-          <p style="font-size: 0.9rem; color: #e2e8f0; line-height: 1.5; margin: 10px 0;">${this.escapeHtml(model.summary)}</p>
+          <p style="font-size: 0.9rem; color: #e2e8f0; line-height: 1.5; margin: 10px 0;">${this.escapeHtml(summaryText)}</p>
 
           <div style="background: rgba(30, 41, 59, 0.8); border-left: 3px solid #3b82f6; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
             <div style="font-size: 0.78rem; font-weight: 700; color: #93c5fd; margin-bottom: 4px;">🛠️ 내가 무엇을 만들 수 있나? (Garage 아이디어)</div>
@@ -469,7 +477,7 @@ window.UiView = {
           ` : ''}
 
           <div style="margin-bottom: 8px;">
-            <span class="ai-pricing-badge">💰 ${this.escapeHtml(model.pricing || '요금정보')}</span>
+            <span class="ai-pricing-badge">💰 ${this.escapeHtml(model.pricing || '기본 요금제 / 무료 체험 지원')}</span>
           </div>
 
           <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
@@ -785,20 +793,31 @@ window.UiView = {
     }
 
     gridEl.innerHTML = terms.map(t => {
-      const parentBadge = t.parentTerm ? `<span class="badge-parent">상위: ${this.escapeHtml(t.parentTerm)}</span>` : '';
-      const categoryBadge = t.category ? `<span class="badge-category">${this.escapeHtml(t.category)}</span>` : '';
+      const summaryText = t.summary || t.definition || '상세 설명이 제공되는 SAP 용어입니다.';
+      const parentBadge = t.parentTerm ? `<span class="badge-parent" style="background: rgba(147, 197, 253, 0.15); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">상위: ${this.escapeHtml(t.parentTerm)}</span>` : '';
+      const categoryBadge = t.category ? `<span class="badge-category" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">${this.escapeHtml(t.category)}</span>` : '';
+      const importanceBadge = t.importance ? `<span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">⭐ ${this.escapeHtml(t.importance)}</span>` : '';
 
       return `
         <div class="api-card term-card" data-id="${t.id}">
-          <div class="api-card-header">
-            <span class="api-card-title">🏢 ${this.escapeHtml(t.term)}</span>
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <div class="api-card-header" style="align-items: flex-start; gap: 8px;">
+            <div style="flex:1;">
+              <span class="api-card-title" style="font-size: 1.1rem; font-weight: 700; color: #38bdf8;">🏢 ${this.escapeHtml(t.term)}</span>
+            </div>
+            <div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">
               ${categoryBadge}
+              ${importanceBadge}
               ${parentBadge}
             </div>
           </div>
 
-          <p class="term-card-summary">${this.escapeHtml(t.summary)}</p>
+          <p class="term-card-summary" style="font-size: 0.9rem; color: #e2e8f0; line-height: 1.5; margin: 10px 0;">${this.escapeHtml(summaryText)}</p>
+
+          ${t.docsUrl ? `
+          <div style="margin-top: 6px; margin-bottom: 8px;">
+            <a href="${this.escapeHtml(t.docsUrl)}" target="_blank" rel="noopener noreferrer" style="font-size: 0.8rem; color: #60a5fa; text-decoration: none;">🔗 공식 문서 / 가이드 보기 ↗</a>
+          </div>
+          ` : ''}
 
           <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 12px;">
             <button class="btn btn-secondary btn-sm btn-edit-sap-term" data-id="${t.id}">✏️ 수정</button>

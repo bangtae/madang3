@@ -16,6 +16,19 @@ window.IpModel = {
   // 1. IP 화이트리스트 (Allowed IPs)
   // -------------------------------------------------------------------------
   async fetchAllowedIps() {
+    if (window.isSupabaseEnabled()) {
+      try {
+        const supabase = window.getSupabaseClient();
+        const { data, error } = await supabase.from('ip_rules').select('ip_address').eq('rule_type', 'allowed');
+        if (!error && Array.isArray(data)) {
+          this.allowedIps = data.map(item => item.ip_address);
+          localStorage.setItem('portal_bang_allowed_ips', JSON.stringify(this.allowedIps));
+          return this.allowedIps;
+        }
+      } catch (e) {
+        console.warn('[Supabase IpModel Allowed Fetch Error]:', e);
+      }
+    }
     try {
       const url = `${this.getBaseUrl()}/api/allowed-ips`;
       const res = await fetch(url, { cache: 'no-cache' });

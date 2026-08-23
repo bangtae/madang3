@@ -1,0 +1,162 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Supabase 1-Click Data Migrator (843 Items)</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../data/initialApis.js"></script>
+  <script src="../data/initialAiModels.js"></script>
+  <script src="../data/initialAiTerms.js"></script>
+  <script src="../data/initialSapTerms.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px 20px; background: #0f172a; color: #f8fafc; line-height: 1.6; }
+    .card { background: #1e293b; padding: 30px; border-radius: 16px; max-width: 680px; margin: 0 auto; box-shadow: 0 12px 30px rgba(0,0,0,0.4); border: 1px solid #334155; }
+    h1 { color: #38bdf8; margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 24px; }
+    p { color: #94a3b8; font-size: 15px; }
+    .highlight { color: #38bdf8; font-weight: bold; }
+    button { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; padding: 16px 32px; font-size: 17px; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; transition: all 0.2s; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4); }
+    button:hover { background: linear-gradient(135deg, #2563eb, #1d4ed8); transform: translateY(-1px); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    #log { margin-top: 24px; background: #090d16; padding: 18px; border-radius: 10px; font-family: 'Consolas', 'Courier New', monospace; font-size: 13.5px; max-height: 350px; overflow-y: auto; white-space: pre-wrap; color: #4ade80; border: 1px solid #1e293b; }
+    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 20px 0; }
+    .stat-box { background: #0f172a; padding: 12px 16px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
+    .stat-val { font-size: 20px; font-weight: bold; color: #38bdf8; }
+    .stat-lbl { font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>⚡ Supabase 데이터전량 (843개) 업로더</h1>
+    <p>브라우저 LocalStorage 및 데이터 소스에서 감지된 <span class="highlight">843개의 전체 API 데이터</span>와 모델/용어집을 Supabase 클라우드 DB로 전량 업로드합니다.</p>
+    
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-val" id="cnt-api">843개 감지 중...</div>
+        <div class="stat-lbl">전체 API 정보 데이터</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="cnt-terms">100+</div>
+        <div class="stat-lbl">AI & SAP 용어 / 모델</div>
+      </div>
+    </div>
+
+    <button id="btn-start" onclick="startMigration()">🚀 843개 API 데이터 전량 Supabase 업로드</button>
+    <div id="log">대기 중... (위 버튼을 클릭해 주세요)</div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://your-supabase-project.supabase.co';
+    const SUPABASE_KEY = 'your-supabase-anon-key';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    function getTargetApis() {
+      // 1. 브라우저 LocalStorage 확인 (사용자 브라우저에 등록된 843개 데이터 우선)
+      const localKeys = ['portal_api_items', 'portal_bang_api_items'];
+      for (const k of localKeys) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              return parsed;
+            }
+          } catch(e) {}
+        }
+      }
+      // 2. static JS 데이터 fallback
+      return window.PORTAL_DATA_APIS || [];
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const apis = getTargetApis();
+      document.getElementById('cnt-api').textContent = apis.length + '개 감지됨';
+    });
+
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent += '\n' + msg;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    async function chunkUpsert(tableName, dataList, chunkSize = 50) {
+      for (let i = 0; i < dataList.length; i += chunkSize) {
+        const chunk = dataList.slice(i, i + chunkSize);
+        const { error } = await supabase.from(tableName).upsert(chunk);
+        if (error) throw error;
+        log(`   -> [${tableName}] ${Math.min(i + chunkSize, dataList.length)} / ${dataList.length} 개 저장 완료`);
+      }
+    }
+
+    async function startMigration() {
+      const btn = document.getElementById('btn-start');
+      btn.disabled = true;
+      btn.textContent = '843개 데이터 전량 업로드 진행 중...';
+      document.getElementById('log').textContent = '>>> Supabase 클라우드 DB 843개 데이터 전량 업로드 시작...';
+
+      try {
+        const targetApis = getTargetApis();
+        log(`[1/4] APIs 전량 업로드 시작 (총 ${targetApis.length}개)...`);
+        
+        const apiPayload = targetApis.map(item => ({
+          id: item.id || `api_${Date.now()}_${Math.random()}`,
+          title: item.title,
+          category: item.category || '기타',
+          service_url: item.serviceUrl || item.service_url || '',
+          description: item.docsUrl || item.description || ''
+        }));
+        await chunkUpsert('apis', apiPayload, 50);
+        log(`✅ APIs 전체 ${targetApis.length}개 업로드 완벽 성공!`);
+
+        // 2. AI Models
+        if (Array.isArray(window.PORTAL_DATA_AI_MODELS)) {
+          log(`\n[2/4] AI Models 업로드 시작 (총 ${window.PORTAL_DATA_AI_MODELS.length}개)...`);
+          const aiPayload = window.PORTAL_DATA_AI_MODELS.map(item => ({
+            id: item.id || `aimodel_${Date.now()}_${Math.random()}`,
+            title: item.title,
+            category: item.category || '기타',
+            provider: item.provider || '',
+            description: item.description || ''
+          }));
+          await chunkUpsert('ai_models', aiPayload, 50);
+          log(`✅ AI Models 전체 업로드 성공!`);
+        }
+
+        // 3. AI Terms
+        if (Array.isArray(window.PORTAL_DATA_AI_TERMS)) {
+          log(`\n[3/4] AI 용어집 업로드 시작 (총 ${window.PORTAL_DATA_AI_TERMS.length}개)...`);
+          const aiTermPayload = window.PORTAL_DATA_AI_TERMS.map(item => ({
+            id: item.id || `aiterm_${Date.now()}_${Math.random()}`,
+            term: item.term,
+            definition: item.definition || '',
+            category: item.category || '기타'
+          }));
+          await chunkUpsert('ai_terms', aiTermPayload, 50);
+          log(`✅ AI 용어집 전체 업로드 성공!`);
+        }
+
+        // 4. SAP Terms
+        if (Array.isArray(window.PORTAL_DATA_SAP_TERMS)) {
+          log(`\n[4/4] SAP 용어집 업로드 시작 (총 ${window.PORTAL_DATA_SAP_TERMS.length}개)...`);
+          const sapTermPayload = window.PORTAL_DATA_SAP_TERMS.map(item => ({
+            id: item.id || `sapterm_${Date.now()}_${Math.random()}`,
+            term: item.term,
+            definition: item.definition || '',
+            category: item.category || '기타'
+          }));
+          await chunkUpsert('sap_terms', sapTermPayload, 50);
+          log(`✅ SAP 용어집 전체 업로드 성공!`);
+        }
+
+        log(`\n🎉 총 ${targetApis.length}개의 전체 API 데이터가 Supabase DB로 완벽하게 전송 되었습니다!`);
+        alert(`🎉 총 ${targetApis.length}개의 전체 API 데이터가 Supabase DB로 성공적으로 전량 업로드되었습니다!`);
+      } catch (e) {
+        log('❌ 오류 발생: ' + JSON.stringify(e));
+        console.error(e);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🚀 데이터 다시 업로드하기';
+      }
+    }
+  </script>
+</body>
+</html>
