@@ -24,6 +24,36 @@ app.get('/main', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// REST API Endpoints for Data Persistence
+app.get('/api/apis', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'apis.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const fallbackPath = path.join(__dirname, 'data', 'initialApis.js');
+  if (fs.existsSync(fallbackPath)) {
+    try {
+      const code = fs.readFileSync(fallbackPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_APIS\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to parse initialApis.js' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/apis', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'apis.json');
+  try {
+    const data = req.body;
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    res.json({ success: true, count: Array.isArray(data) ? data.length : 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Health check endpoint for GCP Cloud Engine/Run
 app.get('/_health', (req, res) => {
   res.status(200).send('OK');
