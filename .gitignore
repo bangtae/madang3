@@ -15,6 +15,9 @@ build/
 !data/apis.json
 data/user_export_apis.json
 *.log
+scratch/
+backups/
+portal_bang_deploy.zip
 
 # System & OS Files (시스템 임시 파일 차단)
 .DS_Store

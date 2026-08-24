@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PORTAL BANG - 로그인</title>
+  <title>마당 - 로그인</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #0f172a 100%);
@@ -23,7 +23,7 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-family: 'Inter', 'Noto Sans KR', system-ui, -apple-system, sans-serif;
     }
 
     body {
@@ -171,6 +171,55 @@
       box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
     }
 
+    .login-btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .btn-skip {
+      flex: 1;
+      padding: 14px 10px;
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 10px;
+      color: #38bdf8;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      white-space: nowrap;
+    }
+
+    .btn-skip:hover {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: #38bdf8;
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(56, 189, 248, 0.3);
+    }
+
+    .btn-skip:active {
+      transform: translateY(0);
+    }
+
+    .btn-submit {
+      flex: 1;
+      padding: 14px 10px;
+      background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+      border: none;
+      border-radius: 10px;
+      color: #ffffff;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+      white-space: nowrap;
+    }
+
     .btn-submit:hover {
       transform: translateY(-1px);
       box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
@@ -200,7 +249,7 @@
   <div class="login-card">
     <div class="brand-header">
       <div class="brand-logo">⚡</div>
-      <h1 class="brand-title">PORTAL BANG</h1>
+      <h1 class="brand-title">마당</h1>
       <p class="brand-subtitle">통합 데이터 & AI 자산 관리 포털 시스템</p>
     </div>
 
@@ -209,7 +258,7 @@
         <label for="username" class="form-label">아이디 (Username)</label>
         <div class="input-wrapper">
           <span class="input-icon">👤</span>
-          <input type="text" id="username" class="form-input" placeholder="아이디를 입력하세요" required autocomplete="username">
+          <input type="text" id="username" class="form-input" placeholder="아이디를 입력하세요" autocomplete="username">
         </div>
       </div>
 
@@ -217,13 +266,16 @@
         <label for="password" class="form-label">비밀번호 (Password)</label>
         <div class="input-wrapper">
           <span class="input-icon">🔒</span>
-          <input type="password" id="password" class="form-input" placeholder="비밀번호를 입력하세요" required autocomplete="current-password">
+          <input type="password" id="password" class="form-input" placeholder="비밀번호를 입력하세요" autocomplete="current-password">
         </div>
       </div>
 
       <div id="error-message" class="error-msg"></div>
 
-      <button type="submit" class="btn-submit">로그인 (Login) ➔</button>
+      <div class="login-btn-group">
+        <button type="button" id="btn-skip-login" class="btn-skip">⚡ 로그인 건너뛰기</button>
+        <button type="submit" class="btn-submit">로그인 (Login) ➔</button>
+      </div>
     </form>
   </div>
 
@@ -237,6 +289,25 @@
 
       const form = document.getElementById('login-form');
       const errorMsg = document.getElementById('error-message');
+      const btnSkip = document.getElementById('btn-skip-login');
+
+      // 로그인 건너뛰기 버튼 이벤트
+      if (btnSkip) {
+        btnSkip.addEventListener('click', () => {
+          const guestUser = {
+            username: '게스트',
+            role: '선택 접속',
+            isGuest: true,
+            loginAt: new Date().toISOString()
+          };
+
+          sessionStorage.setItem('portal_auth_user', JSON.stringify(guestUser));
+          localStorage.setItem('portal_auth_user', JSON.stringify(guestUser));
+
+          // 대시보드 (index.html) 페이지로 바로 이동
+          window.location.href = 'index.html';
+        });
+      }
 
       form.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -249,11 +320,12 @@
           return;
         }
 
-        // 기본 관리자 계정 인증 검증 (아이디: admin, 비밀번호: admin1234)
-        if ((u === 'admin' && p === 'admin1234') || (u === 'bangtae' && p === 'admin1234')) {
+        // 관리자 계정 인증 검증 (비밀번호: qkdxo0369!)
+        if ((u === 'admin' || u === 'bangtae') && p === 'qkdxo0369!') {
           const sessionUser = {
             username: u,
             role: '최고 관리자',
+            isGuest: false,
             loginAt: new Date().toISOString()
           };
 

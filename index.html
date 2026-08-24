@@ -3,18 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PORTAL BANG</title>
+  <title>마당</title>
   <script>
     (function() {
       var u = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
       if (!u) {
-        window.location.replace('login.html');
+        var defaultGuest = {
+          username: '게스트',
+          role: '읽기 전용',
+          isGuest: true,
+          loginAt: new Date().toISOString()
+        };
+        sessionStorage.setItem('portal_auth_user', JSON.stringify(defaultGuest));
       }
     })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -26,29 +32,32 @@
           <span class="toggle-icon">☰</span>
         </button>
         <span class="brand-icon">⚡</span>
-        <h1 class="brand-title">PORTAL BANG</h1>
+        <h1 class="brand-title">마당</h1>
       </div>
       <nav class="top-nav">
-        <button id="nav-top-main" class="nav-top-btn active" data-view="main">
-          <span class="icon">🏠</span> 메인
+        <button id="nav-top-main" class="nav-top-btn active" data-view="main" title="메인">
+          <span class="icon">🏠</span> <span class="nav-btn-text">메인</span>
         </button>
-        <button id="nav-top-api" class="nav-top-btn" data-view="api">
-          <span class="icon">🔌</span> API
+        <button id="nav-top-api" class="nav-top-btn" data-view="api" title="API">
+          <span class="icon">🔌</span> <span class="nav-btn-text">API</span>
         </button>
-        <button id="nav-top-ai" class="nav-top-btn" data-view="ai">
-          <span class="icon">🤖</span> AI
+        <button id="nav-top-ai" class="nav-top-btn" data-view="ai" title="AI">
+          <span class="icon">🤖</span> <span class="nav-btn-text">AI</span>
         </button>
-        <button id="nav-top-work" class="nav-top-btn" data-view="work">
-          <span class="icon">💼</span> 업무
+        <button id="nav-top-work" class="nav-top-btn" data-view="work" title="업무">
+          <span class="icon">💼</span> <span class="nav-btn-text">업무</span>
         </button>
-        <button id="nav-top-admin" class="nav-top-btn" data-view="admin">
-          <span class="icon">⚙️</span> 관리
+        <button id="nav-top-admin" class="nav-top-btn" data-view="admin" title="관리">
+          <span class="icon">⚙️</span> <span class="nav-btn-text">관리</span>
         </button>
       </nav>
-      <div class="header-user" style="display: flex; align-items: center; gap: 10px;">
-        <span class="user-badge" id="user-display-badge">Vibe Developer</span>
-        <button type="button" id="btn-logout" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 0.8rem; border-radius: 6px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); cursor: pointer;" title="안전하게 로그아웃">
-          🚪 로그아웃
+      <div class="header-user" style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+        <span class="user-badge" id="user-display-badge">⚡ 게스트 (선택 접속 / 읽기 전용)</span>
+        <button type="button" id="btn-switch-admin" class="btn btn-primary btn-sm" style="padding: 5px 10px; font-size: 0.8rem; border-radius: 6px; cursor: pointer; white-space: nowrap;" title="관리자 권한으로 전환">
+          🔑 <span class="btn-role-text">관리자 전환</span>
+        </button>
+        <button type="button" id="btn-logout" class="btn btn-secondary btn-sm hidden" style="padding: 4px 8px; font-size: 0.8rem; border-radius: 6px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); cursor: pointer; white-space: nowrap;" title="게스트 모드로 전환">
+          👁️ <span class="btn-role-text">게스트 전환</span>
         </button>
       </div>
     </header>
@@ -118,31 +127,31 @@
           </div>
           
           <div class="stats-grid">
-            <div class="stat-card stat-clickable" id="card-stat-apis" style="cursor: pointer;" title="클릭 시 API 정보 화면으로 이동">
+            <div class="stat-card stat-clickable" id="card-stat-apis" style="cursor: pointer;" title="클릭 시 등록 API 게시판 목록 조회 (읽기 전용)">
               <div class="stat-icon purple">📦</div>
               <div class="stat-info">
-                <span class="stat-label">총 등록 API</span>
+                <span class="stat-label">등록 API</span>
                 <span class="stat-value" id="stat-total-apis">0</span>
               </div>
             </div>
-            <div class="stat-card stat-clickable" id="card-stat-ai-services" style="cursor: pointer;" title="클릭 시 AI 서비스 정보 화면으로 이동">
+            <div class="stat-card stat-clickable" id="card-stat-ai-services" style="cursor: pointer;" title="클릭 시 등록 AI 서비스 게시판 목록 조회 (읽기 전용)">
               <div class="stat-icon blue">🤖</div>
               <div class="stat-info">
-                <span class="stat-label">총 등록 AI서비스</span>
+                <span class="stat-label">등록 AI서비스</span>
                 <span class="stat-value" id="stat-total-ai">0</span>
               </div>
             </div>
-            <div class="stat-card stat-clickable" id="card-stat-ai-terms" style="cursor: pointer;" title="클릭 시 AI 용어 & 마인드맵 학습 화면으로 이동">
+            <div class="stat-card stat-clickable" id="card-stat-ai-terms" style="cursor: pointer;" title="클릭 시 등록 AI 용어 게시판 목록 조회 (읽기 전용)">
               <div class="stat-icon pink">🧠</div>
               <div class="stat-info">
-                <span class="stat-label">총 등록 AI용어</span>
+                <span class="stat-label">등록 AI용어</span>
                 <span class="stat-value" id="stat-total-ai-terms">0</span>
               </div>
             </div>
-            <div class="stat-card stat-clickable" id="card-stat-sap-terms" style="cursor: pointer;" title="클릭 시 SAP용어 & 마인드맵 학습 화면으로 이동">
+            <div class="stat-card stat-clickable" id="card-stat-sap-terms" style="cursor: pointer;" title="클릭 시 등록 SAP용어 게시판 목록 조회 (읽기 전용)">
               <div class="stat-icon purple">🏢</div>
               <div class="stat-info">
-                <span class="stat-label">총 등록 SAP용어</span>
+                <span class="stat-label">등록 SAP용어</span>
                 <span class="stat-value" id="stat-total-sap-terms">0</span>
               </div>
             </div>
@@ -555,7 +564,6 @@
           <div class="card" style="margin-top: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
               <h3 style="margin: 0;">📋 현재 허용된 IP 목록</h3>
-              <button type="button" id="btn-save-ips" class="btn btn-primary btn-sm">💾 서버에 저장</button>
             </div>
             <div id="ip-list-container" class="ip-list-container">
               <!-- IP 목록이 JS로 동적 렌더링됩니다 -->
@@ -588,7 +596,6 @@
           <div class="card" style="margin-top: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
               <h3 style="margin: 0;">📋 현재 차단된 IP (블랙리스트) 목록</h3>
-              <button type="button" id="btn-save-blocked-ips" class="btn btn-primary btn-sm">💾 서버에 저장</button>
             </div>
             <div id="ip-blacklist-container" class="ip-list-container">
               <!-- 블랙리스트 목록이 JS로 동적 렌더링됩니다 -->
@@ -985,6 +992,30 @@
     </div>
   </div>
   <div id="ab-modal-overlay"></div>
+
+  <!-- 🔑 관리자 권한 승인 모달 -->
+  <div id="admin-auth-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 420px; text-align: center;">
+      <div class="modal-header" style="justify-content: space-between;">
+        <h3 style="display: flex; align-items: center; gap: 8px; font-size: 1.1rem; color: #38bdf8;">🔑 관리자 권한 전환</h3>
+        <button type="button" id="btn-admin-auth-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px 16px;">
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+          데이터 추가, 수정, 삭제 및 일괄 관리 기능을 사용하려면 관리자로 전환하세요.
+        </p>
+        <form id="admin-auth-form">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <input type="password" id="input-admin-pass" placeholder="관리자 비밀번호 입력" style="width: 100%; text-align: center; padding: 12px; font-size: 0.95rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.8); color: #fff;" autocomplete="current-password" />
+          </div>
+          <div id="admin-auth-error" style="display: none; color: #f87171; font-size: 0.82rem; margin-bottom: 12px; background: rgba(239,68,68,0.1); padding: 6px; border-radius: 6px;"></div>
+          <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; font-weight: 600;">🔑 관리자 인증 확인</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <div id="sidebar-overlay" class="sidebar-overlay"></div>
   <div id="toast-container" class="toast-container"></div>

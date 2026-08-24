@@ -6,24 +6,59 @@ window.AppController = {
   parsedBatchRows: [],
 
   init() {
+    this.detectUserClientIp();
     this.checkAuthGuard();
     this.bindEvents();
     this.refreshAllViews();
   },
 
+  async detectUserClientIp() {
+    try {
+      const res = await fetch('/api/my-ip');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.ip) {
+          window.userClientIp = data.ip;
+          return data.ip;
+        }
+      }
+    } catch (e) {
+      console.warn('[AppController] Failed to auto-detect client IP:', e);
+    }
+    return window.userClientIp || '127.0.0.1';
+  },
+
   checkAuthGuard() {
     const rawUser = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
-    if (!rawUser) {
-      window.location.href = 'login.html';
-      return;
+    let user = { isGuest: true, username: '게스트', role: '선택 접속' };
+    if (rawUser) {
+      try { user = JSON.parse(rawUser); } catch(e) {}
     }
-    try {
-      const user = JSON.parse(rawUser);
-      const badge = document.getElementById('user-display-badge');
-      if (badge && user.username) {
-        badge.textContent = `${user.username} (${user.role || '개발자'})`;
+
+    const badge = document.getElementById('user-display-badge');
+    const btnSwitchAdmin = document.getElementById('btn-switch-admin');
+    const btnLogout = document.getElementById('btn-logout');
+
+    if (user.isGuest) {
+      document.body.classList.add('is-guest-mode');
+      if (badge) badge.textContent = `⚡ 게스트 (선택 접속 / 읽기 전용)`;
+      if (btnSwitchAdmin) btnSwitchAdmin.classList.remove('hidden');
+      if (btnLogout) btnLogout.classList.add('hidden');
+    } else {
+      document.body.classList.remove('is-guest-mode');
+      if (badge) badge.textContent = `⚡ ${user.username} (${user.role || '최고 관리자'})`;
+      if (btnSwitchAdmin) btnSwitchAdmin.classList.add('hidden');
+      if (btnLogout) btnLogout.classList.remove('hidden');
+    }
+  },
+
+  scrollToBoardList(targetId) {
+    setTimeout(() => {
+      const el = document.getElementById(targetId) || document.querySelector('.api-list-header');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    } catch(e) {}
+    }, 120);
   },
 
   refreshAllViews() {
@@ -39,24 +74,150 @@ window.AppController = {
     this.loadAndRenderSapTerms();
   },
 
+  failedPassCount: 0,
+
   bindEvents() {
-    const btnLogout = document.getElementById('btn-logout');
-    if (btnLogout) {
-      btnLogout.addEventListener('click', () => {
-        if (confirm('안전하게 로그아웃하시겠습니까?')) {
-          sessionStorage.removeItem('portal_auth_user');
-          localStorage.removeItem('portal_auth_user');
-          window.location.href = 'login.html';
+    // 관리자 전환 모달 및 권한 변경 이벤트
+    const btnSwitchAdmin = document.getElementById('btn-switch-admin');
+    const adminModal = document.getElementById('admin-auth-modal');
+    const btnAdminClose = document.getElementById('btn-admin-auth-close');
+    const adminForm = document.getElementById('admin-auth-form');
+    const adminErr = document.getElementById('admin-auth-error');
+
+    const checkIpBlockedGuard = () => {
+      const currentIp = window.userClientIp || '127.0.0.1';
+      if (!window.IpModel) return false;
+      const blockedList = window.IpModel.getBlockedIps();
+      return blockedList.includes(currentIp);
+    };
+
+    const grantAdminRole = () => {
+      const currentIp = window.userClientIp || '127.0.0.1';
+      if (checkIpBlockedGuard()) {
+        if (adminErr) {
+          adminErr.innerHTML = `⛔ <strong>접속 차단됨!</strong> 현재 IP(<code>${currentIp}</code>)는 <strong>IP 블랙리스트</strong>에 등록되어 있어 관리자로 전환할 수 없습니다.`;
+          adminErr.style.display = 'block';
+        }
+        if (window.UiView && window.UiView.showToast) {
+          window.UiView.showToast(`⛔ [차단] 현재 IP(${currentIp})는 블랙리스트에 등록되어 관리자 전환이 불가능합니다.`, 'danger');
+        }
+        return false;
+      }
+
+      this.failedPassCount = 0;
+      const adminUser = {
+        username: 'admin',
+        role: '최고 관리자',
+        isGuest: false,
+        loginAt: new Date().toISOString()
+      };
+      sessionStorage.setItem('portal_auth_user', JSON.stringify(adminUser));
+      localStorage.setItem('portal_auth_user', JSON.stringify(adminUser));
+      this.checkAuthGuard();
+      if (adminModal) adminModal.classList.add('hidden');
+      if (window.UiView && window.UiView.showToast) {
+        window.UiView.showToast('🎉 관리자 권한으로 성공적으로 전환되었습니다!');
+      }
+      return true;
+    };
+
+    if (btnSwitchAdmin) {
+      btnSwitchAdmin.addEventListener('click', () => {
+        if (adminErr) adminErr.style.display = 'none';
+        const currentIp = window.userClientIp || '127.0.0.1';
+        if (checkIpBlockedGuard()) {
+          if (adminErr) {
+            adminErr.innerHTML = `⛔ <strong>접속 차단됨!</strong> 현재 IP(<code>${currentIp}</code>)는 <strong>IP 블랙리스트</strong>에 등록되어 있어 관리자 전환이 불가능합니다.`;
+            adminErr.style.display = 'block';
+          }
+        }
+        if (adminModal) adminModal.classList.remove('hidden');
+        const passInput = document.getElementById('input-admin-pass');
+        if (passInput) passInput.value = '';
+      });
+    }
+
+    if (btnAdminClose) {
+      btnAdminClose.addEventListener('click', () => {
+        if (adminModal) adminModal.classList.add('hidden');
+      });
+    }
+
+    if (adminForm) {
+      adminForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const p = document.getElementById('input-admin-pass').value.trim();
+
+        // 패스워드 검증: qkdxo0369!
+        if (p === 'qkdxo0369!') {
+          grantAdminRole();
+        } else {
+          this.failedPassCount = (this.failedPassCount || 0) + 1;
+
+          if (this.failedPassCount >= 5) {
+            // 5회 실패 시 접속한 실제 클라이언트 IP를 블랙리스트에 자동 추가하여 차단 조치
+            const applyBlock = (targetIp) => {
+              if (window.IpModel && window.IpModel.addBlockedIp) {
+                window.IpModel.addBlockedIp(targetIp);
+              }
+
+              if (adminErr) {
+                adminErr.innerHTML = `⛔ <strong>접속 차단 조치!</strong> 비밀번호 5회 연속 오류로 현재 IP(<code>${targetIp}</code>)가 <strong>IP 블랙리스트 관리 메뉴</strong>에 등록되어 차단되었습니다.`;
+                adminErr.style.display = 'block';
+              }
+
+              if (window.UiView && window.UiView.showToast) {
+                window.UiView.showToast(`⛔ [차단] 비밀번호 5회 오류로 IP(${targetIp})가 블랙리스트에 추가되었습니다.`, 'danger');
+              }
+
+              // 뷰 갱신 (블랙리스트 관리 화면에 최신 반영)
+              if (this.loadAndRenderIpRules) this.loadAndRenderIpRules();
+            };
+
+            if (window.userClientIp) {
+              applyBlock(window.userClientIp);
+            } else {
+              this.detectUserClientIp().then((ip) => applyBlock(ip || '127.0.0.1'));
+            }
+          } else {
+            const remaining = 5 - this.failedPassCount;
+            if (adminErr) {
+              adminErr.textContent = `⚠️ 비밀번호가 일치하지 않습니다. (오류 횟수: ${this.failedPassCount}/5회 - ${remaining}회 남음)`;
+              adminErr.style.display = 'block';
+            }
+          }
         }
       });
     }
 
-    // 메인 대시보드 통계 카드 클릭 -> 해당 메뉴 화면 이동 숏컷
+    // 게스트 모드로 전환 버튼
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        if (confirm('게스트(읽기 전용) 모드로 전환하시겠습니까?')) {
+          const guestUser = {
+            username: '게스트',
+            role: '선택 접속',
+            isGuest: true,
+            loginAt: new Date().toISOString()
+          };
+          sessionStorage.setItem('portal_auth_user', JSON.stringify(guestUser));
+          localStorage.setItem('portal_auth_user', JSON.stringify(guestUser));
+          this.checkAuthGuard();
+          if (window.UiView && window.UiView.showToast) {
+            window.UiView.showToast('👁️ 게스트 모드로 전환되었습니다.');
+          }
+        }
+      });
+    }
+
+    // 메인 대시보드 통계 카드 클릭 -> 해당 메뉴 게스트/읽기전용 게시판 목록 화면 이동 숏컷
     const cardStatApis = document.getElementById('card-stat-apis');
     if (cardStatApis) {
       cardStatApis.addEventListener('click', () => {
         this.switchTopNav('api');
         this.switchSideNav('api-info');
+        this.scrollToBoardList('search-input');
       });
     }
 
@@ -65,6 +226,7 @@ window.AppController = {
       cardStatAiServices.addEventListener('click', () => {
         this.switchTopNav('ai');
         this.switchSideNav('ai-models');
+        this.scrollToBoardList('search-ai-input');
       });
     }
 
@@ -73,6 +235,7 @@ window.AppController = {
       cardStatAiTerms.addEventListener('click', () => {
         this.switchTopNav('ai');
         this.switchSideNav('ai-terms');
+        this.scrollToBoardList('search-ai-terms-input');
       });
     }
 
@@ -81,6 +244,7 @@ window.AppController = {
       cardStatSapTerms.addEventListener('click', () => {
         this.switchTopNav('work');
         this.switchSideNav('sap-terms');
+        this.scrollToBoardList('search-sap-terms-input');
       });
     }
 
@@ -243,7 +407,7 @@ window.AppController = {
     if (btnCloseCategoryBatch) btnCloseCategoryBatch.addEventListener('click', () => window.UiView.closeCategoryBatchModal());
     if (btnCancelCategoryBatch) btnCancelCategoryBatch.addEventListener('click', () => window.UiView.closeCategoryBatchModal());
 
-    // 8. IP 화이트리스트 신규 등록 폼 제출 및 저장 이벤트
+    // 8. IP 화이트리스트 신규 등록 폼 제출 이벤트
     const ipForm = document.getElementById('ip-form');
     if (ipForm) {
       ipForm.addEventListener('submit', (e) => {
@@ -263,20 +427,7 @@ window.AppController = {
       });
     }
 
-    const btnSaveIps = document.getElementById('btn-save-ips');
-    if (btnSaveIps) {
-      btnSaveIps.addEventListener('click', async () => {
-        if (!window.IpModel) return;
-        btnSaveIps.textContent = '⏳ 저장 중...';
-        btnSaveIps.disabled = true;
-        await window.IpModel.saveAllowedIps(window.IpModel.getIps());
-        btnSaveIps.textContent = '💾 서버에 저장';
-        btnSaveIps.disabled = false;
-        window.UiView.showToast('✅ IP 화이트리스트가 서버(allowed_ips.json)에 성공적으로 저장되었습니다!');
-      });
-    }
-
-    // 9. IP 블랙리스트 폼 제출 및 저장 이벤트
+    // 9. IP 블랙리스트 폼 제출 이벤트
     const ipBlockedForm = document.getElementById('ip-blocked-form');
     if (ipBlockedForm) {
       ipBlockedForm.addEventListener('submit', (e) => {
@@ -293,19 +444,6 @@ window.AppController = {
           ipBlockedForm.reset();
           this.loadAndRenderIpBlacklist();
         }
-      });
-    }
-
-    const btnSaveBlockedIps = document.getElementById('btn-save-blocked-ips');
-    if (btnSaveBlockedIps) {
-      btnSaveBlockedIps.addEventListener('click', async () => {
-        if (!window.IpModel) return;
-        btnSaveBlockedIps.textContent = '⏳ 저장 중...';
-        btnSaveBlockedIps.disabled = true;
-        await window.IpModel.saveBlockedIps(window.IpModel.getBlockedIps());
-        btnSaveBlockedIps.textContent = '💾 서버에 저장';
-        btnSaveBlockedIps.disabled = false;
-        window.UiView.showToast('⛔ IP 블랙리스트가 서버(blocked_ips.json)에 성공적으로 저장되었습니다!');
       });
     }
 

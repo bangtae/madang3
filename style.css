@@ -16,7 +16,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', 'Noto Sans KR', system-ui, -apple-system, sans-serif;
 }
 
 body {
@@ -24,6 +24,11 @@ body {
   color: var(--text-main);
   min-height: 100vh;
   overflow-x: hidden;
+}
+
+/* Global Utility Classes */
+.hidden {
+  display: none !important;
 }
 
 /* App Container Layout */
@@ -315,9 +320,17 @@ body {
   flex-shrink: 0;
 }
 
-.stat-icon.purple { background: rgba(99, 102, 241, 0.2); }
-.stat-icon.cyan { background: rgba(6, 182, 212, 0.2); }
-.stat-icon.green { background: rgba(34, 197, 94, 0.2); }
+.stat-icon.purple {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.stat-icon.cyan {
+  background: rgba(6, 182, 212, 0.2);
+}
+
+.stat-icon.green {
+  background: rgba(34, 197, 94, 0.2);
+}
 
 .stat-info {
   display: flex;
@@ -401,7 +414,9 @@ body {
   color: var(--text-muted);
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   background: rgba(15, 23, 42, 0.8);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -415,7 +430,9 @@ input, select, textarea {
   resize: vertical;
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
 }
@@ -699,8 +716,15 @@ input:focus, select:focus, textarea:focus {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ==========================================================================
@@ -711,12 +735,43 @@ input:focus, select:focus, textarea:focus {
 /* 태블릿 및 모바일 화면 (width <= 768px) */
 @media screen and (max-width: 768px) {
   .top-header {
-    padding: 0 12px;
+    padding: 0 10px;
     height: 56px;
+    gap: 8px;
+  }
+
+  .header-brand {
+    flex-shrink: 0;
+    gap: 6px;
   }
 
   .brand-title {
-    font-size: 1rem;
+    font-size: 0.95rem;
+  }
+
+  .top-nav {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .top-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-top-btn {
+    padding: 5px 9px;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .header-user {
+    flex-shrink: 0;
   }
 
   .user-badge {
@@ -772,19 +827,42 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
-/* 갤럭시 폴드7 접었을 때 & 소형 모바일 (width <= 480px) */
+/* 갤럭시 폴드7 접었을 때 & 소형 스마트폰 디스플레이 (width <= 480px) */
 @media screen and (max-width: 480px) {
   .top-header {
-    padding: 0 8px;
+    padding: 0 6px;
+    height: 52px;
+    gap: 4px;
+  }
+
+  .header-brand {
+    gap: 4px;
+  }
+
+  .btn-toggle-sidebar {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+
+  .brand-icon {
+    font-size: 1.2rem;
+  }
+
+  /* 초소형 커버 스크린 가로 공간 확보를 위한 브랜드 텍스트 최적화 */
+  .brand-title {
+    display: none;
+  }
+
+  .top-nav {
+    gap: 3px;
+    justify-content: center;
   }
 
   .nav-top-btn {
-    padding: 6px 10px;
-    font-size: 0.85rem;
-  }
-
-  .brand-title {
-    font-size: 0.88rem;
+    padding: 4px 7px;
+    font-size: 0.8rem;
+    gap: 2px;
   }
 
   .stats-grid {
@@ -799,8 +877,6 @@ input:focus, select:focus, textarea:focus {
   .form-grid {
     grid-template-columns: 1fr;
   }
-
-
 
   .api-cards-grid {
     grid-template-columns: 1fr;
@@ -818,6 +894,27 @@ input:focus, select:focus, textarea:focus {
   .modal-card {
     width: 95vw;
     padding: 16px;
+  }
+}
+
+/* 갤럭시 폴드7 커버 디스플레이 극초소형 (width <= 380px) */
+@media screen and (max-width: 380px) {
+  .top-header {
+    padding: 0 4px;
+  }
+
+  .top-nav {
+    gap: 2px;
+  }
+
+  .nav-top-btn {
+    padding: 4px 5px;
+    font-size: 0.78rem;
+  }
+
+  /* 극도로 좁은 디스플레이에서 전환 버튼 텍스트를 컴팩트 아이콘으로 표시 */
+  .btn-role-text {
+    display: none;
   }
 }
 
@@ -1027,7 +1124,8 @@ input:focus, select:focus, textarea:focus {
   position: relative;
 }
 
-.excel-dropzone:hover, .excel-dropzone.dragover {
+.excel-dropzone:hover,
+.excel-dropzone.dragover {
   border-color: var(--primary-color);
   background: rgba(99, 102, 241, 0.12);
   transform: translateY(-2px);
@@ -1409,7 +1507,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* 1단: 좌측 등록 자원 탐색 패널 */
-.ab-left-panel, .ab-right-panel {
+.ab-left-panel,
+.ab-right-panel {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
@@ -1462,7 +1561,8 @@ input:focus, select:focus, textarea:focus {
   transition: all 0.2s;
 }
 
-.ab-tab-btn.active, .ab-tab-btn:hover {
+.ab-tab-btn.active,
+.ab-tab-btn:hover {
   background: var(--primary-color, #6366f1);
   color: #fff;
 }
@@ -1506,8 +1606,17 @@ input:focus, select:focus, textarea:focus {
   border-radius: 6px;
 }
 
-.badge-purple { background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.4); }
-.badge-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+.badge-purple {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+}
+
+.badge-blue {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
 
 .ab-res-cat {
   font-size: 0.7rem;
@@ -1578,9 +1687,23 @@ input:focus, select:focus, textarea:focus {
   transition: all 0.2s;
 }
 
-.btn-ab-custom.trigger:hover { border-color: #f59e0b; color: #fbbf24; background: rgba(245, 158, 11, 0.1); }
-.btn-ab-custom.action:hover { border-color: #10b981; color: #34d399; background: rgba(16, 185, 129, 0.1); }
-.btn-ab-custom.note:hover { border-color: #06b6d4; color: #22d3ee; background: rgba(6, 182, 212, 0.1); }
+.btn-ab-custom.trigger:hover {
+  border-color: #f59e0b;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.btn-ab-custom.action:hover {
+  border-color: #10b981;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.btn-ab-custom.note:hover {
+  border-color: #06b6d4;
+  color: #22d3ee;
+  background: rgba(6, 182, 212, 0.1);
+}
 
 /* 2단 (중앙): 워크플로우 캔버스 영역 */
 .ab-center-panel {
@@ -1637,7 +1760,8 @@ input:focus, select:focus, textarea:focus {
   z-index: 1;
 }
 
-.ab-svg-layer path, .ab-svg-layer circle {
+.ab-svg-layer path,
+.ab-svg-layer circle {
   pointer-events: auto;
 }
 
@@ -1672,11 +1796,25 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-.node-type-api { border-top: 4px solid #8b5cf6; }
-.node-type-ai { border-top: 4px solid #3b82f6; }
-.node-type-trigger { border-top: 4px solid #f59e0b; }
-.node-type-action { border-top: 4px solid #10b981; }
-.node-type-note { border-top: 4px solid #06b6d4; }
+.node-type-api {
+  border-top: 4px solid #8b5cf6;
+}
+
+.node-type-ai {
+  border-top: 4px solid #3b82f6;
+}
+
+.node-type-trigger {
+  border-top: 4px solid #f59e0b;
+}
+
+.node-type-action {
+  border-top: 4px solid #10b981;
+}
+
+.node-type-note {
+  border-top: 4px solid #06b6d4;
+}
 
 .ab-node-header {
   padding: 10px 12px;
@@ -1686,7 +1824,9 @@ input:focus, select:focus, textarea:focus {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.ab-node-icon { font-size: 1.1rem; }
+.ab-node-icon {
+  font-size: 1.1rem;
+}
 
 .ab-node-title {
   font-size: 0.85rem;
@@ -1841,7 +1981,8 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
 }
 
-.ab-form-group input, .ab-form-group textarea {
+.ab-form-group input,
+.ab-form-group textarea {
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -1905,12 +2046,55 @@ input:focus, select:focus, textarea:focus {
   line-height: 1.7;
 }
 
-.ab-doc-h1 { font-size: 1.4rem; color: #38bdf8; border-bottom: 2px solid rgba(56, 189, 248, 0.3); padding-bottom: 8px; margin-bottom: 16px; }
-.ab-doc-h2 { font-size: 1.15rem; color: #a78bfa; margin-top: 24px; margin-bottom: 12px; }
-.ab-doc-h3 { font-size: 1rem; color: #f472b6; margin-top: 16px; margin-bottom: 8px; }
-.ab-code-block { background: #020617; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; font-family: monospace; font-size: 0.84rem; overflow-x: auto; color: #38bdf8; }
-.ab-inline-code { background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
-.ab-doc-quote { border-left: 4px solid #6366f1; background: rgba(99, 102, 241, 0.1); padding: 8px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; color: #cbd5e1; }
+.ab-doc-h1 {
+  font-size: 1.4rem;
+  color: #38bdf8;
+  border-bottom: 2px solid rgba(56, 189, 248, 0.3);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.ab-doc-h2 {
+  font-size: 1.15rem;
+  color: #a78bfa;
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.ab-doc-h3 {
+  font-size: 1rem;
+  color: #f472b6;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.ab-code-block {
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 14px;
+  font-family: monospace;
+  font-size: 0.84rem;
+  overflow-x: auto;
+  color: #38bdf8;
+}
+
+.ab-inline-code {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.ab-doc-quote {
+  border-left: 4px solid #6366f1;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 8px 12px;
+  margin: 10px 0;
+  border-radius: 0 6px 6px 0;
+  color: #cbd5e1;
+}
 
 /* 저장된 워크플로우 목록 카탈로그 스타일 */
 .ab-saved-list {
@@ -1972,7 +2156,27 @@ input:focus, select:focus, textarea:focus {
   flex-shrink: 0;
 }
 
+/* ==========================================================================
+   게스트(선택 접속 / 읽기 전용) 모드 전용 스타일 시스템
+   ========================================================================== */
+body.is-guest-mode .form-card,
+body.is-guest-mode .btn-edit-api,
+body.is-guest-mode .btn-delete-api,
+body.is-guest-mode .btn-edit-ai,
+body.is-guest-mode .btn-delete-ai,
+body.is-guest-mode .btn-edit-term,
+body.is-guest-mode .btn-delete-term,
+body.is-guest-mode #side-menu-admin,
+body.is-guest-mode #nav-top-admin,
+body.is-guest-mode .admin-only-btn,
+body.is-guest-mode .btn-batch-upload,
+body.is-guest-mode #btn-open-category-batch-modal,
+body.is-guest-mode .guest-hide {
+  display: none !important;
+}
 
-
-
-
+body.is-guest-mode .user-badge {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+}

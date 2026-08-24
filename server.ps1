@@ -270,6 +270,64 @@ while ($true) {
             $headerBytes = [System.Text.Encoding]::UTF8.GetBytes($responseHeader)
             $stream.Write($headerBytes, 0, $headerBytes.Length)
         }
+        elseif ($urlPath -eq "/api/my-ip") {
+            $ipObj = @{ ip = $clientIp } | ConvertTo-Json -Compress
+            Send-JsonResponse $stream $corsHeaders $ipObj
+        }
+        elseif ($urlPath -eq "/api/allowed-ips") {
+            if ($method -eq "GET") {
+                if (Test-Path $allowedIpsFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($allowedIpsFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                } else {
+                    Send-JsonResponse $stream $corsHeaders '["127.0.0.1","::1","192.168.219.115","192.168.219.*"]'
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($allowedIpsFile, $postData, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/blocked-ips") {
+            if ($method -eq "GET") {
+                if (Test-Path $blockedIpsFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($blockedIpsFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                } else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($blockedIpsFile, $postData, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/access-logs") {
+            if ($method -eq "GET") {
+                if (Test-Path $accessLogsFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($accessLogsFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                } else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "DELETE") {
+                [System.IO.File]::WriteAllText($accessLogsFile, "[]", $Utf8NoBom)
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
         elseif ($urlPath -eq "/api/apis") {
             if ($method -eq "GET") {
                 if (Test-Path $dataFile) {

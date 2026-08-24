@@ -11,13 +11,13 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Static files serving
 app.use(express.static(__dirname));
 
-// Primary routes
+// Primary routes (Direct to main portal index.html)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'login.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'login.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.get('/main', (req, res) => {
@@ -25,6 +25,12 @@ app.get('/main', (req, res) => {
 });
 
 // REST API Endpoints for Data Persistence
+app.get('/api/my-ip', (req, res) => {
+  const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+  const cleanIp = rawIp.replace(/^.*:/, '');
+  res.json({ ip: cleanIp || rawIp });
+});
+
 app.get('/api/apis', (req, res) => {
   const filePath = path.join(__dirname, 'data', 'apis.json');
   if (fs.existsSync(filePath)) {
