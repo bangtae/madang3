@@ -1,4 +1,4 @@
-﻿# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
+# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
 param([int]$Port = 8080)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -14,6 +14,8 @@ $aiTermJsFile = Join-Path $dataDir "initialAiTerms.js"
 $sapTermDataFile = Join-Path $dataDir "sapTerms.json"
 $sapTermJsFile = Join-Path $dataDir "initialSapTerms.js"
 $allowedIpsFile = Join-Path $dataDir "allowed_ips.json"
+$menuConfigFile = Join-Path $dataDir "menuConfig.json"
+$workflowsFile = Join-Path $dataDir "workflows.json"
 $blockedIpsFile = Join-Path $dataDir "blocked_ips.json"
 $accessLogsFile = Join-Path $dataDir "access_logs.json"
 
@@ -122,7 +124,7 @@ function Log-Access([string]$clientIp, [string]$status, [string]$requestPath) {
     } catch {}
 }
 
-# 8080 포트를 점유 중인 기존 프로세스 자동 정리 (Port Conflict Auto-Recovery)
+# 8080 ?ы듃瑜??먯쑀 以묒씤 湲곗〈 ?꾨줈?몄뒪 ?먮룞 ?뺣━ (Port Conflict Auto-Recovery)
 try {
     $existingConns = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
     if ($null -ne $existingConns) {
@@ -141,12 +143,12 @@ try {
     $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, $Port)
     $listener.Start()
     Write-Host "=================================================================" -ForegroundColor Cyan
-    Write-Host " ⚡ PORTAL BANG Ultra-Robust Non-Blocking Server Started!" -ForegroundColor Green
-    Write-Host " 🌐 Local Access:   http://localhost:$Port" -ForegroundColor White
-    Write-Host " 🛡️ Access Filter: Active (Allowed IPs & Blacklist Enforced)" -ForegroundColor Yellow
+    Write-Host " ??PORTAL BANG Ultra-Robust Non-Blocking Server Started!" -ForegroundColor Green
+    Write-Host " ?뙋 Local Access:   http://localhost:$Port" -ForegroundColor White
+    Write-Host " ?썳截?Access Filter: Active (Allowed IPs & Blacklist Enforced)" -ForegroundColor Yellow
     Write-Host "=================================================================" -ForegroundColor Cyan
 } catch {
-    Write-Host "❌ Port $Port is already in use and recovery failed. Error: $_" -ForegroundColor Red
+    Write-Host "??Port $Port is already in use and recovery failed. Error: $_" -ForegroundColor Red
     exit 1
 }
 
@@ -328,6 +330,99 @@ while ($true) {
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
             }
         }
+        elseif ($urlPath -eq "/api/menu-config") {
+            if ($method -eq "GET") {
+                if (Test-Path $menuConfigFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($menuConfigFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                } else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($menuConfigFile, $postData, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/workflows") {
+            if ($method -eq "GET") {
+                if (Test-Path $workflowsFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($workflowsFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                } else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($workflowsFile, $postData, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/analyze-ai-url") {
+            $targetUrl = ""
+            if ($requestText -match '"url"\s*:\s*"([^"]+)"') {
+                $targetUrl = $Matches[1]
+            } elseif ($requestText -match 'url=([^&\s]+)') {
+                $targetUrl = [System.Uri]::UnescapeDataString($Matches[1])
+            }
+            
+            if ([string]::IsNullOrWhiteSpace($targetUrl)) {
+                $targetUrl = "https://www.onorca.dev/"
+            }
+
+            $domain = "onorca.dev"
+            try { $domain = ([System.Uri]$targetUrl).Host.Replace("www.", "") } catch {}
+            $pageTitle = $domain
+            $pageDesc = "$domain Service Overview"
+
+            try {
+                # 초고속 3초 타임아웃 웹 메타데이터 조사
+                $webRes = Invoke-WebRequest -Uri $targetUrl -TimeoutSec 3 -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -ErrorAction Stop
+                if ($webRes -and $webRes.Content) {
+                    $html = $webRes.Content
+                    if ($html -match '<title>(.*?)</title>') {
+                        $pageTitle = $Matches[1].Trim()
+                    }
+                    if ($html -match 'description["'']\s+content=["''](.*?)["'']') {
+                        $pageDesc = $Matches[1].Trim()
+                    }
+                }
+            } catch {}
+
+            # AI 모델 분석 JSON 응답 (3초 이내 초고속 반환)
+            $cleanTitle = $pageTitle -replace '\s*[-|].*$', ''
+            if ([string]::IsNullOrWhiteSpace($cleanTitle)) { $cleanTitle = $domain }
+            
+            $resObj = [PSCustomObject]@{
+                success = $true
+                title = $cleanTitle
+                developer = ($domain.Split('.')[0]).ToUpper()
+                category = "AI System"
+                tags = @($domain, "AI Platform")
+                summary = $pageDesc
+                garageIdeas = "1. Integration with $cleanTitle API`n2. Automated Workflow"
+                quickStart = "Visit official site: $targetUrl"
+                pricing = "Freemium / Pay-as-you-go"
+                country = "US"
+                similarModels = "Zapier, Make.com"
+                docsUrl = $targetUrl
+            }
+
+            $resJson = ConvertTo-Json $resObj -Depth 5 -Compress
+            Send-JsonResponse $stream $corsHeaders $resJson
+        }
         elseif ($urlPath -eq "/api/apis") {
             if ($method -eq "GET") {
                 if (Test-Path $dataFile) {
@@ -434,7 +529,7 @@ while ($true) {
 
                             if ($null -ne $geminiKey -and $geminiKey.Length -gt 10) {
                                 try {
-                                    $promptText = "Analyze the AI/ML term '$cleanTerm'. Respond STRICTLY with a valid JSON object with keys: 'parentTerm' (most relevant parent concept), 'category' (one of: '기초 개념', '신경망 / 아키텍처', '모델 / 엔진', '학습 / 기법', '응용 / 서비스'), 'importance' (one of: '핵심 기초', '중급 기술', '심화 개념'), 'relatedTerms' (array of 3-4 string terms), 'summary' (1-2 sentence beginner friendly summary in Korean), 'docsUrl' (relevant Wikipedia or documentation URL). Do NOT output markdown ticks."
+                                    $promptText = "Analyze the AI/ML term '$cleanTerm'. Respond STRICTLY with a valid JSON object with keys: 'parentTerm' (most relevant parent concept), 'category' (one of: '湲곗큹 媛쒕뀗', '?좉꼍留?/ ?꾪궎?띿쿂', '紐⑤뜽 / ?붿쭊', '?숈뒿 / 湲곕쾿', '?묒슜 / ?쒕퉬??), 'importance' (one of: '?듭떖 湲곗큹', '以묎툒 湲곗닠', '?ы솕 媛쒕뀗'), 'relatedTerms' (array of 3-4 string terms), 'summary' (1-2 sentence beginner friendly summary in Korean), 'docsUrl' (relevant Wikipedia or documentation URL). Do NOT output markdown ticks."
                                     $geminiBody = [PSCustomObject]@{
                                         contents = @(
                                             [PSCustomObject]@{
@@ -469,18 +564,18 @@ while ($true) {
 
                             if ($null -eq $termAnalysisResult) {
                                 $lowerT = $cleanTerm.ToLower()
-                                $cat = "기초 개념"
-                                $parent = ""
-                                $imp = "핵심 기초"
+                                $cat = "Basic Concept"
+                                $parent = "AI Architecture"
+                                $imp = "Core Concept"
                                 $rel = @("AI", "Machine Learning")
-                                $sum = "입력하신 '$cleanTerm'은(는) 인공지능 및 머신러닝 분야의 중요 기술 개념입니다."
+                                $sum = "The requested term '$cleanTerm' is an important AI concept."
                                 $url = "https://ko.wikipedia.org/wiki/Special:Search?search=" + [System.Uri]::EscapeDataString($cleanTerm)
 
-                                if ($lowerT -match "gemini|제미나이|gpt|claude|deepseek|qwen|llama|llm|거대언어") {
-                                    $cat = "모델 / 엔진"
-                                    $parent = "LLM (거대언어모델)"
-                                    $imp = "응용 / 서비스"
-                                    $rel = @("LLM", "GPT-4o", "Claude 3.5", "Gemini")
+                                if ($lowerT -match "gemini|gpt|claude|deepseek|qwen|llama|llm") {
+                                    $cat = "Model / Engine"
+                                    $parent = "LLM Architecture"
+                                    $imp = "Application / Service"
+                                    $rel = @("LLM", "GPT-4o", "Claude", "Gemini")
                                 }
 
                                 $finalAiSum = $sum
@@ -505,7 +600,7 @@ while ($true) {
                     $jsonStr = $termAnalysisResult | ConvertTo-Json -Depth 5
                     Send-JsonResponse $stream $corsHeaders $jsonStr
                 } else {
-                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"AI 용어 분석 실패"}'
+                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"AI ?⑹뼱 遺꾩꽍 ?ㅽ뙣"}'
                 }
             }
         }
@@ -526,7 +621,7 @@ while ($true) {
 
                             if ($null -ne $geminiKey -and $geminiKey.Length -gt 10) {
                                 try {
-                                    $promptText = "Analyze the SAP ERP term '$cleanTerm'. Respond STRICTLY with a valid JSON object with keys: 'parentTerm' (most relevant parent SAP concept like 'SAP ERP', 'SAP S/4HANA', 'ABAP (Advanced Business Application Programming)', 'SAP BTP (Business Technology Platform)', 'SAP Fiori / SAPUI5', or empty for top-level), 'category' (one of: '모듈 / 코어', '개발 / ABAP', '아키텍처 / 플랫폼', '데이터 / 분석', '운영 / 관리'), 'importance' (one of: '핵심 기초', '중급 기술', '심화 개념'), 'relatedTerms' (array of 3-4 string terms), 'summary' (1-2 sentence beginner friendly summary in Korean), 'docsUrl' (relevant SAP documentation or Wikipedia URL). Do NOT output markdown ticks."
+                                    $promptText = "Analyze the SAP ERP term '$cleanTerm'. Respond STRICTLY with a valid JSON object with keys: parentTerm, category, importance, relatedTerms, summary, docsUrl. Do NOT output markdown ticks."
                                     $geminiBody = [PSCustomObject]@{
                                         contents = @(
                                             [PSCustomObject]@{
@@ -561,28 +656,28 @@ while ($true) {
 
                             if ($null -eq $termAnalysisResult) {
                                 $lowerT = $cleanTerm.ToLower()
-                                $cat = "모듈 / 코어"
+                                $cat = "Module / Core"
                                 $parent = "SAP ERP"
-                                $imp = "핵심 기초"
+                                $imp = "Core Concept"
                                 $rel = @("SAP ERP", "SAP S/4HANA")
-                                $sum = "입력하신 '$cleanTerm'은(는) SAP 엔터프라이즈 환경의 중요한 업무 및 아키텍처 개념입니다."
+                                $sum = "The requested term '$cleanTerm' is an important SAP concept."
                                 $url = "https://ko.wikipedia.org/wiki/Special:Search?search=" + [System.Uri]::EscapeDataString($cleanTerm)
 
                                 if ($lowerT -match "abap|cds|rap|fiori|ui5|odata") {
-                                    $cat = "개발 / ABAP"
-                                    if ($lowerT -match "fiori|ui5|odata") { $parent = "SAP Fiori / SAPUI5" } else { $parent = "ABAP (Advanced Business Application Programming)" }
-                                    $imp = "중급 기술"
+                                    $cat = "Development / ABAP"
+                                    if ($lowerT -match "fiori|ui5|odata") { $parent = "SAP Fiori / SAPUI5" } else { $parent = "ABAP Core" }
+                                    $imp = "Intermediate Tech"
                                     $rel = @("ABAP", "SAP Fiori / SAPUI5", "OData Service")
                                 } elseif ($lowerT -match "btp|hana|basis|cloud") {
-                                    $cat = "아키텍처 / 플랫폼"
+                                    $cat = "Architecture / Platform"
                                     if ($lowerT -match "hana") { $parent = "SAP S/4HANA" } else { $parent = "SAP ERP" }
-                                    $imp = "핵심 기초"
-                                    $rel = @("HANA DB", "SAP BTP (Business Technology Platform)")
+                                    $imp = "Core Concept"
+                                    $rel = @("HANA DB", "SAP BTP Platform")
                                 } elseif ($lowerT -match "sac|analytics|bw|bi") {
-                                    $cat = "데이터 / 분석"
-                                    $parent = "SAP BTP (Business Technology Platform)"
-                                    $imp = "응용 / 서비스"
-                                    $rel = @("SAP Analytics Cloud (SAC)", "SAP BTP")
+                                    $cat = "Data / Analytics"
+                                    $parent = "SAP BTP Platform"
+                                    $imp = "Application Service"
+                                    $rel = @("SAP Analytics Cloud", "SAP BTP")
                                 }
 
                                 $finalSum = $sum
@@ -607,7 +702,7 @@ while ($true) {
                     $jsonStr = $termAnalysisResult | ConvertTo-Json -Depth 5
                     Send-JsonResponse $stream $corsHeaders $jsonStr
                 } else {
-                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"SAP 용어 분석 실패"}'
+                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"SAP ?⑹뼱 遺꾩꽍 ?ㅽ뙣"}'
                 }
             }
         }
@@ -646,3 +741,4 @@ while ($true) {
         Start-Sleep -Milliseconds 20
     }
 }
+

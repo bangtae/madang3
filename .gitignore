@@ -14,6 +14,8 @@ build/
 # Local Database & Log Files (로컬 데이터 차단)
 !data/apis.json
 data/user_export_apis.json
+data/access_logs.json
+data/blocked_ips.json
 *.log
 scratch/
 backups/

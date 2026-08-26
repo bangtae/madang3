@@ -54,19 +54,6 @@ window.AgentBuilderView = {
     });
 
     // 2. 커스텀 노드 추가 버튼들
-    const btnAddTrigger = document.getElementById('btn-ab-add-trigger');
-    if (btnAddTrigger) {
-      btnAddTrigger.addEventListener('click', () => {
-        this.addCustomNode('trigger', '새 시작/트리거 스텝', '사용자의 요청, 이벤트, 또는 스케줄링 트리거입니다.');
-      });
-    }
-
-    const btnAddAction = document.getElementById('btn-ab-add-action');
-    if (btnAddAction) {
-      btnAddAction.addEventListener('click', () => {
-        this.addCustomNode('action', '새 처리/액션 스텝', '데이터 변환, 로직 처리, 또는 외부 연동 액션입니다.');
-      });
-    }
 
     const btnAddNote = document.getElementById('btn-ab-add-note');
     if (btnAddNote) {
@@ -966,11 +953,11 @@ window.AgentBuilderView = {
   },
 
   /**
-   * 개별 워크플로우 저장 (LocalStorage portal_bang_saved_workflows)
+   * 개별 워크플로우 저장 (서버 DB / REST API + LocalStorage 캐시)
    */
-  saveNamedWorkflow(name, description) {
+  async saveNamedWorkflow(name, description) {
     try {
-      const savedList = this.getSavedWorkflowsList();
+      const savedList = await this.getSavedWorkflowsList();
       const existingIndex = savedList.findIndex(item => item.name === name);
 
       const workflowData = {
@@ -989,9 +976,20 @@ window.AgentBuilderView = {
       }
 
       localStorage.setItem('portal_bang_saved_workflows', JSON.stringify(savedList));
-      this.saveToLocalStorage(); // 현재 드래프트도 동기화
+      this.saveToLocalStorage(); // 현재 임시 드래프트도 동기화
 
-      if (window.UiView) window.UiView.showToast(`💾 [${name}] 워크플로우가 지정한 이름으로 저장되었습니다!`);
+      // 백엔드 API 영구 저장
+      try {
+        await fetch('/api/workflows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(savedList)
+        });
+      } catch (e) {
+        console.warn('[AgentBuilderView] Failed to save workflow to server API:', e);
+      }
+
+      if (window.UiView) window.UiView.showToast(`💾 [${name}] 워크플로우가 서버 및 로컬에 성공적으로 저장되었습니다!`);
     } catch (e) {
       console.error(e);
       if (window.UiView) window.UiView.showToast('❌ 워크플로우 저장 중 오류가 발생했습니다.', 'error');
@@ -1001,10 +999,10 @@ window.AgentBuilderView = {
   /**
    * 📂 저장된 워크플로우 목록 불러오기 모달 처리
    */
-  openLoadModal() {
+  async openLoadModal() {
     const modal = document.getElementById('ab-load-modal');
     if (modal) {
-      this.renderSavedWorkflowsList();
+      await this.renderSavedWorkflowsList();
       modal.classList.remove('hidden');
       modal.classList.add('active');
     }
@@ -1018,7 +1016,19 @@ window.AgentBuilderView = {
     }
   },
 
-  getSavedWorkflowsList() {
+  async getSavedWorkflowsList() {
+    try {
+      const res = await fetch('/api/workflows');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          localStorage.setItem('portal_bang_saved_workflows', JSON.stringify(data));
+          return data;
+        }
+      }
+    } catch (e) {
+      console.warn('[AgentBuilderView] Failed to fetch saved workflows from server:', e);
+    }
     try {
       const raw = localStorage.getItem('portal_bang_saved_workflows');
       return raw ? JSON.parse(raw) : [];
@@ -1028,11 +1038,11 @@ window.AgentBuilderView = {
     }
   },
 
-  renderSavedWorkflowsList() {
+  async renderSavedWorkflowsList() {
     const container = document.getElementById('ab-saved-list');
     if (!container) return;
 
-    const savedList = this.getSavedWorkflowsList();
+    const savedList = await this.getSavedWorkflowsList();
 
     if (savedList.length === 0) {
       container.innerHTML = `
@@ -1090,8 +1100,8 @@ window.AgentBuilderView = {
     });
   },
 
-  loadWorkflowById(id) {
-    const savedList = this.getSavedWorkflowsList();
+  async loadWorkflowById(id) {
+    const savedList = await this.getSavedWorkflowsList();
     const target = savedList.find(item => item.id === id);
     if (!target) return;
 
@@ -1108,15 +1118,24 @@ window.AgentBuilderView = {
     }
   },
 
-  deleteWorkflowById(id) {
-    const savedList = this.getSavedWorkflowsList();
+  async deleteWorkflowById(id) {
+    const savedList = await this.getSavedWorkflowsList();
     const target = savedList.find(item => item.id === id);
     if (!target) return;
 
     if (confirm(`'${target.name}' 워크플로우를 저장 목록에서 삭제하시겠습니까?`)) {
       const updatedList = savedList.filter(item => item.id !== id);
       localStorage.setItem('portal_bang_saved_workflows', JSON.stringify(updatedList));
-      this.renderSavedWorkflowsList();
+      try {
+        await fetch('/api/workflows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedList)
+        });
+      } catch (e) {
+        console.warn('[AgentBuilderView] Failed to sync deleted workflows to server:', e);
+      }
+      await this.renderSavedWorkflowsList();
       if (window.UiView) window.UiView.showToast(`🗑️ [${target.name}] 워크플로우 삭제 완료`);
     }
   },

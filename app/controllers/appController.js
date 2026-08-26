@@ -5,8 +5,9 @@ window.AppController = {
   currentSideView: 'dashboard',
   parsedBatchRows: [],
 
-  init() {
+  async init() {
     this.detectUserClientIp();
+    await this.loadMenuConfig();
     this.checkAuthGuard();
     this.bindEvents();
     this.refreshAllViews();
@@ -50,6 +51,7 @@ window.AppController = {
       if (btnSwitchAdmin) btnSwitchAdmin.classList.add('hidden');
       if (btnLogout) btnLogout.classList.remove('hidden');
     }
+    this.applyMenuPermissions();
   },
 
   scrollToBoardList(targetId) {
@@ -300,6 +302,45 @@ window.AppController = {
         this.closeMobileSidebar();
       });
     });
+
+    // 3. 메뉴 권한 설정 저장 / 초기화 버튼 이벤트
+    const btnSaveMenuConfig = document.getElementById('btn-save-menu-config');
+    if (btnSaveMenuConfig) {
+      btnSaveMenuConfig.addEventListener('click', () => {
+        const updated = (this.menuConfig || []).map(item => {
+          const guestChk = document.querySelector(`.chk-guest-toggle[data-id="${item.id}"]`);
+          const adminChk = document.querySelector(`.chk-admin-toggle[data-id="${item.id}"]`);
+          return {
+            ...item,
+            guest: guestChk ? guestChk.checked : item.guest,
+            admin: adminChk ? adminChk.checked : item.admin
+          };
+        });
+        this.saveMenuConfig(updated);
+      });
+    }
+
+    const btnResetMenuConfig = document.getElementById('btn-reset-menu-config');
+    if (btnResetMenuConfig) {
+      btnResetMenuConfig.addEventListener('click', () => {
+        if (confirm('메뉴 권한 설정을 초기 기본값으로 복원하시겠습니까?')) {
+          const defaultConfig = [
+            { id: "api-info", name: "API 정보", icon: "📚", category: "main", statCardId: "card-stat-apis", guest: true, admin: true, description: "API 정보 목록 및 세부 개발 명세 조회" },
+            { id: "ai-models", name: "AI 서비스 정보", icon: "🤖", category: "ai", statCardId: "card-stat-ai-services", guest: true, admin: true, description: "최신 AI 모델 및 서비스 정보 목록 조회" },
+            { id: "ai-terms", name: "AI 용어 & 마인드맵", icon: "🧠", category: "ai", statCardId: "card-stat-ai-terms", guest: true, admin: true, description: "AI 관련 기술 개념 및 마인드맵 학습" },
+            { id: "sap-terms", name: "SAP 용어 & 마인드맵", icon: "🏢", category: "work", statCardId: "card-stat-sap-terms", guest: true, admin: true, description: "SAP ERP 코어 모듈 및 기술 용어 마인드맵" },
+            { id: "agent-builder", name: "AI 에이전트 Builder", icon: "🧩", category: "ai", guest: true, admin: true, description: "자원 조합 및 시스템 워크플로우 설계도 생성" },
+            { id: "ip-whitelist", name: "IP 화이트리스트", icon: "🛡️", category: "admin", guest: false, admin: true, description: "접속 허용 IP 주소 관리" },
+            { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
+            { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
+            { id: "batch-register", name: "API 일괄등록", icon: "📥", category: "admin", guest: false, admin: true, description: "엑셀 파일 업로드를 통한 API bulk 등록" },
+            { id: "menu-config", name: "메뉴 권한 설정", icon: "⚙️", category: "admin", guest: false, admin: true, description: "게스트 및 관리자 모드 메뉴 노출 설정" }
+          ];
+          this.saveMenuConfig(defaultConfig);
+          this.renderMenuConfigTable();
+        }
+      });
+    }
 
     // 4. API 신규 등록 폼 제출
     const form = document.getElementById('api-form');
@@ -565,9 +606,49 @@ window.AppController = {
         const origText = btnAnalyzeAiUrl.innerText;
         btnAnalyzeAiUrl.innerText = '⏳ 자동 분석 중...';
 
+        // 실시간 프로그레스 패널 및 타이머 컨트롤
+        const progressPanel = document.getElementById('ai-url-analysis-progress');
+        const statusTextEl = document.getElementById('ai-progress-status');
+        const timerEl = document.getElementById('ai-progress-timer');
+        const fillEl = document.getElementById('ai-progress-fill');
+
+        if (progressPanel) progressPanel.classList.remove('hidden');
+
+        const startTime = performance.now();
+        const timerInterval = setInterval(() => {
+          const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+          if (timerEl) timerEl.textContent = `⏱️ ${elapsed}s`;
+        }, 100);
+
+        const updateProgressStep = (stepIdx, msg) => {
+          if (statusTextEl) statusTextEl.textContent = `⏳ [Step ${stepIdx}/4] ${msg}`;
+          const pct = stepIdx * 25;
+          if (fillEl) fillEl.style.width = `${pct}%`;
+
+          for (let i = 1; i <= 4; i++) {
+            const stepEl = document.getElementById(`pstep-${i}`);
+            if (stepEl) {
+              if (i < stepIdx) {
+                stepEl.className = 'pstep done';
+              } else if (i === stepIdx) {
+                stepEl.className = 'pstep active';
+              } else {
+                stepEl.className = 'pstep';
+              }
+            }
+          }
+        };
+
         try {
           const userManualSummary = document.getElementById('input-ai-summary')?.value.trim() || '';
-          const res = await window.AiModel.analyzeUrl(url, userManualSummary);
+          const res = await window.AiModel.analyzeUrl(url, userManualSummary, (stepIdx, msg) => {
+            updateProgressStep(stepIdx, msg);
+          });
+
+          clearInterval(timerInterval);
+          const totalSec = ((performance.now() - startTime) / 1000).toFixed(1);
+          if (timerEl) timerEl.textContent = `✅ ${totalSec}s`;
+
           if (res && res.success) {
             document.getElementById('input-ai-title').value = res.title || '';
             document.getElementById('input-ai-developer').value = res.developer || '';
@@ -614,10 +695,14 @@ window.AppController = {
             if (document.getElementById('input-ai-similar')) document.getElementById('input-ai-similar').value = res.similarModels || '';
             document.getElementById('input-ai-docs-url').value = res.docsUrl || url;
 
-            if (res.isExisting) {
+            updateProgressStep(4, '⚡ 분석 완료! 폼 필드가 성공적으로 자동 완성되었습니다.');
+
+            if (res.isCached) {
+              window.UiView.showToast('⚡ [캐시] 이전에 분석한 URL 정보로 0.1초 만에 완료되었습니다!');
+            } else if (res.isExisting) {
               window.UiView.showToast('🔄 기존 차고 등록 모델의 최신 컨설팅 정보(특징/요금/경쟁모델)를 새로 자동 조사하여 반영했습니다!');
             } else {
-              window.UiView.showToast('✨ AI 모델 컨설팅용 정밀 정보(특징·요금·경쟁모델·활용법)가 수동 입력 메모와 함께 자동 생성되었습니다!');
+              window.UiView.showToast('✨ AI 모델 URL 정보를 성공적으로 조사하여 입력 폼을 자동 완성했습니다!');
             }
           } else if (res && res.message && res.message.includes('도박/피싱')) {
             window.UiView.showToast(res.message);
@@ -1160,6 +1245,8 @@ window.AppController = {
     const viewIpBlacklist = document.getElementById('view-ip-blacklist');
     const viewIpLogs = document.getElementById('view-ip-logs');
     const viewBatchRegister = document.getElementById('view-batch-register');
+    const viewMenuConfig = document.getElementById('view-menu-config');
+    const viewTechStack = document.getElementById('view-tech-stack');
 
     const hideAllViews = () => {
       if (viewDashboard) viewDashboard.classList.add('hidden');
@@ -1172,6 +1259,8 @@ window.AppController = {
       if (viewIpBlacklist) viewIpBlacklist.classList.add('hidden');
       if (viewIpLogs) viewIpLogs.classList.add('hidden');
       if (viewBatchRegister) viewBatchRegister.classList.add('hidden');
+      if (viewMenuConfig) viewMenuConfig.classList.add('hidden');
+      if (viewTechStack) viewTechStack.classList.add('hidden');
     };
 
     hideAllViews();
@@ -1208,6 +1297,11 @@ window.AppController = {
       if (window.AgentBuilderView) {
         window.AgentBuilderView.init();
       }
+    } else if (sideView === 'tech-stack') {
+      if (viewTechStack) viewTechStack.classList.remove('hidden');
+      if (window.TechStackView) {
+        window.TechStackView.init();
+      }
     } else if (sideView === 'ip-whitelist') {
       if (viewIpWhitelist) viewIpWhitelist.classList.remove('hidden');
       this.loadAndRenderIpWhitelist();
@@ -1219,8 +1313,167 @@ window.AppController = {
       this.loadAndRenderAccessLogs();
     } else if (sideView === 'batch-register') {
       if (viewBatchRegister) viewBatchRegister.classList.remove('hidden');
+    } else if (sideView === 'menu-config') {
+      if (viewMenuConfig) viewMenuConfig.classList.remove('hidden');
+      this.renderMenuConfigTable();
     }
   },
+
+  /**
+   * 메뉴 권한 설정 로드 (API & localStorage)
+   */
+  async loadMenuConfig() {
+    try {
+      const res = await fetch('/api/menu-config');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          this.menuConfig = data;
+          localStorage.setItem('portal_menu_config', JSON.stringify(data));
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[AppController] Failed to fetch menu config from API:', e);
+    }
+    const local = localStorage.getItem('portal_menu_config');
+    if (local) {
+      try {
+        this.menuConfig = JSON.parse(local);
+        return;
+      } catch (e) {}
+    }
+    this.menuConfig = [
+      { id: "api-info", name: "API 정보", icon: "📚", category: "main", statCardId: "card-stat-apis", guest: true, admin: true, description: "API 정보 목록 및 세부 개발 명세 조회" },
+      { id: "ai-models", name: "AI 서비스 정보", icon: "🤖", category: "ai", statCardId: "card-stat-ai-services", guest: true, admin: true, description: "최신 AI 모델 및 서비스 정보 목록 조회" },
+      { id: "ai-terms", name: "AI 용어 & 마인드맵", icon: "🧠", category: "ai", statCardId: "card-stat-ai-terms", guest: true, admin: true, description: "AI 관련 기술 개념 및 마인드맵 학습" },
+      { id: "sap-terms", name: "SAP 용어 & 마인드맵", icon: "🏢", category: "work", statCardId: "card-stat-sap-terms", guest: true, admin: true, description: "SAP ERP 코어 모듈 및 기술 용어 마인드맵" },
+      { id: "agent-builder", name: "AI 에이전트 Builder", icon: "🧩", category: "ai", guest: true, admin: true, description: "자원 조합 및 시스템 워크플로우 설계도 생성" },
+      { id: "ip-whitelist", name: "IP 화이트리스트", icon: "🛡️", category: "admin", guest: false, admin: true, description: "접속 허용 IP 주소 관리" },
+      { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
+      { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
+      { id: "batch-register", name: "API 일괄등록", icon: "📥", category: "admin", guest: false, admin: true, description: "엑셀 파일 업로드를 통한 API bulk 등록" },
+      { id: "menu-config", name: "메뉴 권한 설정", icon: "⚙️", category: "admin", guest: false, admin: true, description: "게스트 및 관리자 모드 메뉴 노출 설정" }
+    ];
+  },
+
+  /**
+   * 메뉴 권한 설정 저장
+   */
+  async saveMenuConfig(newConfig) {
+    this.menuConfig = newConfig;
+    localStorage.setItem('portal_menu_config', JSON.stringify(newConfig));
+    try {
+      await fetch('/api/menu-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig)
+      });
+    } catch (e) {
+      console.warn('[AppController] Failed to save menu config to backend:', e);
+    }
+    this.applyMenuPermissions();
+    if (window.UiView && window.UiView.showToast) {
+      window.UiView.showToast('💾 메뉴 권한 설정이 성공적으로 저장되었습니다!');
+    }
+  },
+
+  /**
+   * 게스트/관리자 권한 설정에 따른 UI 메뉴 및 대시보드 통계 카드 실시간 표시/숨김 적용
+   */
+  applyMenuPermissions() {
+    const rawUser = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+    let isGuest = true;
+    if (rawUser) {
+      try { isGuest = !!JSON.parse(rawUser).isGuest; } catch (e) {}
+    }
+    const roleKey = isGuest ? 'guest' : 'admin';
+    const configMap = {};
+    (this.menuConfig || []).forEach(item => {
+      configMap[item.id] = item[roleKey] !== false;
+    });
+
+    // 1. 메인 대시보드 통계 카드 완전 숨김/노출
+    (this.menuConfig || []).forEach(item => {
+      if (item.statCardId) {
+        const card = document.getElementById(item.statCardId);
+        if (card) {
+          if (configMap[item.id]) {
+            card.style.display = '';
+          } else {
+            card.style.display = 'none';
+          }
+        }
+      }
+    });
+
+    // 2. 사이드바 메뉴 버튼 (data-side) 숨김/노출
+    const sideButtons = document.querySelectorAll('.nav-side-btn');
+    sideButtons.forEach(btn => {
+      const sideTarget = btn.getAttribute('data-side');
+      if (!sideTarget || sideTarget === 'dashboard') return;
+      const isAllowed = configMap[sideTarget] !== false;
+      if (isAllowed) {
+        btn.style.display = '';
+      } else {
+        btn.style.display = 'none';
+      }
+    });
+
+    // 3. 상단 Nav 및 사이드바 그룹 제어
+    const checkGroupVisible = (sideGroupId) => {
+      const groupEl = document.getElementById(sideGroupId);
+      if (!groupEl) return false;
+      const btns = Array.from(groupEl.querySelectorAll('.nav-side-btn'));
+      return btns.some(b => b.style.display !== 'none');
+    };
+
+    const topApiNav = document.getElementById('nav-top-api');
+    const topAiNav = document.getElementById('nav-top-ai');
+    const topWorkNav = document.getElementById('nav-top-work');
+    const topAdminNav = document.getElementById('nav-top-admin');
+
+    if (topApiNav) topApiNav.style.display = checkGroupVisible('side-menu-api') ? '' : 'none';
+    if (topAiNav) topAiNav.style.display = checkGroupVisible('side-menu-ai') ? '' : 'none';
+    if (topWorkNav) topWorkNav.style.display = checkGroupVisible('side-menu-work') ? '' : 'none';
+    if (topAdminNav) topAdminNav.style.display = (!isGuest && checkGroupVisible('side-menu-admin')) ? '' : 'none';
+  },
+
+  /**
+   * 메뉴 권한 설정 화면 테이블 렌더링
+   */
+  renderMenuConfigTable() {
+    const tbody = document.getElementById('menu-config-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    (this.menuConfig || []).forEach(item => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="menu-config-item-title">
+            <span class="icon">${item.icon || '📄'}</span>
+            <span>${item.name}</span>
+          </div>
+        </td>
+        <td style="color: var(--text-secondary); font-size: 0.85rem;">${item.description || ''}</td>
+        <td style="text-align: center;">
+          <label class="switch-label">
+            <input type="checkbox" class="chk-guest-toggle" data-id="${item.id}" ${item.guest ? 'checked' : ''} />
+            <span class="slider"></span>
+          </label>
+        </td>
+        <td style="text-align: center;">
+          <label class="switch-label">
+            <input type="checkbox" class="chk-admin-toggle" data-id="${item.id}" ${item.admin ? 'checked' : ''} ${item.id === 'menu-config' ? 'disabled' : ''} />
+            <span class="slider"></span>
+          </label>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  },
+
 
   /**
    * IP 화이트리스트 목록 조회 및 UI 렌더링

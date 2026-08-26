@@ -60,6 +60,42 @@ app.post('/api/apis', (req, res) => {
   }
 });
 
+app.get('/api/menu-config', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'menuConfig.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  res.json([]);
+});
+
+app.post('/api/menu-config', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'menuConfig.json');
+  try {
+    const data = req.body;
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+app.get('/api/workflows', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'workflows.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  res.json([]);
+});
+
+app.post('/api/workflows', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'workflows.json');
+  try {
+    const data = req.body;
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Health check endpoint for GCP Cloud Engine/Run
 app.get('/_health', (req, res) => {
   res.status(200).send('OK');

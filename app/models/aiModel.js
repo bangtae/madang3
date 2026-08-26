@@ -301,15 +301,52 @@ window.AiModel = {
   },
 
   /**
+   * AI 모델 분석 캐시 가져오기
+   */
+  getAnalysisCache(urlKey) {
+    try {
+      const raw = localStorage.getItem('portal_ai_analysis_cache');
+      if (raw) {
+        const cacheMap = JSON.parse(raw);
+        return cacheMap[urlKey] || null;
+      }
+    } catch (e) {}
+    return null;
+  },
+
+  /**
+   * AI 모델 분석 캐시 저장하기
+   */
+  setAnalysisCache(urlKey, data) {
+    try {
+      const raw = localStorage.getItem('portal_ai_analysis_cache');
+      const cacheMap = raw ? JSON.parse(raw) : {};
+      cacheMap[urlKey] = data;
+      localStorage.setItem('portal_ai_analysis_cache', JSON.stringify(cacheMap));
+    } catch (e) {}
+  },
+
+  /**
    * AI 모델 홈페이지 URL 입력 시 서버/로컬 분석을 수행하는 메소드
    */
-  async analyzeUrl(targetUrl, userManualSummary = '') {
+  async analyzeUrl(targetUrl, userManualSummary = '', stepCallback = null) {
     if (!targetUrl) return { success: false, message: 'URL을 입력해주세요.' };
 
     const normalizeUrl = (url) => (typeof url === 'string' ? url.trim().toLowerCase().replace(/\/+$/, '') : '');
     const targetCanonical = this.getCanonicalUrl(targetUrl);
     const normTarget = normalizeUrl(targetUrl);
     const cleanUserSummary = userManualSummary ? userManualSummary.trim() : '';
+
+    if (stepCallback) stepCallback(1, '🌐 입력 URL 접속 및 웹 메타데이터 수집 중...');
+
+    // 1. 캐시 검사 (동일 URL 재요청 시 0.1초 즉시 반환)
+    const cachedData = this.getAnalysisCache(normTarget) || (targetCanonical ? this.getAnalysisCache(targetCanonical) : null);
+    if (cachedData) {
+      if (stepCallback) stepCallback(4, '⚡ [캐시] 이전에 분석한 URL 데이터로 0.1초 만에 완료되었습니다!');
+      return { ...cachedData, isCached: true };
+    }
+
+    if (stepCallback) stepCallback(2, '🤖 Google Gemini 1.5 Flash AI 모델 컨텍스트 분석 중...');
 
     // 기존 등록 모델 중 canonical URL, exact URL, 또는 에일리어스 교차 감지
     const existingModel = this.getAiModels().find(m => {
@@ -325,19 +362,25 @@ window.AiModel = {
     });
 
     const endpoints = [
-      'http://localhost:8080/api/analyze-ai-url',
-      'http://127.0.0.1:8080/api/analyze-ai-url',
       '/api/analyze-ai-url',
-      'http://192.168.219.115:8080/api/analyze-ai-url'
+      'http://127.0.0.1:8080/api/analyze-ai-url'
     ];
 
     for (const ep of endpoints) {
       try {
+        if (stepCallback) stepCallback(3, '💡 요금 체계, 개발 국가, 유사 서비스, 활용 아이디어 추론 중...');
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+
         const res = await fetch(ep, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: targetUrl, userSummary: cleanUserSummary })
+          body: JSON.stringify({ url: targetUrl, userSummary: cleanUserSummary }),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
+
         if (res && res.ok) {
           const data = await res.json();
           if (data) {
@@ -355,16 +398,22 @@ window.AiModel = {
               if (cleanUserSummary && data.summary && !data.summary.includes(cleanUserSummary)) {
                 data.summary = `${cleanUserSummary}\n\n📌 [자동 분석 요약]\n${data.summary}`;
               }
+              // 캐시에 저장
+              this.setAnalysisCache(normTarget, data);
+              if (targetCanonical) this.setAnalysisCache(targetCanonical, data);
+
+              if (stepCallback) stepCallback(4, '⚡ 분석 완료! 필드 자동 생성 및 렌더링 중...');
               return data;
             }
           }
         }
       } catch (err) {
-        // Try next endpoint
+        // Fast fallback on timeout
       }
     }
 
     // 로컬 폴백 전문가 지능형 KB 수집
+    if (stepCallback) stepCallback(4, '⚡ 분석 완료! 필드 자동 생성 및 렌더링 중...');
     const expertInfo = this.getExpertAiKnowledge(targetUrl);
     if (expertInfo) {
       let expSummary = expertInfo.summary || '';
