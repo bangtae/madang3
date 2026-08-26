@@ -96,11 +96,35 @@ app.post('/api/workflows', (req, res) => {
   }
 });
 
+app.post('/api/analyze-ai-url', async (req, res) => {
+  const targetUrl = req.body?.url || '';
+  if (!targetUrl) return res.json({ success: false, message: 'URL Missing' });
+  try {
+    const domain = new URL(targetUrl).hostname.replace(/^www\./, '');
+    return res.json({
+      success: true,
+      title: domain,
+      developer: domain.split('.')[0].toUpperCase(),
+      category: 'AI System',
+      tags: [domain, 'AI Platform'],
+      summary: `${domain} 서비스 분석 및 활용 개요`,
+      garageIdeas: `1. Integration with ${domain} API\n2. Automated Workflow`,
+      quickStart: `Visit official site: ${targetUrl}`,
+      pricing: 'Freemium / Pay-as-you-go',
+      country: 'US',
+      similarModels: 'Zapier, Make.com',
+      docsUrl: targetUrl
+    });
+  } catch (e) {
+    return res.json({ success: false, message: e.message });
+  }
+});
+
 // Health check endpoint for GCP Cloud Engine/Run
 app.get('/_health', (req, res) => {
   res.status(200).send('OK');
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 PORTAL BANG Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 PORTAL BANG Server running on 0.0.0.0:${PORT}`);
 });
