@@ -84,6 +84,8 @@ app.post('/api/menu-config', (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
 app.get('/api/workflows', (req, res) => {
   const filePath = path.join(__dirname, 'data', 'workflows.json');
   if (fs.existsSync(filePath)) {
