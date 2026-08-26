@@ -1,3 +1,10 @@
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception]:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection]:', reason);
+});
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -86,8 +93,10 @@ app.get('/api/workflows', (req, res) => {
 });
 
 app.post('/api/workflows', (req, res) => {
-  const filePath = path.join(__dirname, 'data', 'workflows.json');
+  const dataDir = path.join(__dirname, 'data');
+  const filePath = path.join(dataDir, 'workflows.json');
   try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
     const data = req.body;
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
     res.json({ success: true });
