@@ -56,8 +56,8 @@ Windows PowerShell 환경에서 포함된 스크립트를 사용하여 로컬 �
 리포지토리 클론:
 
 Bash
-git clone [https://github.com/bangtae/portal_bang.git](https://github.com/bangtae/portal_bang.git)
-cd portal_bang
+git clone https://github.com/bangtae/madang3.git
+cd madang3
 로컬 서버 실행:
 
 PowerShell
