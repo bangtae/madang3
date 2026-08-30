@@ -10,9 +10,12 @@ description: 변경된 소스 코드를 GCP Cloud Run(madang3) 및 App Engine에
 
 ## 🌐 1. 라이브 운영 및 접속 URL 목록
 
-- 🚀 **Cloud Run (madang3 포함 주소 - 즉시 접속 가능)**: [https://madang3-264643074286.asia-northeast3.run.app](https://madang3-264643074286.asia-northeast3.run.app)
-- ☁️ **App Engine 서비스 주소**: [https://madang2-trans.du.r.appspot.com](https://madang2-trans.du.r.appspot.com)
-- 🌐 **커스텀 도메인**: `https://madang3.com` (Google Webmaster Central TXT 소유권 검증 후 연결)
+- 🚀 **GCP Cloud Run 메인 라이브 URL (외부 즉시 접속 가능)**:
+  👉 **[https://madang3-264643074286.asia-northeast3.run.app/](https://madang3-264643074286.asia-northeast3.run.app/)**
+- ☁️ **App Engine 서브 URL**:
+  👉 [https://madang2-trans.du.r.appspot.com/](https://madang2-trans.du.r.appspot.com/)
+- 🌐 **커스텀 도메인**:
+  👉 `https://madang3.com/` (Google Webmaster Central TXT 소유권 검증 후 연결)
 
 ---
 
@@ -47,7 +50,7 @@ gcloud.cmd app deploy app.yaml --project=madang2-trans --quiet
 
 ```powershell
 # Cloud Run 서비스 접속 상태 확인 (StatusCode 200)
-powershell -Command "(Invoke-WebRequest -Uri 'https://madang3-264643074286.asia-northeast3.run.app' -UseBasicParsing).StatusCode"
+powershell -Command "(Invoke-WebRequest -Uri 'https://madang3-264643074286.asia-northeast3.run.app/' -UseBasicParsing).StatusCode"
 ```
 
 ---
