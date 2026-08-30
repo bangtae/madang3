@@ -1,4 +1,4 @@
-# MADANG3 (PORTAL BANG) - Integrated Data & AI Portal System
+# MADANG3 - Integrated Data & AI Portal System
 
 [![Service Status](https://img.shields.io/badge/Production-https%3A%2F%2Fmadang3.com-brightgreen)](https://madang3.com)
 [![GCP App Engine](https://img.shields.io/badge/GCP-App%20Engine%20(Node.js%2022)-blue)](https://cloud.google.com/appengine)
