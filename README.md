@@ -6,7 +6,8 @@
 
 **MADANG3**는 클라이언트 사이드 MVC(Model-View-Controller) 아키텍처와 Node.js Express 백엔드를 결합한 **통합 데이터 및 대화형 AI 포털 서비스**입니다. Google Gemini LLM API, Supabase 데이터베이스, GCP App Engine 인프라 및 자동화 배포 워크플로우(`/gcp`, `/git`)를 포함합니다.
 
-🌐 **운영 서비스 주소**: [https://madang3.com](https://madang3.com) (및 [https://www.madang3.com](https://www.madang3.com))
+🌐 **운영 서비스 라이브 주소 (외부 접속 가능)**: [https://madang3-264643074286.asia-northeast3.run.app](https://madang3-264643074286.asia-northeast3.run.app)
+*(커스텀 도메인: https://madang3.com)*
 
 ---
 
