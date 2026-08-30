@@ -63,6 +63,79 @@ window.UiView = {
         </div>
       `).join('');
     }
+
+    this.renderDashStockWidget();
+  },
+
+  /**
+   * 대시보드 K-증시온도 위젯 렌더링
+   */
+  renderDashStockWidget() {
+    if (!window.StockTempModel) return;
+    const items = window.StockTempModel.getItems();
+    const statTempEl = document.getElementById('stat-today-stock-temp');
+    if (!items || items.length === 0) return;
+
+    // 최신 데이터
+    const latest = items[0];
+    const status = window.StockTempModel.getTempStatus(latest.temp);
+
+    if (statTempEl) {
+      statTempEl.innerHTML = `<span style="color:${status.color}; font-weight: 700;">${status.emoji} ${latest.temp}℃</span>`;
+    }
+
+    const dateEl = document.getElementById('dash-stock-date');
+    const badgeEl = document.getElementById('dash-stock-temp-badge');
+    const headlineEl = document.getElementById('dash-stock-headline');
+    const goodBarEl = document.getElementById('dash-stock-gauge-good');
+    const badBarEl = document.getElementById('dash-stock-gauge-bad');
+    const goodRatioEl = document.getElementById('dash-stock-good-ratio');
+    const badRatioEl = document.getElementById('dash-stock-bad-ratio');
+    const tagsEl = document.getElementById('dash-stock-tags');
+
+    const dtStr = latest.datetime || `${latest.date} ${latest.timePeriod || '오후'}`;
+    if (dateEl) dateEl.textContent = `📅 ${dtStr}`;
+
+    if (badgeEl) {
+      badgeEl.innerHTML = `<span class="badge ${status.class}" style="font-size: 0.9rem; padding: 4px 10px;">${status.emoji} <strong>${latest.temp}℃</strong> (${status.label})</span>`;
+    }
+
+    if (headlineEl) {
+      headlineEl.textContent = latest.title || latest.summary || '최근 K증시 분위기 브리핑';
+    }
+
+    const total = (latest.goodCount || 0) + (latest.badCount || 0);
+    const goodRatio = total > 0 ? Math.round((latest.goodCount / total) * 100) : 50;
+    const badRatio = 100 - goodRatio;
+
+    if (goodBarEl) goodBarEl.style.width = `${goodRatio}%`;
+    if (badBarEl) badBarEl.style.width = `${badRatio}%`;
+
+    if (goodRatioEl) goodRatioEl.textContent = `☀️ 호재 ${latest.goodCount}건 (${goodRatio}%)`;
+    if (badRatioEl) badRatioEl.textContent = `🌧️ 악재 ${latest.badCount}건 (${badRatio}%)`;
+
+    if (tagsEl) {
+      const tags = latest.tags || [];
+      tagsEl.innerHTML = tags.slice(0, 5).map(t => `<span style="background: rgba(255,255,255,0.06); color: #94a3b8; font-size: 0.78rem; padding: 2px 8px; border-radius: 4px;">#${this.escapeHtml(t)}</span>`).join('');
+    }
+
+    // 클릭 시 투자 > K증시 온도 탭 이동
+    const widgetEl = document.getElementById('dash-stock-temp-widget');
+    const cardStatEl = document.getElementById('card-stat-stock-temp');
+
+    const navigateToStockTemp = () => {
+      const investTopBtn = document.getElementById('nav-top-invest');
+      if (investTopBtn) investTopBtn.click();
+    };
+
+    if (widgetEl && !widgetEl.dataset.bound) {
+      widgetEl.dataset.bound = 'true';
+      widgetEl.addEventListener('click', navigateToStockTemp);
+    }
+    if (cardStatEl && !cardStatEl.dataset.bound) {
+      cardStatEl.dataset.bound = 'true';
+      cardStatEl.addEventListener('click', navigateToStockTemp);
+    }
   },
 
   /**

@@ -140,7 +140,47 @@
             <p>등록현황 및 통계를 한눈에 확인하세요.</p>
           </div>
           
+          <!-- K-증시온도 대시보드 미니 위젯 -->
+          <div class="card dash-stock-widget" id="dash-stock-temp-widget" style="margin-bottom: 24px; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;" title="클릭 시 K증시 온도 상세 분석 페이지로 이동">
+            <div class="dash-stock-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <div class="dash-stock-title-group" style="display: flex; align-items: center; gap: 10px;">
+                <span class="dash-stock-badge" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.2)); color: #f59e0b; padding: 4px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; border: 1px solid rgba(245, 158, 11, 0.3);">☀️ K-증시온도 리포트</span>
+                <span class="dash-stock-date" id="dash-stock-date" style="color: #94a3b8; font-size: 0.85rem;">📅 -</span>
+              </div>
+              <div class="dash-stock-temp-badge" id="dash-stock-temp-badge">
+                <span class="temp-val" style="font-size: 1.1rem; font-weight: 700; color: #38bdf8;">-℃</span>
+              </div>
+            </div>
+            <div class="dash-stock-body">
+              <h3 class="dash-stock-headline" id="dash-stock-headline" style="font-size: 1.05rem; font-weight: 600; color: #f8fafc; margin: 0 0 14px 0; line-height: 1.45;">증시 분위기 데이터를 불러오는 중입니다...</h3>
+              <div class="dash-stock-progress-wrapper" style="margin-bottom: 14px;">
+                <div class="dash-stock-gauge-bar" style="height: 10px; background: rgba(30, 41, 59, 0.8); border-radius: 5px; overflow: hidden; display: flex; margin-bottom: 6px;">
+                  <div class="dash-stock-gauge-good" id="dash-stock-gauge-good" style="width: 50%; background: #38bdf8; transition: width 0.5s ease;"></div>
+                  <div class="dash-stock-gauge-bad" id="dash-stock-gauge-bad" style="width: 50%; background: #ef4444; transition: width 0.5s ease;"></div>
+                </div>
+                <div class="dash-stock-split-labels" style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 500;">
+                  <span class="good-text" id="dash-stock-good-ratio" style="color: #38bdf8;">☀️ 호재 -%</span>
+                  <span class="bad-text" id="dash-stock-bad-ratio" style="color: #f87171;">🌧️ 악재 -%</span>
+                </div>
+              </div>
+              <div class="dash-stock-footer" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; border-top: 1px border-color; padding-top: 10px;">
+                <div class="dash-stock-tags" id="dash-stock-tags" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+                <div class="dash-stock-link" style="color: #38bdf8; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                  <span>K증시 온도 상세 분석 보기</span>
+                  <span class="arrow">➔</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div class="stats-grid">
+            <div class="stat-card stat-clickable" id="card-stat-stock-temp" style="cursor: pointer;" title="클릭 시 K증시 온도 페이지로 이동">
+              <div class="stat-icon orange" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">☀️</div>
+              <div class="stat-info">
+                <span class="stat-label">K증시 온도</span>
+                <span class="stat-value" id="stat-today-stock-temp">-</span>
+              </div>
+            </div>
             <div class="stat-card stat-clickable" id="card-stat-apis" style="cursor: pointer;" title="클릭 시 등록 API 게시판 목록 조회 (읽기 전용)">
               <div class="stat-icon purple">📦</div>
               <div class="stat-info">
