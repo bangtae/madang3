@@ -62,6 +62,21 @@ CREATE TABLE IF NOT EXISTS public.agent_workflows (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 7. stock_temp 테이블 (K증시 온도)
+CREATE TABLE IF NOT EXISTS public.stock_temp (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL,
+    datetime TEXT,
+    title TEXT NOT NULL,
+    good_count INT DEFAULT 50,
+    bad_count INT DEFAULT 50,
+    temp INT DEFAULT 50,
+    summary TEXT,
+    detail TEXT,
+    tags JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 모든 사용자가 자유롭게 읽기/쓰기/수정/삭제 가능하도록 RLS (Row Level Security) 설정
 ALTER TABLE public.apis ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_models ENABLE ROW LEVEL SECURITY;
@@ -69,6 +84,7 @@ ALTER TABLE public.ai_terms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sap_terms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ip_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_workflows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stock_temp ENABLE ROW LEVEL SECURITY;
 
 -- 익명/인증 사용자 모두에게 전체 CRUD 허용 정책 생성
 CREATE POLICY "Public Read/Write for apis" ON public.apis FOR ALL USING (true) WITH CHECK (true);
@@ -77,6 +93,7 @@ CREATE POLICY "Public Read/Write for ai_terms" ON public.ai_terms FOR ALL USING 
 CREATE POLICY "Public Read/Write for sap_terms" ON public.sap_terms FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public Read/Write for ip_rules" ON public.ip_rules FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public Read/Write for agent_workflows" ON public.agent_workflows FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public Read/Write for stock_temp" ON public.stock_temp FOR ALL USING (true) WITH CHECK (true);
 
 -- Realtime 동기화 활성화
 ALTER PUBLICATION supabase_realtime ADD TABLE public.apis;
@@ -85,3 +102,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ai_terms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.sap_terms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.ip_rules;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.agent_workflows;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_temp;

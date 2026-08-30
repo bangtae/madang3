@@ -107,6 +107,37 @@ app.post('/api/workflows', (req, res) => {
   }
 });
 
+app.get('/api/stock-temp', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'stockTemp.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const fallbackPath = path.join(__dirname, 'data', 'initialStockTemp.js');
+  if (fs.existsSync(fallbackPath)) {
+    try {
+      const code = fs.readFileSync(fallbackPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_STOCK_TEMP\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to parse initialStockTemp.js' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/stock-temp', (req, res) => {
+  const dataDir = path.join(__dirname, 'data');
+  const filePath = path.join(dataDir, 'stockTemp.json');
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    const data = req.body;
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    res.json({ success: true, count: Array.isArray(data) ? data.length : 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/analyze-ai-url', async (req, res) => {
   const targetUrl = req.body?.url || '';
   if (!targetUrl) return res.json({ success: false, message: 'URL Missing' });

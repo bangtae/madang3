@@ -4,7 +4,8 @@
   "description": "PORTAL BANG Integrated Data & AI Portal System",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "deploy": "gcloud app deploy app.yaml --quiet"
   },
   "dependencies": {
     "express": "^4.19.2"

@@ -18,6 +18,8 @@ $menuConfigFile = Join-Path $dataDir "menuConfig.json"
 $workflowsFile = Join-Path $dataDir "workflows.json"
 $blockedIpsFile = Join-Path $dataDir "blocked_ips.json"
 $accessLogsFile = Join-Path $dataDir "access_logs.json"
+$stockTempDataFile = Join-Path $dataDir "stockTemp.json"
+$stockTempJsFile = Join-Path $dataDir "initialStockTemp.js"
 
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
@@ -365,6 +367,30 @@ while ($true) {
                     $postData = $headerBodySplit[1]
                     if (-not [string]::IsNullOrWhiteSpace($postData)) {
                         [System.IO.File]::WriteAllText($workflowsFile, $postData, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/stock-temp") {
+            if ($method -eq "GET") {
+                if (Test-Path $stockTempDataFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($stockTempDataFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                } elseif (Test-Path $stockTempJsFile) {
+                    $rawText = [System.IO.File]::ReadAllText($stockTempJsFile, [System.Text.Encoding]::UTF8)
+                    $cleanJson = $rawText -replace '^window\.PORTAL_DATA_STOCK_TEMP\s*=\s*', '' -replace ';\s*$', ''
+                    Send-JsonResponse $stream $corsHeaders $cleanJson
+                } else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($stockTempDataFile, $postData, $Utf8NoBom)
                     }
                 }
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'

@@ -10,6 +10,12 @@ window.AppController = {
     await this.loadMenuConfig();
     this.checkAuthGuard();
     this.bindEvents();
+    if (window.StockTempModel) {
+      await window.StockTempModel.loadStockTempData();
+    }
+    if (window.StockTempView) {
+      window.StockTempView.init();
+    }
     this.refreshAllViews();
   },
 
@@ -74,6 +80,9 @@ window.AppController = {
     this.loadAndRenderAiModels();
     this.loadAndRenderAiTerms();
     this.loadAndRenderSapTerms();
+    if (window.StockTempView && typeof window.StockTempView.renderView === 'function') {
+      window.StockTempView.renderView();
+    }
   },
 
   failedPassCount: 0,
@@ -1176,6 +1185,7 @@ window.AppController = {
     const sideApi = document.getElementById('side-menu-api');
     const sideAi = document.getElementById('side-menu-ai');
     const sideWork = document.getElementById('side-menu-work');
+    const sideInvest = document.getElementById('side-menu-invest');
     const sideAdmin = document.getElementById('side-menu-admin');
 
     if (view === 'main') {
@@ -1183,6 +1193,7 @@ window.AppController = {
       if (sideApi) sideApi.classList.add('hidden');
       if (sideAi) sideAi.classList.add('hidden');
       if (sideWork) sideWork.classList.add('hidden');
+      if (sideInvest) sideInvest.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('dashboard');
     } else if (view === 'api') {
@@ -1190,6 +1201,7 @@ window.AppController = {
       if (sideApi) sideApi.classList.remove('hidden');
       if (sideAi) sideAi.classList.add('hidden');
       if (sideWork) sideWork.classList.add('hidden');
+      if (sideInvest) sideInvest.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('api-info');
     } else if (view === 'ai') {
@@ -1197,6 +1209,7 @@ window.AppController = {
       if (sideApi) sideApi.classList.add('hidden');
       if (sideAi) sideAi.classList.remove('hidden');
       if (sideWork) sideWork.classList.add('hidden');
+      if (sideInvest) sideInvest.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('ai-models');
     } else if (view === 'agent-builder') {
@@ -1204,6 +1217,7 @@ window.AppController = {
       if (sideApi) sideApi.classList.add('hidden');
       if (sideAi) sideAi.classList.remove('hidden');
       if (sideWork) sideWork.classList.add('hidden');
+      if (sideInvest) sideInvest.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('agent-builder');
     } else if (view === 'work') {
@@ -1211,13 +1225,23 @@ window.AppController = {
       if (sideApi) sideApi.classList.add('hidden');
       if (sideAi) sideAi.classList.add('hidden');
       if (sideWork) sideWork.classList.remove('hidden');
+      if (sideInvest) sideInvest.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('sap-terms');
+    } else if (view === 'invest') {
+      if (sideMain) sideMain.classList.add('hidden');
+      if (sideApi) sideApi.classList.add('hidden');
+      if (sideAi) sideAi.classList.add('hidden');
+      if (sideWork) sideWork.classList.add('hidden');
+      if (sideInvest) sideInvest.classList.remove('hidden');
+      if (sideAdmin) sideAdmin.classList.add('hidden');
+      this.switchSideNav('stock-temp');
     } else if (view === 'admin') {
       if (sideMain) sideMain.classList.add('hidden');
       if (sideApi) sideApi.classList.add('hidden');
       if (sideAi) sideAi.classList.add('hidden');
       if (sideWork) sideWork.classList.add('hidden');
+      if (sideInvest) sideInvest.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.remove('hidden');
       this.switchSideNav('ip-whitelist');
     }
@@ -1247,6 +1271,7 @@ window.AppController = {
     const viewBatchRegister = document.getElementById('view-batch-register');
     const viewMenuConfig = document.getElementById('view-menu-config');
     const viewTechStack = document.getElementById('view-tech-stack');
+    const viewStockTemp = document.getElementById('view-stock-temp');
 
     const hideAllViews = () => {
       if (viewDashboard) viewDashboard.classList.add('hidden');
@@ -1261,11 +1286,19 @@ window.AppController = {
       if (viewBatchRegister) viewBatchRegister.classList.add('hidden');
       if (viewMenuConfig) viewMenuConfig.classList.add('hidden');
       if (viewTechStack) viewTechStack.classList.add('hidden');
+      if (viewStockTemp) viewStockTemp.classList.add('hidden');
     };
 
     hideAllViews();
 
-    if (sideView === 'dashboard') {
+    if (sideView === 'stock-temp') {
+      if (viewStockTemp) viewStockTemp.classList.remove('hidden');
+      if (window.StockTempModel && window.StockTempView) {
+        window.StockTempModel.loadStockTempData().then(() => {
+          window.StockTempView.renderView();
+        });
+      }
+    } else if (sideView === 'dashboard') {
       if (viewDashboard) viewDashboard.classList.remove('hidden');
       this.refreshAllViews();
     } else if (sideView === 'api-info') {
@@ -1431,11 +1464,13 @@ window.AppController = {
     const topApiNav = document.getElementById('nav-top-api');
     const topAiNav = document.getElementById('nav-top-ai');
     const topWorkNav = document.getElementById('nav-top-work');
+    const topInvestNav = document.getElementById('nav-top-invest');
     const topAdminNav = document.getElementById('nav-top-admin');
 
     if (topApiNav) topApiNav.style.display = checkGroupVisible('side-menu-api') ? '' : 'none';
     if (topAiNav) topAiNav.style.display = checkGroupVisible('side-menu-ai') ? '' : 'none';
     if (topWorkNav) topWorkNav.style.display = checkGroupVisible('side-menu-work') ? '' : 'none';
+    if (topInvestNav) topInvestNav.style.display = checkGroupVisible('side-menu-invest') ? '' : 'none';
     if (topAdminNav) topAdminNav.style.display = (!isGuest && checkGroupVisible('side-menu-admin')) ? '' : 'none';
   },
 

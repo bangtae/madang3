@@ -1,5 +1,15 @@
 [
   {
+    "id": "stock-temp",
+    "name": "K증시 온도",
+    "icon": "☀️",
+    "category": "invest",
+    "statCardId": "card-stat-stock-temp",
+    "guest": true,
+    "admin": true,
+    "description": "일별 K증시 호재 vs 악재 감정 지수 및 분위기 실시간 요약"
+  },
+  {
     "id": "api-info",
     "name": "API 정보",
     "icon": "📚",

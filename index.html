@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>마당</title>
+  <title>마당쓰리</title>
   <script>
     (function() {
       var u = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
@@ -32,7 +32,7 @@
           <span class="toggle-icon">☰</span>
         </button>
         <span class="brand-icon">⚡</span>
-        <h1 class="brand-title">마당</h1>
+        <h1 class="brand-title">마당쓰리</h1>
       </div>
       <nav class="top-nav">
         <button id="nav-top-main" class="nav-top-btn active" data-view="main" title="메인">
@@ -46,6 +46,9 @@
         </button>
         <button id="nav-top-work" class="nav-top-btn" data-view="work" title="업무">
           <span class="icon">💼</span> <span class="nav-btn-text">업무</span>
+        </button>
+        <button id="nav-top-invest" class="nav-top-btn" data-view="invest" title="투자">
+          <span class="icon">📈</span> <span class="nav-btn-text">투자</span>
         </button>
         <button id="nav-top-admin" class="nav-top-btn" data-view="admin" title="관리">
           <span class="icon">⚙️</span> <span class="nav-btn-text">관리</span>
@@ -94,6 +97,11 @@
             <li class="menu-item hidden" id="side-menu-work">
               <button class="nav-side-btn active" data-side="sap-terms">
                 <span class="icon">🏢</span> SAP용어 & 마인드맵
+              </button>
+            </li>
+            <li class="menu-item hidden" id="side-menu-invest">
+              <button class="nav-side-btn active" data-side="stock-temp">
+                <span class="icon">☀️</span> K증시 온도
               </button>
             </li>
             <li class="menu-item hidden" id="side-menu-admin">
@@ -921,6 +929,109 @@
             </div>
           </div>
         </section>
+
+        <!-- 뷰 10: K증시 온도 대시보드 및 게시판 -->
+        <section id="view-stock-temp" class="content-view hidden">
+          <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 style="display: flex; align-items: center; gap: 8px; color: #f8fafc;">
+                ☀️ K증시 온도 대시보드
+              </h2>
+              <p>일별 호재(☀️) vs 악재(🌧️) 감정 지수를 꺾은선 그래프와 게시판으로 조망하세요.</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button type="button" id="btn-open-stock-modal" class="btn btn-primary admin-only-btn" onclick="window.StockTempView.openCreateModal()" style="font-weight: 600;">
+                ➕ 일일 K증시 온도 등록
+              </button>
+            </div>
+          </div>
+
+          <!-- 상단 핵심 메트릭스 그리드 카탈로그 -->
+          <div class="stats-grid stock-stats-grid" style="margin-top: 16px;">
+            <!-- 카드 1: 오늘 K증시 온도 -->
+            <div class="stat-card">
+              <div class="stat-icon orange">☀️</div>
+              <div class="stat-info" style="width: 100%;">
+                <span class="stat-label">오늘의 K증시 온도</span>
+                <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 4px;">
+                  <span class="stat-value" id="metric-today-temp">--℃</span>
+                  <span id="metric-today-status" style="font-size: 0.9rem; font-weight: 600;">-</span>
+                </div>
+                <div class="temp-gauge-bg" style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 8px; overflow: hidden;">
+                  <div id="metric-today-gauge" style="height: 100%; width: 50%; background: #f59e0b; transition: width 0.4s ease;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 카드 2: 호재 vs 악재 비율 -->
+            <div class="stat-card">
+              <div class="stat-icon green">📊</div>
+              <div class="stat-info">
+                <span class="stat-label">누적 호재/악재 분포 <span title="선택한 기간 동안 등록된 모든 글의 호재/악재 수치 총합계 및 비율입니다." style="cursor:help; font-size:0.82rem; color:#94a3b8;">ⓘ</span></span>
+                <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px; font-size: 0.88rem; font-weight: 600;">
+                  <span id="metric-good-ratio" style="color: #4ade80;">☀️ 호재 --%</span>
+                  <span id="metric-bad-ratio" style="color: #f87171;">🌧️ 악재 --%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 카드 3: 기간 평균 증시 온도 -->
+            <div class="stat-card">
+              <div class="stat-icon blue">📈</div>
+              <div class="stat-info">
+                <span class="stat-label">선택 기간 평균 온도</span>
+                <div class="stat-value" id="metric-avg-temp" style="font-size: 1.15rem; margin-top: 4px;">--℃</div>
+              </div>
+            </div>
+
+            <!-- 카드 4: 키워드 클라우드 -->
+            <div class="stat-card" style="grid-column: span 1 / -1;">
+              <div class="stat-icon purple">🏷️</div>
+              <div class="stat-info" style="width: 100%;">
+                <span class="stat-label">주요 이슈 키워드 태그</span>
+                <div id="metric-tags-cloud" class="tags-cloud-container" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
+                  <!-- 태그 칩 동적 렌더링 -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 꺾은선 그래프 시각화 섹션 -->
+          <div class="card stock-chart-card" style="margin-top: 20px;">
+            <div class="chart-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 style="margin: 0; font-size: 1.1rem; color: #f59e0b;">📈 K증시 온도 추이 그래프</h3>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">💡 팁: 그래프 포인트를 터치/마우스 호버하면 요약 팝업이 뜨며, 클릭 시 게시판 해당 카드로 이동합니다.</span>
+              </div>
+              <div class="stock-period-tabs" style="display: flex; background: rgba(15,23,42,0.6); padding: 4px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <button type="button" class="stock-period-tab" data-period="week">주간 (7일)</button>
+                <button type="button" class="stock-period-tab active" data-period="month">월간 (30일)</button>
+                <button type="button" class="stock-period-tab" data-period="year">년간 (365일)</button>
+              </div>
+            </div>
+
+            <div class="stock-chart-wrapper" style="position: relative; width: 100%; overflow-x: auto;">
+              <svg id="stock-chart-svg" class="stock-chart-svg" preserveAspectRatio="xMidYMid meet"></svg>
+              <div id="stock-chart-tooltip" class="stock-chart-tooltip hidden"></div>
+            </div>
+          </div>
+
+          <!-- 일일 게시판 리스트 섹션 (게시판 형식) -->
+          <div class="stock-board-section" style="margin-top: 28px;">
+            <div class="board-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+              <h3 style="margin: 0; font-size: 1.15rem; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+                📋 일일 K증시 분석 게시판 리스트
+              </h3>
+              <div class="board-search-box" style="display: flex; gap: 8px;">
+                <input type="text" id="input-stock-search" placeholder="제목, 키워드, 내용 검색..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff; font-size: 0.88rem; min-width: 220px;" />
+              </div>
+            </div>
+
+            <div id="stock-board-list" class="stock-board-grid">
+              <!-- 게시판 카드 동적 렌더링 -->
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   </div>
@@ -1145,6 +1256,72 @@
     </div>
   </div>
 
+  <!-- ☀️ K증시 온도 일일 등록/수정 모달 -->
+  <div id="stock-temp-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-header">
+        <h3 id="stock-modal-title">➕ 일일 K증시 온도 등록</h3>
+        <button type="button" onclick="window.StockTempView.closeModal()" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="stock-temp-form" class="modal-form">
+        <input type="hidden" id="stock-form-id" />
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+          <div class="form-group">
+            <label for="stock-form-date">날짜 선택 *</label>
+            <input type="date" id="stock-form-date" required onclick="try{ if(this.showPicker) this.showPicker(); }catch(e){}" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff; cursor: pointer;" />
+          </div>
+          <div class="form-group">
+            <label for="stock-form-time-period">시간대 선택 *</label>
+            <select id="stock-form-time-period" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff; cursor: pointer;">
+              <option value="오전">☀️ 오전 (개장)</option>
+              <option value="오후" selected>🌙 오후 (장마감)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>온도 미리보기</label>
+            <div id="stock-form-temp-preview" style="padding: 6px 0; margin-top: 2px;">
+              <span class="badge status-neutral">☁️ 50℃ (보합)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="stock-form-title">일일 증시 분위기 요약 (제목) *</label>
+          <input type="text" id="stock-form-title" placeholder="예: 반도체 랠리와 외국인 수급 유입으로 강세" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff;" />
+        </div>
+
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group">
+            <label for="stock-form-good">☀️ 호재 수 *</label>
+            <input type="number" id="stock-form-good" min="0" max="100" value="50" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff;" />
+          </div>
+          <div class="form-group">
+            <label for="stock-form-bad">🌧️ 악재 수 *</label>
+            <input type="number" id="stock-form-bad" min="0" max="100" value="50" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff;" />
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="stock-form-detail">세부 시장 분석글</label>
+          <textarea id="stock-form-detail" rows="4" placeholder="주요 상승/하락 섹터, 수급 동향, 이슈 분석 내용을 자유롭게 작성" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff; line-height: 1.5;"></textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label for="stock-form-tags" style="margin: 0;">주요 키워드 태그 (쉼표 구분)</label>
+            <span style="font-size: 0.75rem; color: #38bdf8;">✨ 저장 시 본문 분석 자동 추출 포함</span>
+          </div>
+          <input type="text" id="stock-form-tags" placeholder="예: 반도체, 외국인순매수 (미입력 시 자동으로 본문에서 추출됩니다)" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15,23,42,0.8); color: #fff;" />
+        </div>
+
+        <div class="modal-actions" style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" onclick="window.StockTempView.closeModal()" class="btn btn-secondary">취소</button>
+          <button type="submit" class="btn btn-primary" style="font-weight: 600;">💾 저장하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="sidebar-overlay" class="sidebar-overlay"></div>
   <div id="toast-container" class="toast-container"></div>
 
@@ -1153,6 +1330,7 @@
   <script src="data/initialAiModels.js?v=2.2"></script>
   <script src="data/initialAiTerms.js?v=2.2"></script>
   <script src="data/initialSapTerms.js?v=2.2"></script>
+  <script src="data/initialStockTemp.js?v=2.2"></script>
   <!-- Supabase JS Client SDK CDN (무료 클라우드 DB 연동) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app/core/config.js?v=2.2"></script>
@@ -1161,12 +1339,14 @@
   <script src="app/models/aiTermModel.js?v=2.2"></script>
   <script src="app/models/sapTermModel.js?v=2.2"></script>
   <script src="app/models/ipModel.js?v=2.2"></script>
+  <script src="app/models/stockTempModel.js?v=2.2"></script>
   <script src="app/utils/xlsx.full.min.js?v=2.2"></script>
   <script src="app/utils/excelHelper.js?v=2.2"></script>
   <script src="app/utils/downloadHelper.js?v=2.2"></script>
   <script src="app/views/mindmapView.js?v=2.2"></script>
   <script src="app/views/agentBuilderView.js?v=2.2"></script>
   <script src="app/views/techStackView.js?v=2.2"></script>
+  <script src="app/views/stockTempView.js?v=2.2"></script>
   <script src="app/views/uiView.js?v=2.2"></script>
   <script src="app/controllers/appController.js?v=2.2"></script>
   <script src="app/main.js?v=2.2"></script>
