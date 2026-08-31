@@ -16,7 +16,19 @@ window.AppController = {
     if (window.StockTempView) {
       window.StockTempView.init();
     }
+    if (window.ThreadsAgentModel) {
+      await window.ThreadsAgentModel.loadTokenConfig();
+    }
+    if (window.ThreadsAgentView) {
+      window.ThreadsAgentView.init();
+    }
     this.refreshAllViews();
+    this.refreshThreadsAgentStatus();
+    
+    // 5초마다 에이전트 상태 자동 폴링
+    setInterval(() => {
+      this.refreshThreadsAgentStatus();
+    }, 5000);
   },
 
   async detectUserClientIp() {
@@ -1272,6 +1284,7 @@ window.AppController = {
     const viewMenuConfig = document.getElementById('view-menu-config');
     const viewTechStack = document.getElementById('view-tech-stack');
     const viewStockTemp = document.getElementById('view-stock-temp');
+    const viewThreadsAgent = document.getElementById('view-threads-agent');
 
     const hideAllViews = () => {
       if (viewDashboard) viewDashboard.classList.add('hidden');
@@ -1287,11 +1300,15 @@ window.AppController = {
       if (viewMenuConfig) viewMenuConfig.classList.add('hidden');
       if (viewTechStack) viewTechStack.classList.add('hidden');
       if (viewStockTemp) viewStockTemp.classList.add('hidden');
+      if (viewThreadsAgent) viewThreadsAgent.classList.add('hidden');
     };
 
     hideAllViews();
 
-    if (sideView === 'stock-temp') {
+    if (sideView === 'threads-agent') {
+      if (viewThreadsAgent) viewThreadsAgent.classList.remove('hidden');
+      this.refreshThreadsAgentView();
+    } else if (sideView === 'stock-temp') {
       if (viewStockTemp) viewStockTemp.classList.remove('hidden');
       if (window.StockTempModel && window.StockTempView) {
         window.StockTempModel.loadStockTempData().then(() => {
@@ -1349,6 +1366,30 @@ window.AppController = {
     } else if (sideView === 'menu-config') {
       if (viewMenuConfig) viewMenuConfig.classList.remove('hidden');
       this.renderMenuConfigTable();
+    }
+  },
+
+  async refreshThreadsAgentStatus() {
+    if (!window.ThreadsAgentModel) return;
+    const status = await window.ThreadsAgentModel.fetchStatus();
+    const dDayInfo = window.ThreadsAgentModel.getTokenDDay();
+    if (window.ThreadsAgentView) {
+      window.ThreadsAgentView.renderHeaderQuickBar(status, dDayInfo);
+      if (this.currentSideView === 'threads-agent') {
+        window.ThreadsAgentView.renderMainView();
+      }
+    }
+  },
+
+  async refreshThreadsAgentView() {
+    if (!window.ThreadsAgentModel) return;
+    await window.ThreadsAgentModel.loadTokenConfig();
+    await window.ThreadsAgentModel.fetchStatus();
+    await window.ThreadsAgentModel.fetchSources();
+    await window.ThreadsAgentModel.fetchPosts();
+    await window.ThreadsAgentModel.fetchRuntimeConfig();
+    if (window.ThreadsAgentView) {
+      window.ThreadsAgentView.renderMainView();
     }
   },
 

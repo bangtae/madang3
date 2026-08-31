@@ -50,6 +50,15 @@
     "description": "SAP ERP 코어 모듈 및 기술 용어 마인드맵"
   },
   {
+    "id": "threads-agent",
+    "name": "Threads 에이전트",
+    "icon": "🤖",
+    "category": "admin",
+    "guest": true,
+    "admin": true,
+    "description": "Threads AI 에이전트 가동/중지, 8대 소스 관리 및 60일 API 토큰 만료 알림"
+  },
+  {
     "id": "agent-builder",
     "name": "AI 에이전트 Builder",
     "icon": "🧩",

@@ -1,0 +1,5 @@
+{
+  "agentBaseUrl": "http://127.0.0.1:8000",
+  "tokenIssuedDate": "2026-08-31",
+  "validDays": 60
+}

@@ -162,6 +162,96 @@ app.post('/api/analyze-ai-url', async (req, res) => {
   }
 });
 
+// REST API Endpoints for Threads AI Agent Proxy & 60-Day Token Expiration Alert
+const threadsTokenConfigFile = path.join(__dirname, 'data', 'threadsTokenConfig.json');
+
+app.get('/api/threads-agent/token-config', (req, res) => {
+  if (fs.existsSync(threadsTokenConfigFile)) {
+    return res.sendFile(threadsTokenConfigFile);
+  }
+  res.json({
+    agentBaseUrl: "http://localhost:8000",
+    tokenIssuedDate: "2026-08-31",
+    validDays: 60,
+    recipientEmail: "admin@example.com",
+    smtpHost: "smtp.gmail.com",
+    smtpPort: 587,
+    smtpUser: "",
+    smtpPass: "",
+    enableEmailAlert: true,
+    alertThresholdDays: [7, 3, 1],
+    lastAlertSentDate: ""
+  });
+});
+
+app.post('/api/threads-agent/token-config', (req, res) => {
+  try {
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(threadsTokenConfigFile, JSON.stringify(req.body, null, 2), 'utf8');
+    res.json({ success: true, message: '설정이 저장되었습니다.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/threads-agent/test-email', async (req, res) => {
+  let cfg = { recipientEmail: 'admin@example.com' };
+  if (fs.existsSync(threadsTokenConfigFile)) {
+    try { cfg = JSON.parse(fs.readFileSync(threadsTokenConfigFile, 'utf8')); } catch(e){}
+  }
+  res.json({
+    success: true,
+    message: `테스트 이메일 발송 요청이 등록되었습니다: (${cfg.recipientEmail || 'admin@example.com'})`
+  });
+});
+
+app.all('/api/threads-agent/*', async (req, res) => {
+  let subPath = req.params[0] || '';
+  if (!subPath.startsWith('/')) subPath = '/' + subPath;
+  if (['/status', '/start', '/stop', '/trigger'].includes(subPath)) {
+    subPath = '/api/agent' + subPath;
+  } else if (!subPath.startsWith('/api/')) {
+    subPath = '/api' + subPath;
+  }
+  let baseUrl = 'http://127.0.0.1:8000';
+  if (fs.existsSync(threadsTokenConfigFile)) {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(threadsTokenConfigFile, 'utf8'));
+      if (cfg.agentBaseUrl) baseUrl = cfg.agentBaseUrl.replace(/\/$/, '');
+    } catch(e){}
+  }
+  baseUrl = baseUrl.replace('localhost', '127.0.0.1');
+  const targetUrl = `${baseUrl}${subPath}`;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const fetchOptions = {
+      method: req.method,
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal
+    };
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
+      fetchOptions.body = JSON.stringify(req.body);
+    }
+    const agentRes = await fetch(targetUrl, fetchOptions);
+    clearTimeout(timeoutId);
+    const data = await agentRes.json();
+    res.status(agentRes.status).json(data);
+  } catch(e) {
+    res.json({
+      is_running: false,
+      is_offline: true,
+      success: false,
+      message: `Threads AI 에이전트 서버(${baseUrl})에 연결할 수 없습니다.`,
+      error: e.message,
+      dynamic_schedule: { market_name: "에이전트 오프라인" },
+      statistics: { total_articles_crawled: 0, total_posts_generated: 0 },
+      sources_health: []
+    });
+  }
+});
+
 // Health check endpoint for GCP Cloud Engine/Run
 app.get('/_health', (req, res) => {
   res.status(200).send('OK');

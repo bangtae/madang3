@@ -54,6 +54,7 @@
           <span class="icon">⚙️</span> <span class="nav-btn-text">관리</span>
         </button>
       </nav>
+
       <div class="header-user" style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
         <span class="user-badge" id="user-display-badge">⚡ 게스트 (선택 접속 / 읽기 전용)</span>
         <button type="button" id="btn-switch-admin" class="btn btn-primary btn-sm" style="padding: 5px 10px; font-size: 0.8rem; border-radius: 6px; cursor: pointer; white-space: nowrap;" title="관리자 권한으로 전환">
@@ -105,7 +106,10 @@
               </button>
             </li>
             <li class="menu-item hidden" id="side-menu-admin">
-              <button class="nav-side-btn active" data-side="ip-whitelist">
+              <button class="nav-side-btn active" data-side="threads-agent">
+                <span class="icon">🤖</span> Threads 에이전트
+              </button>
+              <button class="nav-side-btn" data-side="ip-whitelist">
                 <span class="icon">🛡️</span> IP 화이트리스트
               </button>
               <button class="nav-side-btn" data-side="ip-blacklist">
@@ -606,6 +610,11 @@
           <div class="api-cards-grid" id="sap-term-cards-grid">
             <!-- SAP 용어 카드들이 JS로 동적 렌더링됩니다 -->
           </div>
+        </section>
+
+        <!-- 뷰 7: Threads AI 에이전트 통합 대시보드 -->
+        <section id="view-threads-agent" class="content-view hidden">
+          <!-- JS로 동적 렌더링 됩니다 -->
         </section>
 
         <!-- 뷰 3: IP 화이트리스트 관리 -->
@@ -1380,6 +1389,7 @@
   <script src="app/models/sapTermModel.js?v=2.2"></script>
   <script src="app/models/ipModel.js?v=2.2"></script>
   <script src="app/models/stockTempModel.js?v=2.2"></script>
+  <script src="app/models/threadsAgentModel.js?v=2.2"></script>
   <script src="app/utils/xlsx.full.min.js?v=2.2"></script>
   <script src="app/utils/excelHelper.js?v=2.2"></script>
   <script src="app/utils/downloadHelper.js?v=2.2"></script>
@@ -1387,6 +1397,7 @@
   <script src="app/views/agentBuilderView.js?v=2.2"></script>
   <script src="app/views/techStackView.js?v=2.2"></script>
   <script src="app/views/stockTempView.js?v=2.2"></script>
+  <script src="app/views/threadsAgentView.js?v=2.2"></script>
   <script src="app/views/uiView.js?v=2.2"></script>
   <script src="app/controllers/appController.js?v=2.2"></script>
   <script src="app/main.js?v=2.2"></script>

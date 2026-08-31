@@ -63,7 +63,7 @@ function Send-JsonResponse($stream, $corsHeaders, $jsonText) {
     if ($null -eq $jsonText -or [string]::IsNullOrWhiteSpace($jsonText)) {
         $jsonText = "[]"
     }
-    if ($jsonText.StartsWith([char]0xFEFF)) {
+    if ($jsonText.Length -gt 0 -and [int]$jsonText[0] -eq 65279) {
         $jsonText = $jsonText.Substring(1)
     }
     $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($jsonText)
@@ -448,6 +448,127 @@ while ($true) {
 
             $resJson = ConvertTo-Json $resObj -Depth 5 -Compress
             Send-JsonResponse $stream $corsHeaders $resJson
+        }
+        elseif ($urlPath -eq "/api/threads-agent/token-config") {
+            $threadsTokenConfigFile = Join-Path $dataDir "threadsTokenConfig.json"
+            if ($method -eq "GET") {
+                if (Test-Path $threadsTokenConfigFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($threadsTokenConfigFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                } else {
+                    $defaultCfg = '{"agentBaseUrl":"http://localhost:8000","tokenIssuedDate":"2026-08-31","validDays":60,"recipientEmail":"admin@example.com","smtpHost":"smtp.gmail.com","smtpPort":587,"smtpUser":"","smtpPass":"","enableEmailAlert":true}'
+                    Send-JsonResponse $stream $corsHeaders $defaultCfg
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($threadsTokenConfigFile, $postData, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"설정이 저장되었습니다."}'
+            }
+        }
+        elseif ($urlPath -eq "/api/threads-agent/test-email") {
+            $threadsTokenConfigFile = Join-Path $dataDir "threadsTokenConfig.json"
+            $cfgObj = $null
+            if (Test-Path $threadsTokenConfigFile) {
+                try {
+                    $cfgRaw = [System.IO.File]::ReadAllText($threadsTokenConfigFile, [System.Text.Encoding]::UTF8)
+                    $cfgObj = $cfgRaw | ConvertFrom-Json
+                } catch {}
+            }
+            
+            $recipient = if ($cfgObj -and $cfgObj.recipientEmail) { $cfgObj.recipientEmail } else { "admin@example.com" }
+            $smtpHost = if ($cfgObj -and $cfgObj.smtpHost) { $cfgObj.smtpHost } else { "" }
+            $smtpPort = if ($cfgObj -and $cfgObj.smtpPort) { [int]$cfgObj.smtpPort } else { 587 }
+            $smtpUser = if ($cfgObj -and $cfgObj.smtpUser) { $cfgObj.smtpUser } else { "" }
+            $smtpPass = if ($cfgObj -and $cfgObj.smtpPass) { $cfgObj.smtpPass } else { "" }
+
+            $sentSuccess = $false
+            $statusMsg = ""
+
+            if (-not [string]::IsNullOrWhiteSpace($smtpHost) -and -not [string]::IsNullOrWhiteSpace($smtpUser) -and -not [string]::IsNullOrWhiteSpace($smtpPass)) {
+                try {
+                    $smtp = New-Object System.Net.Mail.SmtpClient($smtpHost, $smtpPort)
+                    $smtp.EnableSsl = $true
+                    $smtp.Credentials = New-Object System.Net.NetworkCredential($smtpUser, $smtpPass)
+                    $mail = New-Object System.Net.Mail.MailMessage($smtpUser, $recipient)
+                    $mail.Subject = "[마당쓰리] Threads API 토큰 60일 만료 경고 테스트 메일"
+                    $mail.Body = "안녕하세요, 마당쓰리 통합 알림 시스템입니다.`n`nThreads API 토큰 60일 만료 경고 알림 테스트 메일이 바르게 수신되었습니다.`n`n- 수신 이메일: $recipient`n- 발송 일시: $((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))`n- 상태: 정상 발송 완료"
+                    $mail.BodyEncoding = [System.Text.Encoding]::UTF8
+                    $mail.SubjectEncoding = [System.Text.Encoding]::UTF8
+                    $smtp.Send($mail)
+                    $sentSuccess = $true
+                    $statusMsg = "📩 테스트 메일이 수신 주소($recipient)(으)로 성공적으로 발송되었습니다!"
+                } catch {
+                    $sentSuccess = $false
+                    $statusMsg = "⚠️ SMTP 메일 발송 실패: $($_.Exception.Message) - SMTP 설정(계정/비밀번호/포트)을 확인해주세요."
+                }
+            } else {
+                $sentSuccess = $false
+                $statusMsg = "⚠️ SMTP 설정(계정 및 비밀번호)이 입력되지 않았습니다. 메일을 수신하시려면 아래 설정에서 SMTP 계정과 비밀번호를 입력 후 저장해주세요."
+            }
+
+            $emailRes = [PSCustomObject]@{
+                success = $sentSuccess
+                message = $statusMsg
+            }
+            $emailJson = ConvertTo-Json $emailRes -Depth 3 -Compress
+            Send-JsonResponse $stream $corsHeaders $emailJson
+        }
+        elseif ($urlPath -like "/api/threads-agent/*") {
+            $threadsTokenConfigFile = Join-Path $dataDir "threadsTokenConfig.json"
+            $subPath = $urlPath.Substring(18)
+            if ($subPath -in @("/status", "/start", "/stop", "/trigger")) {
+                $subPath = "/api/agent" + $subPath
+            } elseif (-not $subPath.StartsWith("/api/")) {
+                $subPath = "/api" + $subPath
+            }
+            $baseUrl = "http://127.0.0.1:8000"
+            if (Test-Path $threadsTokenConfigFile) {
+                try {
+                    $cfgRaw = [System.IO.File]::ReadAllText($threadsTokenConfigFile, [System.Text.Encoding]::UTF8)
+                    $cfgObj = $cfgRaw | ConvertFrom-Json
+                    if ($cfgObj.agentBaseUrl) { $baseUrl = $cfgObj.agentBaseUrl.TrimEnd('/') }
+                } catch {}
+            }
+            $baseUrl = $baseUrl -replace 'localhost', '127.0.0.1'
+            $targetUrl = "$baseUrl$subPath"
+
+            try {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                $reqBody = if ($headerBodySplit.Length -eq 2) { $headerBodySplit[1] } else { "" }
+
+                $webParams = @{
+                    Uri = $targetUrl
+                    Method = $method
+                    TimeoutSec = 4
+                    ErrorAction = "Stop"
+                }
+                if ($method -in @("POST", "PUT") -and -not [string]::IsNullOrWhiteSpace($reqBody)) {
+                    $webParams["Body"] = $reqBody
+                    $webParams["ContentType"] = "application/json; charset=utf-8"
+                }
+
+                $proxyRes = Invoke-WebRequest @webParams
+                $rawBytes = $proxyRes.RawContentStream.ToArray()
+                Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $rawBytes
+            } catch {
+                $errObj = [PSCustomObject]@{
+                    is_running = $false
+                    is_offline = $true
+                    success = $false
+                    message = "Threads AI 에이전트 서버($baseUrl)에 연결할 수 없습니다."
+                    error = $_.Exception.Message
+                    dynamic_schedule = [PSCustomObject]@{ market_name = "에이전트 오프라인" }
+                    statistics = [PSCustomObject]@{ total_articles_crawled = 0; total_posts_generated = 0 }
+                    sources_health = @()
+                }
+                Send-JsonResponse $stream $corsHeaders ($errObj | ConvertTo-Json -Depth 5 -Compress)
+            }
         }
         elseif ($urlPath -eq "/api/apis") {
             if ($method -eq "GET") {
