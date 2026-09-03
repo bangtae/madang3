@@ -10,7 +10,6 @@ window.UiView = {
     const totalAiTermsEl = document.getElementById('stat-total-ai-terms');
     const totalSapTermsEl = document.getElementById('stat-total-sap-terms');
     const catEl = document.getElementById('stat-total-categories');
-    const dateEl = document.getElementById('stat-latest-date');
     const recentListEl = document.getElementById('recent-api-list');
 
     if (totalEl) totalEl.textContent = apis.length;
@@ -35,15 +34,6 @@ window.UiView = {
 
     const categories = new Set(apis.map(item => item.category));
     if (catEl) catEl.textContent = categories.size;
-
-    if (dateEl) {
-      if (apis.length > 0) {
-        const latest = apis[0].createdAt ? new Date(apis[0].createdAt).toLocaleDateString() : '-';
-        dateEl.textContent = latest;
-      } else {
-        dateEl.textContent = '-';
-      }
-    }
 
     if (recentListEl) {
       if (apis.length === 0) {

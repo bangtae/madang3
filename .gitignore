@@ -5,6 +5,7 @@
 *.key
 *.pem
 *.zip
+*.exe
 
 # Dependencies & Build Outputs (불필요 빌드 파일 차단)
 node_modules/

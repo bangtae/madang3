@@ -21,7 +21,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Matter.js 물리 엔진 (로컬 최우선 로드 + CDN 폴백) & 게임 전용 스타일시트 -->
+  <script src="app/utils/matter.min.js"></script>
+  <script>
+    if (typeof Matter === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"><\/script>');
+    }
+  </script>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/monster-defense.css">
 </head>
 <body>
   <div class="app-container">
@@ -49,6 +57,9 @@
         </button>
         <button id="nav-top-invest" class="nav-top-btn" data-view="invest" title="투자">
           <span class="icon">📈</span> <span class="nav-btn-text">투자</span>
+        </button>
+        <button id="nav-top-life" class="nav-top-btn" data-view="life" title="생활">
+          <span class="icon">🎮</span> <span class="nav-btn-text">생활</span>
         </button>
         <button id="nav-top-admin" class="nav-top-btn" data-view="admin" title="관리">
           <span class="icon">⚙️</span> <span class="nav-btn-text">관리</span>
@@ -103,6 +114,11 @@
             <li class="menu-item hidden" id="side-menu-invest">
               <button class="nav-side-btn active" data-side="stock-temp">
                 <span class="icon">☀️</span> K증시 온도
+              </button>
+            </li>
+            <li class="menu-item hidden" id="side-menu-life">
+              <button class="nav-side-btn active" data-side="monster-defense">
+                <span class="icon">👾</span> 몬스터를 막는법
               </button>
             </li>
             <li class="menu-item hidden" id="side-menu-admin">
@@ -211,13 +227,6 @@
               <div class="stat-info">
                 <span class="stat-label">등록 SAP용어</span>
                 <span class="stat-value" id="stat-total-sap-terms">0</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon green">⚡</div>
-              <div class="stat-info">
-                <span class="stat-label">최근 추가일</span>
-                <span class="stat-value" id="stat-latest-date">-</span>
               </div>
             </div>
           </div>
@@ -1081,6 +1090,158 @@
             </div>
           </div>
         </section>
+
+        <!-- 뷰 11: 몬스터를 막는법 (2D 물리 반응형 게임) -->
+        <section id="view-monster-defense" class="content-view hidden">
+          <div class="monster-defense-wrapper" id="monster-defense-wrapper">
+            <!-- 상단 게임 툴바 -->
+            <div class="game-top-toolbar">
+              <div class="game-title-badge">
+                <span class="badge-icon">👾</span>
+                <span class="badge-title">몬스터를 막는법 (How to Stop the Monsters)</span>
+              </div>
+              <div class="game-toolbar-actions">
+                <button type="button" id="btn-game-sound" class="btn-game-tool" title="사운드 켜기/끄기">🔊 사운드</button>
+                <button type="button" id="btn-game-reset" class="btn-game-tool" title="게임 재시작 (R)">🔄 재시작</button>
+                <button type="button" id="btn-game-fullscreen" class="btn-game-tool" title="전체화면 전환">⛶ 전체화면</button>
+              </div>
+            </div>
+
+            <!-- 반응형 뷰포트 컨테이너 -->
+            <div class="game-viewport-container" id="game-viewport-container">
+              <div id="game-container">
+                <!-- 캔버스 영역 -->
+                <div id="canvas-container"></div>
+
+                <!-- 좌상단: 영웅 교체 UI & 모바일 퀵슬롯 -->
+                <div id="hud-top">
+                  <div id="hero-dock">
+                    <!-- 1번: 레굴 -->
+                    <div class="hero-card active" data-hero="regool" onclick="window.selectHero('regool')">
+                      <div class="hotkey">1</div>
+                      <div class="thumb-box">
+                        <img src="assets/monster-defense/hero_regool.png" alt="레굴" onerror="this.src='./assets/monster-defense/hero_regool.png'" />
+                      </div>
+                      <div class="hero-info">
+                        <span class="hero-name">레굴 <span style="color: #ef476f; font-size:11px;">[파워]</span></span>
+                        <span class="hero-skill">투척 가속 x2.2 + 강타</span>
+                      </div>
+                    </div>
+
+                    <!-- 2번: 히모 -->
+                    <div class="hero-card" data-hero="himo" onclick="window.selectHero('himo')">
+                      <div class="hotkey">2</div>
+                      <div class="thumb-box">
+                        <img src="assets/monster-defense/hero_himo.png" alt="히모" onerror="this.src='./assets/monster-defense/hero_himo.png'" />
+                      </div>
+                      <div class="hero-info">
+                        <span class="hero-name">히모 <span style="color: #06d6a0; font-size:11px;">[염동]</span></span>
+                        <span class="hero-skill">광역 자력 흡인 포획</span>
+                      </div>
+                    </div>
+
+                    <!-- 3번: 곰둠님 -->
+                    <div class="hero-card" data-hero="gomdum" onclick="window.selectHero('gomdum')">
+                      <div class="hotkey">3</div>
+                      <div class="thumb-box">
+                        <img src="assets/monster-defense/hero_gomdum.png" alt="곰둠님" onerror="this.src='./assets/monster-defense/hero_gomdum.png'" />
+                      </div>
+                      <div class="hero-info">
+                        <span class="hero-name">곰둠님 <span style="color: #ffd166; font-size:11px;">[회전]</span></span>
+                        <span class="hero-skill">초고속 팽이 관통 스핀</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 우상단: 킬수 및 스테이지 -->
+                  <div id="status-board">
+                    <div class="stat-badge">
+                      <span class="label">STAGE</span>
+                      <span class="value" id="val-stage" style="color: #ffd166; font-size: 19px;">1 / 100</span>
+                    </div>
+                    <div class="stat-badge">
+                      <span class="label">진행도</span>
+                      <span class="value" id="val-stage-progress" style="color: #06d6a0;">0 / 5</span>
+                    </div>
+                    <div class="stat-badge">
+                      <span class="label">몬스터 처치</span>
+                      <span class="value" id="val-kills">0</span>
+                    </div>
+                    <div class="stat-badge">
+                      <span class="label">스코어</span>
+                      <span class="value" id="val-score">0</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 필살기 게이지 UI -->
+                <div id="ult-dock" onclick="window.triggerUltimate()">
+                  <div class="ult-label-row">
+                    <span id="ult-name-label">⚡ 필살기 [SPACE]</span>
+                    <span id="ult-percent-label">0%</span>
+                  </div>
+                  <div class="ult-track">
+                    <div class="ult-fill" id="ult-fill"></div>
+                  </div>
+                </div>
+
+                <!-- 왕국 방어선 HP 상태 바 -->
+                <div id="defense-hp-bar">
+                  <div class="defense-label-row">
+                    <span>왕국 방어선</span>
+                    <span id="defense-hp-text">100 / 100</span>
+                  </div>
+                  <div class="hp-track">
+                    <div class="hp-fill" id="defense-hp-fill"></div>
+                  </div>
+                </div>
+
+                <!-- 보스 대형 HP 바 -->
+                <div id="boss-bar-container">
+                  <div class="boss-name-row">
+                    <span id="boss-title">⚠️ BOSS DETECTED!</span>
+                    <span id="boss-hp-text">800 / 800</span>
+                  </div>
+                  <div class="boss-hp-track">
+                    <div class="boss-hp-fill" id="boss-hp-fill"></div>
+                  </div>
+                </div>
+
+                <!-- 영웅 교체 대형 컷인 팝업 -->
+                <div id="cutin-overlay">
+                  <img id="cutin-img" src="assets/monster-defense/hero_regool.png" alt="Hero Cutin" onerror="this.src='./assets/monster-defense/hero_regool.png'" />
+                  <div id="cutin-text">
+                    <span id="cutin-title">레굴 등장!</span>
+                    <span id="cutin-desc">강력한 파워 투척 준비 완료!</span>
+                  </div>
+                </div>
+
+                <!-- 하단 조작 가이드 & 치트 버튼 -->
+                <div id="guide-bar">
+                  <span>🖱️ <strong>마우스/터치:</strong> 잡고 던지기</span>
+                  <span>⌨️ <strong>키 1, 2, 3 / 터치:</strong> 영웅 교체</span>
+                  <span>⚡ <strong>스페이스바 / 터치:</strong> 필살기</span>
+                  <span style="border-left: 1px solid rgba(255,255,255,0.2); padding-left: 8px;">
+                    🧪 테스트:
+                    <button class="cheat-btn" onclick="window.cheatStage(50)">50F 중간보스</button>
+                    <button class="cheat-btn" onclick="window.cheatStage(100)">100F 최종보스</button>
+                    <button class="cheat-btn" onclick="window.cheatUlt()">필살기 충전</button>
+                  </span>
+                </div>
+
+                <!-- 게임오버 / 승리 클리어 오버레이 -->
+                <div id="game-overlay">
+                  <h1 id="overlay-title">왕국 함락!</h1>
+                  <p id="overlay-sub">방어선이 무너졌습니다. 기도동물 왕국을 다시 수호해주세요!</p>
+                  <div style="font-size: 20px; font-weight: 800; margin-bottom: 20px; color: #ffd166;">
+                    최종 스코어: <span id="final-score">0</span> (처치: <span id="final-kills">0</span>마리)
+                  </div>
+                  <button class="btn-restart" onclick="window.restartGame()">다시 도전하기 (R)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   </div>
@@ -1398,6 +1559,7 @@
   <script src="app/views/techStackView.js?v=2.2"></script>
   <script src="app/views/stockTempView.js?v=2.2"></script>
   <script src="app/views/threadsAgentView.js?v=2.2"></script>
+  <script src="app/views/monsterDefenseView.js?v=2.2"></script>
   <script src="app/views/uiView.js?v=2.2"></script>
   <script src="app/controllers/appController.js?v=2.2"></script>
   <script src="app/main.js?v=2.2"></script>

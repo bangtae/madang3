@@ -1,5 +1,1 @@
-{
-  "agentBaseUrl": "http://127.0.0.1:8000",
-  "tokenIssuedDate": "2026-08-31",
-  "validDays": 60
-}
+{"agentBaseUrl":"https://encoding-soon-inn-visit.trycloudflare.com/","tokenIssuedDate":"2026-08-31","validDays":60,"recipientEmail":"admin@example.com","smtpHost":"smtp.gmail.com","smtpPort":587,"smtpUser":"","smtpPass":"","enableEmailAlert":true}

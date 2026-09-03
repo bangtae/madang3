@@ -29,6 +29,14 @@ window.AppController = {
     setInterval(() => {
       this.refreshThreadsAgentStatus();
     }, 5000);
+
+    // URL Hash 자동 라우팅 지원 (#life -> 생활 탭 바로 열기)
+    if (window.location.hash) {
+      const hashNav = window.location.hash.replace('#', '').trim().toLowerCase();
+      if (['main', 'api', 'ai', 'work', 'invest', 'life', 'admin'].includes(hashNav)) {
+        setTimeout(() => this.switchTopNav(hashNav), 50);
+      }
+    }
   },
 
   async detectUserClientIp() {
@@ -1198,6 +1206,7 @@ window.AppController = {
     const sideAi = document.getElementById('side-menu-ai');
     const sideWork = document.getElementById('side-menu-work');
     const sideInvest = document.getElementById('side-menu-invest');
+    const sideLife = document.getElementById('side-menu-life');
     const sideAdmin = document.getElementById('side-menu-admin');
 
     if (view === 'main') {
@@ -1206,6 +1215,7 @@ window.AppController = {
       if (sideAi) sideAi.classList.add('hidden');
       if (sideWork) sideWork.classList.add('hidden');
       if (sideInvest) sideInvest.classList.add('hidden');
+      if (sideLife) sideLife.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('dashboard');
     } else if (view === 'api') {
@@ -1214,6 +1224,7 @@ window.AppController = {
       if (sideAi) sideAi.classList.add('hidden');
       if (sideWork) sideWork.classList.add('hidden');
       if (sideInvest) sideInvest.classList.add('hidden');
+      if (sideLife) sideLife.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('api-info');
     } else if (view === 'ai') {
@@ -1222,6 +1233,7 @@ window.AppController = {
       if (sideAi) sideAi.classList.remove('hidden');
       if (sideWork) sideWork.classList.add('hidden');
       if (sideInvest) sideInvest.classList.add('hidden');
+      if (sideLife) sideLife.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('ai-models');
     } else if (view === 'agent-builder') {
@@ -1230,6 +1242,7 @@ window.AppController = {
       if (sideAi) sideAi.classList.remove('hidden');
       if (sideWork) sideWork.classList.add('hidden');
       if (sideInvest) sideInvest.classList.add('hidden');
+      if (sideLife) sideLife.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('agent-builder');
     } else if (view === 'work') {
@@ -1238,6 +1251,7 @@ window.AppController = {
       if (sideAi) sideAi.classList.add('hidden');
       if (sideWork) sideWork.classList.remove('hidden');
       if (sideInvest) sideInvest.classList.add('hidden');
+      if (sideLife) sideLife.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('sap-terms');
     } else if (view === 'invest') {
@@ -1246,14 +1260,25 @@ window.AppController = {
       if (sideAi) sideAi.classList.add('hidden');
       if (sideWork) sideWork.classList.add('hidden');
       if (sideInvest) sideInvest.classList.remove('hidden');
+      if (sideLife) sideLife.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
       this.switchSideNav('stock-temp');
+    } else if (view === 'life') {
+      if (sideMain) sideMain.classList.add('hidden');
+      if (sideApi) sideApi.classList.add('hidden');
+      if (sideAi) sideAi.classList.add('hidden');
+      if (sideWork) sideWork.classList.add('hidden');
+      if (sideInvest) sideInvest.classList.add('hidden');
+      if (sideLife) sideLife.classList.remove('hidden');
+      if (sideAdmin) sideAdmin.classList.add('hidden');
+      this.switchSideNav('monster-defense');
     } else if (view === 'admin') {
       if (sideMain) sideMain.classList.add('hidden');
       if (sideApi) sideApi.classList.add('hidden');
       if (sideAi) sideAi.classList.add('hidden');
       if (sideWork) sideWork.classList.add('hidden');
       if (sideInvest) sideInvest.classList.add('hidden');
+      if (sideLife) sideLife.classList.add('hidden');
       if (sideAdmin) sideAdmin.classList.remove('hidden');
       this.switchSideNav('ip-whitelist');
     }
@@ -1285,6 +1310,7 @@ window.AppController = {
     const viewTechStack = document.getElementById('view-tech-stack');
     const viewStockTemp = document.getElementById('view-stock-temp');
     const viewThreadsAgent = document.getElementById('view-threads-agent');
+    const viewMonsterDefense = document.getElementById('view-monster-defense');
 
     const hideAllViews = () => {
       if (viewDashboard) viewDashboard.classList.add('hidden');
@@ -1301,11 +1327,24 @@ window.AppController = {
       if (viewTechStack) viewTechStack.classList.add('hidden');
       if (viewStockTemp) viewStockTemp.classList.add('hidden');
       if (viewThreadsAgent) viewThreadsAgent.classList.add('hidden');
+      if (viewMonsterDefense) viewMonsterDefense.classList.add('hidden');
     };
+
+    // 다른 뷰로 이동 시 게임 루프 일시정지 (리소스 절약)
+    if (sideView !== 'monster-defense' && window.MonsterDefenseView) {
+      window.MonsterDefenseView.pause();
+    }
 
     hideAllViews();
 
-    if (sideView === 'threads-agent') {
+    if (sideView === 'monster-defense') {
+      if (viewMonsterDefense) viewMonsterDefense.classList.remove('hidden');
+      if (window.MonsterDefenseView) {
+        setTimeout(() => {
+          window.MonsterDefenseView.init();
+        }, 50);
+      }
+    } else if (sideView === 'threads-agent') {
       if (viewThreadsAgent) viewThreadsAgent.classList.remove('hidden');
       this.refreshThreadsAgentView();
     } else if (sideView === 'stock-temp') {
@@ -1506,12 +1545,14 @@ window.AppController = {
     const topAiNav = document.getElementById('nav-top-ai');
     const topWorkNav = document.getElementById('nav-top-work');
     const topInvestNav = document.getElementById('nav-top-invest');
+    const topLifeNav = document.getElementById('nav-top-life');
     const topAdminNav = document.getElementById('nav-top-admin');
 
     if (topApiNav) topApiNav.style.display = checkGroupVisible('side-menu-api') ? '' : 'none';
     if (topAiNav) topAiNav.style.display = checkGroupVisible('side-menu-ai') ? '' : 'none';
     if (topWorkNav) topWorkNav.style.display = checkGroupVisible('side-menu-work') ? '' : 'none';
     if (topInvestNav) topInvestNav.style.display = checkGroupVisible('side-menu-invest') ? '' : 'none';
+    if (topLifeNav) topLifeNav.style.display = checkGroupVisible('side-menu-life') ? '' : 'none';
     if (topAdminNav) topAdminNav.style.display = (!isGuest && checkGroupVisible('side-menu-admin')) ? '' : 'none';
   },
 

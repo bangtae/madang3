@@ -120,5 +120,14 @@
     "guest": false,
     "admin": true,
     "description": "게스트 및 관리자 모드 메뉴 노출 설정"
+  },
+  {
+    "id": "monster-defense",
+    "name": "몬스터를 막는법",
+    "icon": "👾",
+    "category": "life",
+    "guest": true,
+    "admin": true,
+    "description": "2D 물리 엔진 기반 실시간 액션 몬스터 디펜스 게임"
   }
 ]

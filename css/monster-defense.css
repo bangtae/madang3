@@ -1,0 +1,584 @@
+/* ==========================================================
+   css/monster-defense.css
+   '몬스터를 막는법' 반응형 게임 전용 스타일시트
+   ========================================================== */
+
+#view-monster-defense {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at center, #1b2030 0%, #090c10 100%);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.monster-defense-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 640px;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #f0f6fc;
+}
+
+/* 상단 게임 툴바 (사운드, 리셋, 전체화면) */
+.monster-defense-wrapper .game-top-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(13, 17, 23, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 20;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.monster-defense-wrapper .game-title-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.monster-defense-wrapper .game-title-badge .badge-icon {
+  font-size: 1.2rem;
+}
+
+.monster-defense-wrapper .game-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.monster-defense-wrapper .btn-game-tool {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.monster-defense-wrapper .btn-game-tool:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #38bdf8;
+  transform: translateY(-1px);
+}
+
+.monster-defense-wrapper .btn-game-tool:active {
+  transform: translateY(0);
+}
+
+/* 뷰포트 컨테이너 (자동 반응형 스케일링 기준 영역) */
+.monster-defense-wrapper .game-viewport-container {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #090c10;
+}
+
+/* 고정 해상도 1024x600 캔버스 래퍼 */
+.monster-defense-wrapper #game-container {
+  position: absolute;
+  width: 1024px;
+  height: 600px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #141724;
+  transform-origin: center center;
+  touch-action: none;
+}
+
+.monster-defense-wrapper #canvas-container {
+  width: 1024px;
+  height: 600px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  touch-action: none;
+}
+
+.monster-defense-wrapper canvas {
+  display: block;
+  width: 1024px !important;
+  height: 600px !important;
+  touch-action: none;
+}
+
+/* 상단 통합 HUD 바 */
+.monster-defense-wrapper #hud-top {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* 좌상단: 영웅 선택 카드 독 */
+.monster-defense-wrapper #hero-dock {
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.monster-defense-wrapper .hero-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(18, 22, 34, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 6px 12px 6px 8px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  position: relative;
+  overflow: hidden;
+}
+
+.monster-defense-wrapper .hero-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.monster-defense-wrapper .hero-card.active {
+  border-color: #ffd166;
+  background: linear-gradient(135deg, rgba(255, 209, 102, 0.18) 0%, rgba(20, 26, 40, 0.95) 100%);
+  box-shadow: 0 0 18px rgba(255, 209, 102, 0.35);
+  transform: scale(1.03);
+}
+
+.monster-defense-wrapper .hero-card .hotkey {
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #ccc;
+}
+
+.monster-defense-wrapper .hero-card.active .hotkey {
+  background: #ffd166;
+  color: #111;
+}
+
+.monster-defense-wrapper .hero-card .thumb-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.monster-defense-wrapper .hero-card .thumb-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.monster-defense-wrapper .hero-card .hero-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.monster-defense-wrapper .hero-card .hero-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.monster-defense-wrapper .hero-card .hero-skill {
+  font-size: 10.5px;
+  color: #8b949e;
+  margin-top: 1px;
+}
+
+/* 우상단: 스테이지 & 스코어 & 킬수 */
+.monster-defense-wrapper #status-board {
+  display: flex;
+  gap: 12px;
+  background: rgba(18, 22, 34, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 8px 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.monster-defense-wrapper .stat-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.monster-defense-wrapper .stat-badge .label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #8b949e;
+  text-transform: uppercase;
+}
+
+.monster-defense-wrapper .stat-badge .value {
+  font-size: 17px;
+  font-weight: 900;
+  color: #fff;
+}
+
+/* 필살기 게이지 UI */
+.monster-defense-wrapper #ult-dock {
+  position: absolute;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(18, 22, 34, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 8px 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 260px;
+  pointer-events: auto;
+}
+
+.monster-defense-wrapper #ult-dock:hover {
+  transform: translateX(-50%) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.monster-defense-wrapper #ult-dock.ready {
+  border-color: #ffd166;
+  box-shadow: 0 0 20px rgba(255, 209, 102, 0.6);
+  animation: ult-pulse 1.2s infinite;
+}
+
+@keyframes ult-pulse {
+  0% { transform: translateX(-50%) scale(1); box-shadow: 0 0 15px rgba(255, 209, 102, 0.4); }
+  50% { transform: translateX(-50%) scale(1.04); box-shadow: 0 0 28px rgba(255, 209, 102, 0.8); }
+  100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 15px rgba(255, 209, 102, 0.4); }
+}
+
+.monster-defense-wrapper .ult-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffd166;
+}
+
+.monster-defense-wrapper .ult-track {
+  width: 100%;
+  height: 9px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.monster-defense-wrapper .ult-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #ff9f1c 0%, #ffd166 100%);
+  border-radius: 5px;
+  transition: width 0.2s cubic-bezier(0.2, 0.8, 0.4, 1);
+  box-shadow: 0 0 8px #ffd166;
+}
+
+/* 방어선 체력 바 */
+.monster-defense-wrapper #defense-hp-bar {
+  position: absolute;
+  top: 76px;
+  right: 14px;
+  width: 220px;
+  background: rgba(18, 22, 34, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 6px 12px;
+  z-index: 10;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.monster-defense-wrapper .defense-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 800;
+  color: #06d6a0;
+  margin-bottom: 3px;
+}
+
+.monster-defense-wrapper .hp-track {
+  width: 100%;
+  height: 7px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.monster-defense-wrapper .hp-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #06d6a0, #38ef7d);
+  transition: width 0.2s ease, background 0.3s ease;
+}
+
+/* 보스 대형 체력 바 */
+.monster-defense-wrapper #boss-bar-container {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 440px;
+  background: rgba(18, 22, 34, 0.95);
+  border: 2px solid #ef476f;
+  border-radius: 12px;
+  padding: 8px 16px;
+  z-index: 12;
+  box-shadow: 0 0 25px rgba(239, 71, 111, 0.6);
+  display: none;
+}
+
+.monster-defense-wrapper .boss-name-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 900;
+  color: #ef476f;
+  margin-bottom: 5px;
+}
+
+.monster-defense-wrapper .boss-hp-track {
+  width: 100%;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.monster-defense-wrapper .boss-hp-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #ff0844 0%, #ffb199 100%);
+  transition: width 0.15s ease;
+}
+
+/* 영웅 컷인 팝업 오버레이 */
+.monster-defense-wrapper #cutin-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.6);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: linear-gradient(135deg, rgba(20, 25, 45, 0.96) 0%, rgba(10, 12, 20, 0.98) 100%);
+  border: 2px solid #ffd166;
+  border-radius: 20px;
+  padding: 16px 36px 16px 20px;
+  box-shadow: 0 0 50px rgba(255, 209, 102, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.monster-defense-wrapper #cutin-overlay.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.monster-defense-wrapper #cutin-img {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
+}
+
+.monster-defense-wrapper #cutin-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.monster-defense-wrapper #cutin-title {
+  font-size: 26px;
+  font-weight: 900;
+  color: #ffd166;
+  text-shadow: 0 0 12px rgba(255, 209, 102, 0.8);
+}
+
+.monster-defense-wrapper #cutin-desc {
+  font-size: 13px;
+  color: #e2e8f0;
+  margin-top: 4px;
+}
+
+/* 하단 조작 가이드 바 */
+.monster-defense-wrapper #guide-bar {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 11.5px;
+  color: #94a3b8;
+  background: rgba(13, 17, 23, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 6px 12px;
+  z-index: 10;
+  pointer-events: auto;
+  flex-wrap: wrap;
+}
+
+.monster-defense-wrapper .cheat-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #cbd5e1;
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 3px;
+  transition: background 0.15s;
+}
+
+.monster-defense-wrapper .cheat-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* 게임 오버레이 (게임오버 / 클리어) */
+.monster-defense-wrapper #game-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(5, 7, 12, 0.9);
+  backdrop-filter: blur(8px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.monster-defense-wrapper #game-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.monster-defense-wrapper #overlay-title {
+  font-size: 42px;
+  font-weight: 900;
+  color: #ef476f;
+  margin-bottom: 12px;
+  text-shadow: 0 0 20px rgba(239, 71, 111, 0.7);
+}
+
+.monster-defense-wrapper #overlay-sub {
+  font-size: 16px;
+  color: #cbd5e1;
+  margin-bottom: 24px;
+}
+
+.monster-defense-wrapper .btn-restart {
+  background: linear-gradient(135deg, #06d6a0 0%, #118ab2 100%);
+  border: none;
+  color: #000;
+  font-weight: 900;
+  font-size: 17px;
+  padding: 12px 32px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(6, 214, 160, 0.4);
+  transition: all 0.2s ease;
+}
+
+.monster-defense-wrapper .btn-restart:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 10px 28px rgba(6, 214, 160, 0.6);
+}
+
+/* ==========================================================
+   전체화면(Fullscreen) 모드 지원 스타일
+   ========================================================== */
+.monster-defense-wrapper:fullscreen,
+.monster-defense-wrapper:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+  background: #000 !important;
+}
+
+.monster-defense-wrapper:fullscreen .game-viewport-container,
+.monster-defense-wrapper:-webkit-full-screen .game-viewport-container {
+  height: calc(100vh - 48px);
+}
+
+/* ==========================================================
+   모바일 & 태블릿 전용 반응형 HUD 최적화
+   ========================================================== */
+@media (max-width: 768px) {
+  .monster-defense-wrapper .game-top-toolbar {
+    padding: 6px 10px;
+  }
+  .monster-defense-wrapper .game-title-badge .badge-title {
+    font-size: 0.85rem;
+  }
+  .monster-defense-wrapper .btn-game-tool {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+}

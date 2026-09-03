@@ -214,36 +214,57 @@ app.all('/api/threads-agent/*', async (req, res) => {
   } else if (!subPath.startsWith('/api/')) {
     subPath = '/api' + subPath;
   }
-  let baseUrl = 'http://127.0.0.1:8000';
+  let baseUrl = process.env.THREADS_AGENT_BASE_URL || 'http://127.0.0.1:8000';
   if (fs.existsSync(threadsTokenConfigFile)) {
     try {
       const cfg = JSON.parse(fs.readFileSync(threadsTokenConfigFile, 'utf8'));
       if (cfg.agentBaseUrl) baseUrl = cfg.agentBaseUrl.replace(/\/$/, '');
     } catch(e){}
   }
-  baseUrl = baseUrl.replace('localhost', '127.0.0.1');
+  if (baseUrl.includes('localhost')) {
+    baseUrl = baseUrl.replace('localhost', '127.0.0.1');
+  }
   const targetUrl = `${baseUrl}${subPath}`;
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutMs = subPath.includes('/trigger') ? 120000 : 15000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     const fetchOptions = {
       method: req.method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) PortalBangProxy/1.0'
+      },
       signal: controller.signal
     };
-    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
-      fetchOptions.body = JSON.stringify(req.body);
+    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+      if (req.body && Object.keys(req.body).length > 0) {
+        fetchOptions.body = JSON.stringify(req.body);
+      } else {
+        fetchOptions.body = '{}';
+      }
     }
     const agentRes = await fetch(targetUrl, fetchOptions);
     clearTimeout(timeoutId);
-    const data = await agentRes.json();
+    const textData = await agentRes.text();
+    let data;
+    try {
+      data = JSON.parse(textData);
+    } catch(parseErr) {
+      data = { success: agentRes.ok, message: textData || 'Invalid response from agent' };
+    }
     res.status(agentRes.status).json(data);
   } catch(e) {
+    const isTimeout = e.name === 'AbortError' || (e.message && e.message.includes('aborted'));
+    const errMessage = isTimeout 
+      ? `Threads AI 에이전트 작업 시간 초과 (${subPath.includes('trigger') ? '수집·발행 120초' : '15초'} 타임아웃). 백그라운드 작업은 진행 중일 수 있습니다.`
+      : `Threads AI 에이전트 서버(${baseUrl})에 연결할 수 없습니다.`;
     res.json({
       is_running: false,
       is_offline: true,
       success: false,
-      message: `Threads AI 에이전트 서버(${baseUrl})에 연결할 수 없습니다.`,
+      message: errMessage,
       error: e.message,
       dynamic_schedule: { market_name: "에이전트 오프라인" },
       statistics: { total_articles_crawled: 0, total_posts_generated: 0 },

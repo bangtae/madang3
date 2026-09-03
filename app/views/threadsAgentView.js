@@ -156,9 +156,13 @@ window.ThreadsAgentView = {
                 <label>만료 예정일</label>
                 <input type="text" class="form-control" value="${dDayInfo.expiryDateStr}" readonly style="background: rgba(255,255,255,0.05); color: #94a3b8;">
               </div>
-              <div class="form-group">
-                <label>에이전트 서버 Base URL</label>
-                <input type="text" id="token-agent-url" class="form-control" value="${cfg.agentBaseUrl || 'http://127.0.0.1:8000'}" placeholder="http://127.0.0.1:8000">
+              <div class="form-group" style="grid-column: span 2;">
+                <label>에이전트 서버 Base URL (로컬: http://127.0.0.1:8000 / GCP연동: Cloudflare Tunnel HTTPS URL)</label>
+                <input type="text" id="token-agent-url" class="form-control" value="${cfg.agentBaseUrl || 'http://127.0.0.1:8000'}" placeholder="예: https://xxx.trycloudflare.com 또는 http://127.0.0.1:8000">
+                <small style="color: #94a3b8; font-size: 0.82rem; margin-top: 4px; display: block; line-height: 1.4;">
+                  💡 <b>GCP 연동 안내:</b> GCP 배포 환경에서는 로컬 127.0.0.1:8000으로 직접 접속할 수 없습니다.<br>
+                  노트북 터미널에서 <code>.\start-tunnel.ps1</code> 실행 후 발급된 <code>https://xxx.trycloudflare.com</code> 주소를 입력하고 저장하세요.
+                </small>
               </div>
               <div style="grid-column: span 2; margin-top: 6px;">
                 <button type="submit" class="btn btn-primary" style="width: 100%;">💾 토큰 설정 저장</button>
@@ -217,25 +221,45 @@ window.ThreadsAgentView = {
             <tbody>
               ${posts.length === 0 ? `
                 <tr><td colspan="6" style="text-align:center; color:#94a3b8; padding:20px;">발행된 포스팅 내역이 없거나 에이전트에 연결되지 않았습니다.</td></tr>
-              ` : posts.map(p => `
-                <tr>
-                  <td>#${p.id}</td>
-                  <td>
-                    <div style="font-weight:600; color:#f8fafc; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(p.title || '').replace(/"/g, '&quot;')}">
-                      ${p.title || '제목 없음'}
-                    </div>
-                    <div style="font-size:0.8rem; color:#94a3b8; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;" title="${(p.summary_text || '').replace(/"/g, '&quot;')}">
-                      ${p.summary_text || ''}
-                    </div>
-                  </td>
-                  <td><span class="tag-badge" style="max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block;">${p.symbols || '-'}</span></td>
-                  <td><span class="badge badge-success">${p.status || 'PUBLISHED'}</span></td>
-                  <td style="font-size:0.8rem; color:#94a3b8;">${p.created_at ? p.created_at.replace('T', ' ').substring(0, 19) : '-'}</td>
-                  <td>
-                    ${p.article_url ? `<a href="${p.article_url}" target="_blank" rel="noopener" class="link-btn">🔗 보기</a>` : '-'}
-                  </td>
-                </tr>
-              `).join('')}
+              ` : posts.map(p => {
+                let badgeHtml = '<span class="badge badge-status-published">🟢 PUBLISHED</span>';
+                let errTipHtml = '';
+                if (p.status === 'FAILED') {
+                  let errReason = p.error_message || '스레드 API 발행 실패';
+                  if (errReason.includes('Session has expired') || errReason.includes('OAuthException') || errReason.includes('code":190')) {
+                    errReason = 'Threads API 토큰 만료됨 (Meta 60일 세션 만료)';
+                  }
+                  badgeHtml = `<span class="badge badge-status-failed" title="${(p.error_message || '').replace(/"/g, '&quot;')}">🔴 FAILED</span>`;
+                  errTipHtml = `<div style="font-size:0.75rem; color:#f87171; margin-top:3px; font-weight:500;" title="${(p.error_message || '').replace(/"/g, '&quot;')}">⚠️ 실패 원인: ${errReason}</div>`;
+                } else if (p.status === 'DRY_RUN') {
+                  badgeHtml = '<span class="badge badge-status-dryrun">🟡 DRY_RUN</span>';
+                } else if (p.status === 'PENDING') {
+                  badgeHtml = '<span class="badge badge-status-pending">⏳ PENDING</span>';
+                }
+
+                const kstTime = this.formatKstDate(p.created_at);
+
+                return `
+                  <tr style="${p.status === 'FAILED' ? 'background: rgba(239, 68, 68, 0.04);' : ''}">
+                    <td>#${p.id}</td>
+                    <td>
+                      <div style="font-weight:600; color:#f8fafc; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(p.title || '').replace(/"/g, '&quot;')}">
+                        ${p.title || '제목 없음'}
+                      </div>
+                      <div style="font-size:0.8rem; color:#94a3b8; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;" title="${(p.summary_text || '').replace(/"/g, '&quot;')}">
+                        ${p.summary_text || ''}
+                      </div>
+                      ${errTipHtml}
+                    </td>
+                    <td><span class="tag-badge" style="max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block;">${p.symbols || '-'}</span></td>
+                    <td>${badgeHtml}</td>
+                    <td style="font-size:0.8rem; color:#94a3b8; white-space:nowrap;" title="한국 표준시 (KST)">${kstTime}</td>
+                    <td>
+                      ${p.article_url ? `<a href="${p.article_url}" target="_blank" rel="noopener" class="link-btn">🔗 보기</a>` : '-'}
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
             </tbody>
           </table>
         </div>
@@ -243,6 +267,32 @@ window.ThreadsAgentView = {
     `;
 
     this.bindViewEvents();
+  },
+
+  formatKstDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+      let s = String(dateStr).trim();
+      if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
+      if (!s.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(s)) {
+        s += 'Z';
+      }
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return dateStr.replace('T', ' ').substring(0, 19);
+
+      const formatter = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      return formatter.format(d);
+    } catch (e) {
+      return dateStr.replace('T', ' ').substring(0, 19);
+    }
   },
 
   bindEvents() {
