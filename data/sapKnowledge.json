@@ -1,0 +1,66 @@
+[
+  {
+    "id": "sap_know_groovy_basic",
+    "topic": "Groovy Script",
+    "title": "Groovy 스크립트 기본 구조 및 Message 객체 핸들링",
+    "content": "SAP Cloud Integration에서 커스텀 로직 처리를 위한 기본 Groovy 스크립트 템플릿입니다.\n\nimport com.sap.gateway.ip.core.customdev.util.Message\ndef Message processData(Message message) {\n    def body = message.getBody(java.lang.String)\n    def headers = message.getHeaders()\n    def properties = message.getProperties()\n    message.setProperty(\"ProcessedFlag\", \"Y\")\n    message.setHeader(\"Content-Type\", \"application/json\")\n    message.setBody(body)\n    return message\n}\n\n- processData(Message message) 메서드가 런타임 진입점입니다.\n- 헤더는 외부 프로토콜로 전달될 수 있으나, 프로퍼티는 iFlow 내부 교환 변수로만 격리 유지됩니다.",
+    "doc_url": "https://help.sap.com/docs/cloud-integration/sap-cloud-integration/development?locale=en-US",
+    "tags": ["Groovy", "Message", "Basic", "Header", "Property"]
+  },
+  {
+    "id": "sap_know_groovy_mpl",
+    "topic": "Groovy Script",
+    "title": "Message Processing Log(MPL) 커스텀 로깅 및 첨부파일 기록",
+    "content": "모니터링 대시보드에서 iFlow 추적 및 디버깅을 위해 커스텀 로그 및 바디를 MPL에 첨부하는 패턴입니다.\n\nimport com.sap.gateway.ip.core.customdev.util.Message\ndef Message processData(Message message) {\n    def messageLog = messageLogFactory.getMessageLog(message)\n    def body = message.getBody(java.lang.String)\n    if (messageLog != null) {\n        messageLog.addCustomHeaderProperty(\"OrderNumber\", message.getProperty(\"OrderNumber\") ?: \"N/A\")\n        messageLog.addAttachmentAsString(\"Debug_Payload\", body, \"text/plain\")\n    }\n    return message\n}",
+    "doc_url": "https://help.sap.com/docs/cloud-integration/sap-cloud-integration/development?locale=en-US",
+    "tags": ["Groovy", "MPL", "Logging", "Monitoring", "Debug"]
+  },
+  {
+    "id": "sap_know_groovy_json_xml",
+    "topic": "Groovy Script",
+    "title": "JsonSlurper 및 XmlSlurper를 활용한 데이터 파싱과 변환",
+    "content": "Groovy 내장 파서를 활용하여 JSON과 XML 페이로드를 고속 파싱하고 가공하는 표준 기법입니다.\n\nimport com.sap.gateway.ip.core.customdev.util.Message\nimport groovy.json.JsonSlurper\nimport groovy.json.JsonOutput\ndef Message processData(Message message) {\n    def body = message.getBody(java.lang.String)\n    def slurper = new JsonSlurper()\n    def data = slurper.parseText(body)\n    data.status = \"VERIFIED\"\n    data.processedAt = new Date().format(\"yyyy-MM-dd HH:mm:ss\")\n    message.setBody(JsonOutput.toJson(data))\n    message.setHeader(\"Content-Type\", \"application/json\")\n    return message\n}",
+    "doc_url": "https://help.sap.com/docs/cloud-integration/sap-cloud-integration/development?locale=en-US",
+    "tags": ["Groovy", "JSON", "XML", "Slurper", "Transform"]
+  },
+  {
+    "id": "sap_know_mapping_udf",
+    "topic": "Message Mapping",
+    "title": "Message Mapping Groovy UDF (사용자 정의 함수) 개발 표준",
+    "content": "그래픽 메시지 매핑에서 기본 내장 함수로 해결되지 않는 복잡한 로직을 구현하는 Groovy UDF 규칙입니다.\n\nSingle Values, All Values of a Context, All Values of a Queue 세 가지 실행 모드를 지원합니다.",
+    "doc_url": "https://help.sap.com/docs/cloud-integration/sap-cloud-integration/development?locale=en-US",
+    "tags": ["Message Mapping", "UDF", "Groovy", "Queue", "Context"]
+  },
+  {
+    "id": "sap_know_iflow_patterns",
+    "topic": "Integration Patterns",
+    "title": "엔터프라이즈 통합 패턴: Splitter & Aggregator 및 멱등성 보장",
+    "content": "대량의 배치 데이터를 개별 건으로 분할(Split) 처리 후 다시 취합(Aggregate)하는 표준 아키텍처 패턴 및 중복 수신 방지(Idempotent Process Call) 패턴을 적용합니다.",
+    "doc_url": "https://help.sap.com/docs/cloud-integration/sap-cloud-integration/development?locale=en-US",
+    "tags": ["Pattern", "Splitter", "Aggregator", "Idempotent", "iFlow"]
+  },
+  {
+    "id": "sap_know_adapters_best_practice",
+    "topic": "Adapters",
+    "title": "Cloud Integration 핵심 어댑터 구성 가이드 (OData, REST, SFTP, SOAP)",
+    "content": "OData V2/V4 배치 및 페이징, REST 에러 핸들링(Throw Exception on Failure 관리), SFTP 락 파일 관리 모범 사례입니다.",
+    "doc_url": "https://help.sap.com/docs/cloud-integration/sap-cloud-integration/development?locale=en-US",
+    "tags": ["Adapter", "OData", "REST", "SFTP", "SOAP", "Performance"]
+  },
+  {
+    "id": "sap_know_security_credentials",
+    "topic": "Security",
+    "title": "보안 자격증명 관리 및 OAuth2 Client Credentials 연동",
+    "content": "SAP BTP 및 외부 SaaS 시스템 연동 시 OAuth2 Client Credentials, KeyStore 및 ITApiFactory를 통한 보안 자격증명 조회 패턴입니다.",
+    "doc_url": "https://help.sap.com/docs/cloud-integration/sap-cloud-integration/development?locale=en-US",
+    "tags": ["Security", "OAuth2", "KeyStore", "SecureStore", "ITApiFactory"]
+  },
+  {
+    "id": "sap_know_po_to_cpi_migration",
+    "topic": "Migration",
+    "title": "SAP PO(Process Orchestration)에서 Cloud Integration 마이그레이션 가이드",
+    "content": "SAP PO 온프레미스 인터페이스(Java 매핑, RFC/IDoc, 디렉터리 시나리오)를 SAP Cloud Integration iFlow 및 Groovy로 전환하는 전략입니다.",
+    "doc_url": "https://help.sap.com/docs/cloud-integration/sap-cloud-integration/development?locale=en-US",
+    "tags": ["Migration", "SAP PO", "Cloud Integration", "BTP", "Cloud Connector"]
+  }
+]

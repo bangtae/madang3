@@ -1,4 +1,4 @@
-// app/views/threadsAgentView.js - Threads AI 에이전트 전용 뷰 렌더러
+// app/views/threadsAgentView.js - AI 에이전트 목록 및 통합 관리 뷰 렌더러
 
 window.ThreadsAgentView = {
   init() {
@@ -14,7 +14,7 @@ window.ThreadsAgentView = {
     if (badgeEl) {
       if (status.is_offline) {
         badgeEl.className = 'agent-status-badge badge-offline';
-        badgeEl.innerHTML = '<span class="status-dot"></span> ⚠️ 에이전트 오프라인';
+        badgeEl.innerHTML = '<span class="status-dot"></span> ⚠️ 오프라인';
       } else if (status.is_running) {
         badgeEl.className = 'agent-status-badge badge-running';
         badgeEl.innerHTML = '<span class="status-dot"></span> 🟢 가동 중';
@@ -56,212 +56,136 @@ window.ThreadsAgentView = {
     const model = window.ThreadsAgentModel;
     const status = model.agentStatus;
     const dDayInfo = model.getTokenDDay();
-    const sources = model.sourcesList.length > 0 ? model.sourcesList : [
-      { name: "dart_disclosure", display_name: "DART 전자공시 (국내 핵심공시/실적)", health_status: "HEALTHY", total_fetched: 0 },
-      { name: "naver_finance", display_name: "네이버 증권 (국내 실시간 속보)", health_status: "HEALTHY", total_fetched: 0 },
-      { name: "sec_edgar", display_name: "SEC EDGAR (미국 8-K/10-Q 핵심공시)", health_status: "HEALTHY", total_fetched: 0 },
-      { name: "newsfilter", display_name: "NewsFilter (미국/글로벌 실시간 뉴스)", health_status: "HEALTHY", total_fetched: 0 },
-      { name: "theregister", display_name: "The Register (글로벌 IT/반도체/AI)", health_status: "HEALTHY", total_fetched: 0 },
-      { name: "tradingeconomics", display_name: "Trading Economics (글로벌 거시/금리)", health_status: "HEALTHY", total_fetched: 0 },
-      { name: "physorg", display_name: "Phys.org (첨단기술/배터리/신소재)", health_status: "HEALTHY", total_fetched: 0 },
-      { name: "marketchameleon", display_name: "MarketChameleon (옵션특이거래)", health_status: "HEALTHY", total_fetched: 0 }
-    ];
-    const posts = model.publishedPosts || [];
     const cfg = model.tokenConfig;
-
-    const sched = status.dynamic_schedule || {};
-    const stats = status.statistics || {};
 
     container.innerHTML = `
       <div class="view-header">
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
           <div>
-            <h2>🤖 Threads AI 에이전트 원격 대시보드</h2>
-            <p>실시간 뉴스·공시 데이터 수집 에이전트 가동 상태 및 8대 소스 토글, 60일 API 토큰 만료를 관리합니다.</p>
+            <h2>🤖 AI 에이전트 목록 및 관리</h2>
+            <p>연동된 AI 에이전트들의 실시간 가동 상태 제어, 원격 서버 URL 및 API 인증 토큰을 통합 관리합니다.</p>
           </div>
           <div style="display: flex; gap: 8px;">
-            <button type="button" id="btn-agent-trigger-view" class="btn btn-warning btn-sm">⚡ 즉시 1회 수집·발행</button>
             <button type="button" id="btn-agent-refresh-view" class="btn btn-secondary btn-sm">🔄 상태 새로고침</button>
           </div>
         </div>
       </div>
 
-      <!-- 1. 가동 현황 요약 카드 -->
-      <div class="agent-dash-grid">
-        <div class="card agent-card">
-          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 class="card-title">📡 에이전트 가동 현황</h3>
+      <!-- 모듈형 에이전트 카드 그리드 -->
+      <div class="agent-cards-grid">
+        <!-- 1호: Threads AI 에이전트 카드 -->
+        <div class="card agent-card agent-module-card">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.4rem;">🤖</span>
+                <h3 class="card-title" style="margin: 0;">Threads AI 에이전트</h3>
+              </div>
+              <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #94a3b8;">실시간 증시 뉴스·공시 요약 브리핑 및 자동 포스팅</p>
+            </div>
             <span class="${status.is_running ? 'agent-badge badge-running' : (status.is_offline ? 'agent-badge badge-offline' : 'agent-badge badge-stopped')}">
               ${status.is_running ? '🟢 가동 중' : (status.is_offline ? '⚠️ 에이전트 오프라인' : '🔴 일시정지됨')}
             </span>
           </div>
-          <div class="card-body">
-            <div class="metric-row">
-              <div class="metric-box">
-                <span class="metric-label">현재 장 상태 (Phase)</span>
-                <span class="metric-val text-accent">${sched.market_name || '국내/미국 혼합장'}</span>
-              </div>
-              <div class="metric-box">
-                <span class="metric-label">시장 비중 (국내 : 미국)</span>
-                <span class="metric-val">${sched.kr_weight || '50%'} : ${sched.us_weight || '50%'}</span>
-              </div>
-              <div class="metric-box">
-                <span class="metric-label">수집 기사 수</span>
-                <span class="metric-val text-success">${stats.total_articles_crawled || 0}건</span>
-              </div>
-              <div class="metric-box">
-                <span class="metric-label">발행 완료 스레드</span>
-                <span class="metric-val text-primary">${stats.total_posts_generated || 0}건</span>
+
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 18px;">
+            <!-- 에이전트 가동 / 중지 컨트롤 -->
+            <div class="agent-control-box">
+              <label style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 8px; font-weight: 600;">⚡ 가동 상태 제어</label>
+              <div style="display: flex; gap: 10px;">
+                <button type="button" id="btn-agent-start-main" class="btn btn-success" style="flex: 1; padding: 9px 12px; font-size: 0.88rem;" ${status.is_running ? 'disabled' : ''}>
+                  ▶ 에이전트 가동 시작
+                </button>
+                <button type="button" id="btn-agent-stop-main" class="btn btn-danger" style="flex: 1; padding: 9px 12px; font-size: 0.88rem;" ${!status.is_running ? 'disabled' : ''}>
+                  ⏹ 에이전트 일시정지
+                </button>
               </div>
             </div>
 
-            <div class="agent-control-btn-group" style="margin-top: 16px; display: flex; gap: 10px;">
-              <button type="button" id="btn-agent-start-main" class="btn btn-success" style="flex: 1;" ${status.is_running ? 'disabled' : ''}>▶ 에이전트 가동 시작</button>
-              <button type="button" id="btn-agent-stop-main" class="btn btn-danger" style="flex: 1;" ${!status.is_running ? 'disabled' : ''}>⏹ 에이전트 일시정지</button>
-            </div>
-          </div>
-        </div>
+            <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 0;">
 
-        <!-- 2. Threads API 토큰 60일 만료 관리 카드 -->
-        <div class="card agent-card">
-          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 class="card-title">🔑 Threads API 토큰 60일 만료 관리</h3>
-            <span class="${dDayInfo.isWarning ? 'agent-badge dday-warning' : 'agent-badge dday-normal'}">
-              ${dDayInfo.isExpired ? '⚠️ 토큰 만료됨' : `D-${dDayInfo.dDay}일 남음`}
-            </span>
-          </div>
-          <div class="card-body">
-            <div class="token-dday-progress-box" style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.6); padding: 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-size: 0.84rem; color: #94a3b8;">토큰 잔여 카운트다운 (-1일/1일)</span>
-                <span style="font-weight: 700; color: ${dDayInfo.isWarning ? '#fca5a5' : '#38bdf8'}; font-size: 1rem;">
-                  ${dDayInfo.dDay}일 / ${cfg.validDays || 60}일
+            <!-- Threads API 토큰 60일 만료 관리 섹션 -->
+            <div class="agent-token-section">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label style="font-size: 0.84rem; color: #cbd5e1; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                  <span>🔑 Threads API 토큰 60일 만료 관리</span>
+                </label>
+                <span class="${dDayInfo.isWarning ? 'agent-badge dday-warning' : 'agent-badge dday-normal'}" style="font-size: 0.76rem; padding: 2px 8px;">
+                  ${dDayInfo.isExpired ? '⚠️ 토큰 만료됨' : `D-${dDayInfo.dDay}일 남음`}
                 </span>
               </div>
-              <div class="progress-bar-bg" style="width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden;">
-                <div class="progress-bar-fill" style="width: ${Math.max(0, Math.min(100, Math.round((dDayInfo.dDay / (cfg.validDays || 60)) * 100)))}%; height: 100%; background: ${dDayInfo.isWarning ? 'linear-gradient(90deg, #f59e0b, #ef4444)' : 'linear-gradient(90deg, #38bdf8, #818cf8)'}; transition: width 0.3s ease;"></div>
-              </div>
-            </div>
 
-            <form id="form-token-config" class="form-grid">
-              <div class="form-group">
-                <label>토큰 발급 일자 (Issued Date)</label>
-                <input type="date" id="token-issued-date" class="form-control" value="${cfg.tokenIssuedDate || ''}">
-              </div>
-              <div class="form-group">
-                <label>유효 기간 (기본 60일)</label>
-                <input type="number" id="token-valid-days" class="form-control" value="${cfg.validDays || 60}" min="1" max="365">
-              </div>
-              <div class="form-group">
-                <label>만료 예정일</label>
-                <input type="text" class="form-control" value="${dDayInfo.expiryDateStr}" readonly style="background: rgba(255,255,255,0.05); color: #94a3b8;">
-              </div>
-              <div class="form-group" style="grid-column: span 2;">
-                <label>에이전트 서버 Base URL (로컬: http://127.0.0.1:8000 / GCP연동: Cloudflare Tunnel HTTPS URL)</label>
-                <input type="text" id="token-agent-url" class="form-control" value="${cfg.agentBaseUrl || 'http://127.0.0.1:8000'}" placeholder="예: https://xxx.trycloudflare.com 또는 http://127.0.0.1:8000">
-                <small style="color: #94a3b8; font-size: 0.82rem; margin-top: 4px; display: block; line-height: 1.4;">
-                  💡 <b>GCP 연동 안내:</b> GCP 배포 환경에서는 로컬 127.0.0.1:8000으로 직접 접속할 수 없습니다.<br>
-                  노트북 터미널에서 <code>.\start-tunnel.ps1</code> 실행 후 발급된 <code>https://xxx.trycloudflare.com</code> 주소를 입력하고 저장하세요.
-                </small>
-              </div>
-              <div style="grid-column: span 2; margin-top: 6px;">
-                <button type="submit" class="btn btn-primary" style="width: 100%;">💾 토큰 설정 저장</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. 8대 수집 소스 On/Off 토글 카드 -->
-      <div class="card agent-card" style="margin-top: 20px;">
-        <div class="card-header">
-          <h3 class="card-title">🌐 8대 뉴스·공시 수집 사이트 On/Off 토글</h3>
-        </div>
-        <div class="card-body">
-          <div class="sources-grid">
-            ${sources.map(src => `
-              <div class="source-item-card ${src.health_status === 'HEALTHY' ? 'src-healthy' : ''}">
-                <div class="source-info">
-                  <span class="source-name">${src.display_name || src.name}</span>
-                  <span class="source-code">${src.name}</span>
-                </div>
-                <div class="source-meta">
-                  <span class="badge ${src.health_status === 'HEALTHY' ? 'badge-success' : 'badge-warning'}">
-                    ${src.health_status || 'HEALTHY'}
+              <div class="token-dday-progress-box" style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.6); padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 0.8rem; color: #94a3b8;">토큰 잔여 카운트다운</span>
+                  <span style="font-weight: 700; color: ${dDayInfo.isWarning ? '#fca5a5' : '#38bdf8'}; font-size: 0.92rem;">
+                    ${dDayInfo.dDay}일 / ${cfg.validDays || 60}일
                   </span>
-                  <span class="fetch-count">수집 ${src.total_fetched || 0}건</span>
-                  <button type="button" class="btn btn-sm btn-outline btn-toggle-src" data-source="${src.name}">
-                    🔄 토글 Switch
-                  </button>
+                </div>
+                <div class="progress-bar-bg" style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden;">
+                  <div class="progress-bar-fill" style="width: ${Math.max(0, Math.min(100, Math.round((dDayInfo.dDay / (cfg.validDays || 60)) * 100)))}%; height: 100%; background: ${dDayInfo.isWarning ? 'linear-gradient(90deg, #f59e0b, #ef4444)' : 'linear-gradient(90deg, #38bdf8, #818cf8)'}; transition: width 0.3s ease;"></div>
                 </div>
               </div>
-            `).join('')}
+
+              <!-- 설정 Form -->
+              <form id="form-token-config" style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; display: block;">발급 일자 (Issued Date)</label>
+                    <input type="date" id="token-issued-date" class="form-control" style="font-size: 0.84rem; padding: 7px 10px;" value="${cfg.tokenIssuedDate || ''}">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; display: block;">유효 기간 (일)</label>
+                    <input type="number" id="token-valid-days" class="form-control" style="font-size: 0.84rem; padding: 7px 10px;" value="${cfg.validDays || 60}" min="1" max="365">
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; display: block;">만료 예정일</label>
+                  <input type="text" class="form-control" value="${dDayInfo.expiryDateStr}" readonly style="background: rgba(255,255,255,0.04); color: #94a3b8; font-size: 0.84rem; padding: 7px 10px;">
+                </div>
+
+                <!-- 에이전트 서버 Base URL 입력창 -->
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label style="font-size: 0.8rem; color: #cbd5e1; margin-bottom: 4px; display: block; font-weight: 600;">에이전트 서버 Base URL</label>
+                  <input type="text" id="token-agent-url" class="form-control" style="font-size: 0.84rem; padding: 8px 10px;" value="${cfg.agentBaseUrl || 'http://127.0.0.1:8000'}" placeholder="예: http://127.0.0.1:8000 또는 https://xxx.trycloudflare.com">
+                  <small style="color: #94a3b8; font-size: 0.78rem; margin-top: 5px; display: block; line-height: 1.35;">
+                    💡 로컬 환경은 <code>http://127.0.0.1:8000</code>, GCP 환경 연동 시 터미널에서 <code>start-tunnel.ps1</code> 실행 후 발급된 Cloudflare Tunnel HTTPS 주소를 입력하세요.
+                  </small>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 4px; padding: 9px 12px; font-size: 0.88rem;">
+                  💾 Threads 에이전트 설정 저장
+                </button>
+              </form>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- 4. 발행된 포스팅 이력 목록 -->
-      <div class="card agent-card" style="margin-top: 20px;">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-          <h3 class="card-title">📜 스레드 발행 포스팅 내역 (최근 20건)</h3>
-          <span class="text-sub">총 ${posts.length}건</span>
-        </div>
-        <div class="card-body" style="overflow-x: auto;">
-          <table class="data-table agent-posts-table" style="table-layout: fixed; width: 100%;">
-            <thead>
-              <tr>
-                <th style="width: 50px;">ID</th>
-                <th style="width: auto;">제목 및 요약</th>
-                <th style="width: 120px;">관련 종목</th>
-                <th style="width: 90px;">발행 상태</th>
-                <th style="width: 140px;">발행 일시</th>
-                <th style="width: 90px;">원문 링크</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${posts.length === 0 ? `
-                <tr><td colspan="6" style="text-align:center; color:#94a3b8; padding:20px;">발행된 포스팅 내역이 없거나 에이전트에 연결되지 않았습니다.</td></tr>
-              ` : posts.map(p => {
-                let badgeHtml = '<span class="badge badge-status-published">🟢 PUBLISHED</span>';
-                let errTipHtml = '';
-                if (p.status === 'FAILED') {
-                  let errReason = p.error_message || '스레드 API 발행 실패';
-                  if (errReason.includes('Session has expired') || errReason.includes('OAuthException') || errReason.includes('code":190')) {
-                    errReason = 'Threads API 토큰 만료됨 (Meta 60일 세션 만료)';
-                  }
-                  badgeHtml = `<span class="badge badge-status-failed" title="${(p.error_message || '').replace(/"/g, '&quot;')}">🔴 FAILED</span>`;
-                  errTipHtml = `<div style="font-size:0.75rem; color:#f87171; margin-top:3px; font-weight:500;" title="${(p.error_message || '').replace(/"/g, '&quot;')}">⚠️ 실패 원인: ${errReason}</div>`;
-                } else if (p.status === 'DRY_RUN') {
-                  badgeHtml = '<span class="badge badge-status-dryrun">🟡 DRY_RUN</span>';
-                } else if (p.status === 'PENDING') {
-                  badgeHtml = '<span class="badge badge-status-pending">⏳ PENDING</span>';
-                }
+        <!-- 2호: 신규 에이전트 확장 플레이스홀더 카드 -->
+        <div class="card agent-card agent-module-card agent-placeholder-card">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.3rem; opacity: 0.7;">🧩</span>
+              <h3 class="card-title" style="margin: 0; color: #94a3b8;">신규 AI 에이전트</h3>
+            </div>
+            <span class="agent-badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px dashed rgba(148, 163, 184, 0.3);">
+              ⏳ 연동 대기
+            </span>
+          </div>
 
-                const kstTime = this.formatKstDate(p.created_at);
-
-                return `
-                  <tr style="${p.status === 'FAILED' ? 'background: rgba(239, 68, 68, 0.04);' : ''}">
-                    <td>#${p.id}</td>
-                    <td>
-                      <div style="font-weight:600; color:#f8fafc; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(p.title || '').replace(/"/g, '&quot;')}">
-                        ${p.title || '제목 없음'}
-                      </div>
-                      <div style="font-size:0.8rem; color:#94a3b8; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;" title="${(p.summary_text || '').replace(/"/g, '&quot;')}">
-                        ${p.summary_text || ''}
-                      </div>
-                      ${errTipHtml}
-                    </td>
-                    <td><span class="tag-badge" style="max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block;">${p.symbols || '-'}</span></td>
-                    <td>${badgeHtml}</td>
-                    <td style="font-size:0.8rem; color:#94a3b8; white-space:nowrap;" title="한국 표준시 (KST)">${kstTime}</td>
-                    <td>
-                      ${p.article_url ? `<a href="${p.article_url}" target="_blank" rel="noopener" class="link-btn">🔗 보기</a>` : '-'}
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
+          <div class="card-body placeholder-body">
+            <div class="placeholder-content">
+              <div class="placeholder-icon">✨</div>
+              <h4 style="font-size: 1.05rem; color: #e2e8f0; margin: 0 0 6px 0; font-weight: 600;">새로운 에이전트 모듈 추가 가능</h4>
+              <p style="font-size: 0.82rem; color: #94a3b8; margin: 0 0 16px 0; line-height: 1.5; max-width: 320px;">
+                텔레그램 알림 에이전트, AI 마켓 리서치 봇 등 신규 에이전트가 개발되면 동일한 카드 규격으로 손쉽게 추가 연동됩니다.
+              </p>
+              <button type="button" class="btn btn-outline" style="opacity: 0.5; cursor: not-allowed; font-size: 0.82rem; padding: 7px 14px;" disabled>
+                + 신규 에이전트 등록 예정
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -269,36 +193,9 @@ window.ThreadsAgentView = {
     this.bindViewEvents();
   },
 
-  formatKstDate(dateStr) {
-    if (!dateStr) return '-';
-    try {
-      let s = String(dateStr).trim();
-      if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
-      if (!s.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(s)) {
-        s += 'Z';
-      }
-      const d = new Date(s);
-      if (isNaN(d.getTime())) return dateStr.replace('T', ' ').substring(0, 19);
-
-      const formatter = new Intl.DateTimeFormat('sv-SE', {
-        timeZone: 'Asia/Seoul',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-      return formatter.format(d);
-    } catch (e) {
-      return dateStr.replace('T', ' ').substring(0, 19);
-    }
-  },
-
   bindEvents() {
     const btnStart = document.getElementById('btn-header-agent-start');
     const btnStop = document.getElementById('btn-header-agent-stop');
-    const btnTrigger = document.getElementById('btn-header-agent-trigger');
 
     if (btnStart) {
       btnStart.addEventListener('click', async () => {
@@ -315,25 +212,13 @@ window.ThreadsAgentView = {
         window.AppController.refreshThreadsAgentStatus();
       });
     }
-
-    if (btnTrigger) {
-      btnTrigger.addEventListener('click', async () => {
-        if (confirm('즉시 1회 뉴스/공시 수집 및 포스팅 발행을 실행하시겠습니까?')) {
-          const res = await window.ThreadsAgentModel.triggerOnce();
-          alert(res.message || '즉시 실행이 완료되었습니다.');
-          window.AppController.refreshThreadsAgentStatus();
-        }
-      });
-    }
   },
 
   bindViewEvents() {
     const btnStartMain = document.getElementById('btn-agent-start-main');
     const btnStopMain = document.getElementById('btn-agent-stop-main');
-    const btnTriggerView = document.getElementById('btn-agent-trigger-view');
     const btnRefreshView = document.getElementById('btn-agent-refresh-view');
     const formToken = document.getElementById('form-token-config');
-    const btnTestEmail = document.getElementById('btn-test-email');
 
     if (btnStartMain) {
       btnStartMain.addEventListener('click', async () => {
@@ -347,15 +232,6 @@ window.ThreadsAgentView = {
       btnStopMain.addEventListener('click', async () => {
         const res = await window.ThreadsAgentModel.stopAgent();
         alert(res.message || '에이전트가 중지되었습니다.');
-        window.AppController.refreshThreadsAgentStatus();
-      });
-    }
-
-    if (btnTriggerView) {
-      btnTriggerView.addEventListener('click', async () => {
-        alert('즉시 1회 수집 및 포스팅을 실행합니다. (잠시 기다려주세요)');
-        const res = await window.ThreadsAgentModel.triggerOnce();
-        alert(res.message || '완료되었습니다.');
         window.AppController.refreshThreadsAgentStatus();
       });
     }
@@ -379,17 +255,5 @@ window.ThreadsAgentView = {
         window.AppController.refreshThreadsAgentStatus();
       });
     }
-
-    const toggleBtns = document.querySelectorAll('.btn-toggle-src');
-    toggleBtns.forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const srcName = e.currentTarget.getAttribute('data-source');
-        if (srcName) {
-          const res = await window.ThreadsAgentModel.toggleSource(srcName);
-          alert(`[${srcName}] 토글 상태가 변경되었습니다.`);
-          window.AppController.refreshThreadsAgentStatus();
-        }
-      });
-    });
   }
 };

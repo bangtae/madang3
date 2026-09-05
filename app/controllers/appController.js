@@ -22,7 +22,14 @@ window.AppController = {
     if (window.ThreadsAgentView) {
       window.ThreadsAgentView.init();
     }
+    if (window.SapSuiteModel) {
+      await window.SapSuiteModel.init();
+    }
+    if (window.SapSuiteView) {
+      window.SapSuiteView.init();
+    }
     this.refreshAllViews();
+
     this.refreshThreadsAgentStatus();
     
     // 5초마다 에이전트 상태 자동 폴링
@@ -279,6 +286,15 @@ window.AppController = {
       });
     }
 
+    const cardStatSapSuite = document.getElementById('card-stat-sap-suite');
+    if (cardStatSapSuite) {
+      cardStatSapSuite.addEventListener('click', () => {
+        this.switchTopNav('work');
+        this.switchSideNav('sap-suite');
+      });
+    }
+
+
     // 0. 사이드바 열기/닫기 (토글) 및 오버레이 이벤트
     const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
     const sidebar = document.getElementById('left-sidebar');
@@ -358,7 +374,9 @@ window.AppController = {
             { id: "ai-models", name: "AI 서비스 정보", icon: "🤖", category: "ai", statCardId: "card-stat-ai-services", guest: true, admin: true, description: "최신 AI 모델 및 서비스 정보 목록 조회" },
             { id: "ai-terms", name: "AI 용어 & 마인드맵", icon: "🧠", category: "ai", statCardId: "card-stat-ai-terms", guest: true, admin: true, description: "AI 관련 기술 개념 및 마인드맵 학습" },
             { id: "sap-terms", name: "SAP 용어 & 마인드맵", icon: "🏢", category: "work", statCardId: "card-stat-sap-terms", guest: true, admin: true, description: "SAP ERP 코어 모듈 및 기술 용어 마인드맵" },
+            { id: "sap-suite", name: "SAP Integration Suite", icon: "⚡", category: "work", statCardId: "card-stat-sap-suite", guest: true, admin: true, description: "SAP Cloud Integration 최신 소식 및 Groovy/iFlow 컨설팅·개발 도우미" },
             { id: "agent-builder", name: "AI 에이전트 Builder", icon: "🧩", category: "ai", guest: true, admin: true, description: "자원 조합 및 시스템 워크플로우 설계도 생성" },
+
             { id: "ip-whitelist", name: "IP 화이트리스트", icon: "🛡️", category: "admin", guest: false, admin: true, description: "접속 허용 IP 주소 관리" },
             { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
             { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
@@ -1301,6 +1319,7 @@ window.AppController = {
     const viewAiModels = document.getElementById('view-ai-models');
     const viewAiTerms = document.getElementById('view-ai-terms');
     const viewSapTerms = document.getElementById('view-sap-terms');
+    const viewSapSuite = document.getElementById('view-sap-suite');
     const viewAgentBuilder = document.getElementById('view-agent-builder');
     const viewIpWhitelist = document.getElementById('view-ip-whitelist');
     const viewIpBlacklist = document.getElementById('view-ip-blacklist');
@@ -1318,7 +1337,9 @@ window.AppController = {
       if (viewAiModels) viewAiModels.classList.add('hidden');
       if (viewAiTerms) viewAiTerms.classList.add('hidden');
       if (viewSapTerms) viewSapTerms.classList.add('hidden');
+      if (viewSapSuite) viewSapSuite.classList.add('hidden');
       if (viewAgentBuilder) viewAgentBuilder.classList.add('hidden');
+
       if (viewIpWhitelist) viewIpWhitelist.classList.add('hidden');
       if (viewIpBlacklist) viewIpBlacklist.classList.add('hidden');
       if (viewIpLogs) viewIpLogs.classList.add('hidden');
@@ -1381,7 +1402,13 @@ window.AppController = {
           window.SapMindmapView.render();
         }, 50);
       }
+    } else if (sideView === 'sap-suite') {
+      if (viewSapSuite) viewSapSuite.classList.remove('hidden');
+      if (window.SapSuiteView) {
+        window.SapSuiteView.init();
+      }
     } else if (sideView === 'agent-builder') {
+
       if (viewAgentBuilder) viewAgentBuilder.classList.remove('hidden');
       if (window.AgentBuilderView) {
         window.AgentBuilderView.init();
@@ -1461,7 +1488,9 @@ window.AppController = {
       { id: "ai-models", name: "AI 서비스 정보", icon: "🤖", category: "ai", statCardId: "card-stat-ai-services", guest: true, admin: true, description: "최신 AI 모델 및 서비스 정보 목록 조회" },
       { id: "ai-terms", name: "AI 용어 & 마인드맵", icon: "🧠", category: "ai", statCardId: "card-stat-ai-terms", guest: true, admin: true, description: "AI 관련 기술 개념 및 마인드맵 학습" },
       { id: "sap-terms", name: "SAP 용어 & 마인드맵", icon: "🏢", category: "work", statCardId: "card-stat-sap-terms", guest: true, admin: true, description: "SAP ERP 코어 모듈 및 기술 용어 마인드맵" },
+      { id: "sap-suite", name: "SAP Integration Suite", icon: "⚡", category: "work", statCardId: "card-stat-sap-suite", guest: true, admin: true, description: "SAP Cloud Integration 최신 소식 및 Groovy/iFlow 컨설팅·개발 도우미" },
       { id: "agent-builder", name: "AI 에이전트 Builder", icon: "🧩", category: "ai", guest: true, admin: true, description: "자원 조합 및 시스템 워크플로우 설계도 생성" },
+
       { id: "ip-whitelist", name: "IP 화이트리스트", icon: "🛡️", category: "admin", guest: false, admin: true, description: "접속 허용 IP 주소 관리" },
       { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
       { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },

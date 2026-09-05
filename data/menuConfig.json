@@ -50,13 +50,24 @@
     "description": "SAP ERP 코어 모듈 및 기술 용어 마인드맵"
   },
   {
+    "id": "sap-suite",
+    "name": "SAP Integration Suite",
+    "icon": "⚡",
+    "category": "work",
+    "statCardId": "card-stat-sap-suite",
+    "guest": true,
+    "admin": true,
+    "description": "SAP Cloud Integration 최신 소식 및 Groovy/iFlow 컨설팅·개발 도우미"
+  },
+
+  {
     "id": "threads-agent",
-    "name": "Threads 에이전트",
+    "name": "에이전트 목록",
     "icon": "🤖",
     "category": "admin",
     "guest": true,
     "admin": true,
-    "description": "Threads AI 에이전트 가동/중지, 8대 소스 관리 및 60일 API 토큰 만료 알림"
+    "description": "운영 중인 AI 에이전트 목록 및 원격 가동 상태, Base URL, API 토큰 통합 관리"
   },
   {
     "id": "agent-builder",

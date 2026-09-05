@@ -77,6 +77,29 @@ CREATE TABLE IF NOT EXISTS public.stock_temp (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 8. sap_news 테이블 (SAP 최신 소식 및 릴리스 피드)
+CREATE TABLE IF NOT EXISTS public.sap_news (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    source TEXT NOT NULL,
+    source_url TEXT UNIQUE NOT NULL,
+    category TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    published_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 9. sap_knowledge 테이블 (SAP Cloud Integration 개발/컨설팅 지식베이스)
+CREATE TABLE IF NOT EXISTS public.sap_knowledge (
+    id TEXT PRIMARY KEY,
+    topic TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    doc_url TEXT,
+    tags JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 모든 사용자가 자유롭게 읽기/쓰기/수정/삭제 가능하도록 RLS (Row Level Security) 설정
 ALTER TABLE public.apis ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_models ENABLE ROW LEVEL SECURITY;
@@ -85,6 +108,8 @@ ALTER TABLE public.sap_terms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ip_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_workflows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stock_temp ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sap_news ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sap_knowledge ENABLE ROW LEVEL SECURITY;
 
 -- 익명/인증 사용자 모두에게 전체 CRUD 허용 정책 생성
 CREATE POLICY "Public Read/Write for apis" ON public.apis FOR ALL USING (true) WITH CHECK (true);
@@ -94,6 +119,8 @@ CREATE POLICY "Public Read/Write for sap_terms" ON public.sap_terms FOR ALL USIN
 CREATE POLICY "Public Read/Write for ip_rules" ON public.ip_rules FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public Read/Write for agent_workflows" ON public.agent_workflows FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public Read/Write for stock_temp" ON public.stock_temp FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public Read/Write for sap_news" ON public.sap_news FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public Read/Write for sap_knowledge" ON public.sap_knowledge FOR ALL USING (true) WITH CHECK (true);
 
 -- Realtime 동기화 활성화
 ALTER PUBLICATION supabase_realtime ADD TABLE public.apis;
@@ -103,3 +130,6 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.sap_terms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.ip_rules;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.agent_workflows;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_temp;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.sap_news;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.sap_knowledge;
+

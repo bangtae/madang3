@@ -162,7 +162,83 @@ app.post('/api/analyze-ai-url', async (req, res) => {
   }
 });
 
+// SAP Integration Suite Endpoints
+app.get('/api/sap-news', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'sapNews.json');
+  if (fs.existsSync(filePath)) return res.sendFile(filePath);
+  const fbPath = path.join(__dirname, 'data', 'initialSapNews.js');
+  if (fs.existsSync(fbPath)) {
+    try {
+      const code = fs.readFileSync(fbPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_SAP_NEWS\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {}
+  }
+  res.json([]);
+});
+
+app.post('/api/sap-news', (req, res) => {
+  try {
+    const filePath = path.join(__dirname, 'data', 'sapNews.json');
+    fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2), 'utf8');
+    const jsPath = path.join(__dirname, 'data', 'initialSapNews.js');
+    fs.writeFileSync(jsPath, `// data/initialSapNews.js\nwindow.PORTAL_DATA_SAP_NEWS = ${JSON.stringify(req.body, null, 2)};\n`, 'utf8');
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/sap-knowledge', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'sapKnowledge.json');
+  if (fs.existsSync(filePath)) return res.sendFile(filePath);
+  const fbPath = path.join(__dirname, 'data', 'initialSapKnowledge.js');
+  if (fs.existsSync(fbPath)) {
+    try {
+      const code = fs.readFileSync(fbPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_SAP_KNOWLEDGE\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {}
+  }
+  res.json([]);
+});
+
+app.post('/api/sap-knowledge', (req, res) => {
+  try {
+    const filePath = path.join(__dirname, 'data', 'sapKnowledge.json');
+    fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2), 'utf8');
+    const jsPath = path.join(__dirname, 'data', 'initialSapKnowledge.js');
+    fs.writeFileSync(jsPath, `// data/initialSapKnowledge.js\nwindow.PORTAL_DATA_SAP_KNOWLEDGE = ${JSON.stringify(req.body, null, 2)};\n`, 'utf8');
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sap-consulting', async (req, res) => {
+  const { question, topic } = req.body || {};
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey || geminiKey === 'your_gemini_api_key_here') {
+    return res.json({ success: false, message: 'GEMINI_API_KEY가 설정되지 않았습니다.' });
+  }
+  try {
+    const prompt = `당신은 SAP Integration Suite 수석 전문가입니다. 질문: ${question}`;
+    const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+    const r = await fetch(gUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+    const d = await r.json();
+    const answer = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    res.json({ success: true, answer, timestamp: new Date().toISOString() });
+  } catch (e) {
+    res.json({ success: false, message: e.message });
+  }
+});
+
 // REST API Endpoints for Threads AI Agent Proxy & 60-Day Token Expiration Alert
+
 const threadsTokenConfigFile = path.join(__dirname, 'data', 'threadsTokenConfig.json');
 
 app.get('/api/threads-agent/token-config', (req, res) => {

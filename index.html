@@ -110,7 +110,11 @@
               <button class="nav-side-btn active" data-side="sap-terms">
                 <span class="icon">🏢</span> SAP용어 & 마인드맵
               </button>
+              <button class="nav-side-btn" data-side="sap-suite">
+                <span class="icon">⚡</span> SAP Integration Suite
+              </button>
             </li>
+
             <li class="menu-item hidden" id="side-menu-invest">
               <button class="nav-side-btn active" data-side="stock-temp">
                 <span class="icon">☀️</span> K증시 온도
@@ -123,7 +127,7 @@
             </li>
             <li class="menu-item hidden" id="side-menu-admin">
               <button class="nav-side-btn active" data-side="threads-agent">
-                <span class="icon">🤖</span> Threads 에이전트
+                <span class="icon">🤖</span> 에이전트 목록
               </button>
               <button class="nav-side-btn" data-side="ip-whitelist">
                 <span class="icon">🛡️</span> IP 화이트리스트
@@ -229,7 +233,15 @@
                 <span class="stat-value" id="stat-total-sap-terms">0</span>
               </div>
             </div>
+            <div class="stat-card stat-clickable" id="card-stat-sap-suite" style="cursor: pointer;" title="클릭 시 SAP Integration Suite 최신 소식 및 AI 도우미로 이동">
+              <div class="stat-icon" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">⚡</div>
+              <div class="stat-info">
+                <span class="stat-label">SAP Suite 소식</span>
+                <span class="stat-value" id="stat-total-sap-suite">0</span>
+              </div>
+            </div>
           </div>
+
         </section>
 
         <!-- 뷰 2: API 정보 관리 -->
@@ -621,7 +633,13 @@
           </div>
         </section>
 
+        <!-- 뷰: SAP Integration Suite 최신 소식 및 컨설팅/개발 도우미 -->
+        <section id="view-sap-suite" class="content-view hidden">
+          <!-- JS(SapSuiteView)로 동적 렌더링 됩니다 -->
+        </section>
+
         <!-- 뷰 7: Threads AI 에이전트 통합 대시보드 -->
+
         <section id="view-threads-agent" class="content-view hidden">
           <!-- JS로 동적 렌더링 됩니다 -->
         </section>
@@ -1541,6 +1559,8 @@
   <script src="data/initialAiTerms.js?v=2.2"></script>
   <script src="data/initialSapTerms.js?v=2.2"></script>
   <script src="data/initialStockTemp.js?v=2.2"></script>
+  <script src="data/initialSapNews.js?v=2.2"></script>
+  <script src="data/initialSapKnowledge.js?v=2.2"></script>
   <!-- Supabase JS Client SDK CDN (무료 클라우드 DB 연동) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app/core/config.js?v=2.2"></script>
@@ -1548,6 +1568,7 @@
   <script src="app/models/aiModel.js?v=2.2"></script>
   <script src="app/models/aiTermModel.js?v=2.2"></script>
   <script src="app/models/sapTermModel.js?v=2.2"></script>
+  <script src="app/models/sapSuiteModel.js?v=2.2"></script>
   <script src="app/models/ipModel.js?v=2.2"></script>
   <script src="app/models/stockTempModel.js?v=2.2"></script>
   <script src="app/models/threadsAgentModel.js?v=2.2"></script>
@@ -1559,9 +1580,11 @@
   <script src="app/views/techStackView.js?v=2.2"></script>
   <script src="app/views/stockTempView.js?v=2.2"></script>
   <script src="app/views/threadsAgentView.js?v=2.2"></script>
+  <script src="app/views/sapSuiteView.js?v=2.2"></script>
   <script src="app/views/monsterDefenseView.js?v=2.2"></script>
   <script src="app/views/uiView.js?v=2.2"></script>
   <script src="app/controllers/appController.js?v=2.2"></script>
   <script src="app/main.js?v=2.2"></script>
+
 </body>
 </html>

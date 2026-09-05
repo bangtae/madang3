@@ -9,6 +9,7 @@ window.UiView = {
     const totalAiEl = document.getElementById('stat-total-ai');
     const totalAiTermsEl = document.getElementById('stat-total-ai-terms');
     const totalSapTermsEl = document.getElementById('stat-total-sap-terms');
+    const totalSapSuiteEl = document.getElementById('stat-total-sap-suite');
     const catEl = document.getElementById('stat-total-categories');
     const recentListEl = document.getElementById('recent-api-list');
 
@@ -31,6 +32,13 @@ window.UiView = {
         : (window.SapTermModel ? window.SapTermModel.getTerms() : []);
       totalSapTermsEl.textContent = sTerms.length;
     }
+    if (totalSapSuiteEl) {
+      const sNews = (window.SapSuiteModel && Array.isArray(window.SapSuiteModel.news))
+        ? window.SapSuiteModel.news.length
+        : (window.PORTAL_DATA_SAP_NEWS ? window.PORTAL_DATA_SAP_NEWS.length : 0);
+      totalSapSuiteEl.textContent = sNews;
+    }
+
 
     const categories = new Set(apis.map(item => item.category));
     if (catEl) catEl.textContent = categories.size;

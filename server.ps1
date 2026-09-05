@@ -20,6 +20,10 @@ $blockedIpsFile = Join-Path $dataDir "blocked_ips.json"
 $accessLogsFile = Join-Path $dataDir "access_logs.json"
 $stockTempDataFile = Join-Path $dataDir "stockTemp.json"
 $stockTempJsFile = Join-Path $dataDir "initialStockTemp.js"
+$sapNewsDataFile = Join-Path $dataDir "sapNews.json"
+$sapNewsJsFile = Join-Path $dataDir "initialSapNews.js"
+$sapKnowledgeDataFile = Join-Path $dataDir "sapKnowledge.json"
+$sapKnowledgeJsFile = Join-Path $dataDir "initialSapKnowledge.js"
 
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
@@ -143,7 +147,9 @@ try {
 
 try {
     $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, $Port)
+    $listener.Server.SetSocketOption([System.Net.Sockets.SocketOptionLevel]::Socket, [System.Net.Sockets.SocketOptionName]::ReuseAddress, $true)
     $listener.Start()
+
     Write-Host "=================================================================" -ForegroundColor Cyan
     Write-Host " ??PORTAL BANG Ultra-Robust Non-Blocking Server Started!" -ForegroundColor Green
     Write-Host " ?뙋 Local Access:   http://localhost:$Port" -ForegroundColor White
@@ -659,7 +665,132 @@ while ($true) {
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
             }
         }
+        elseif ($urlPath -eq "/api/sap-news") {
+            if ($method -eq "GET") {
+                if (Test-Path $sapNewsDataFile) {
+                    $rawText = [System.IO.File]::ReadAllText($sapNewsDataFile, [System.Text.Encoding]::UTF8)
+                    Send-JsonResponse $stream $corsHeaders $rawText
+                } elseif (Test-Path $sapNewsJsFile) {
+                    $rawText = [System.IO.File]::ReadAllText($sapNewsJsFile, [System.Text.Encoding]::UTF8)
+                    $cleanJson = $rawText -replace '^window\.PORTAL_DATA_SAP_NEWS\s*=\s*', '' -replace ';\s*$', ''
+                    Send-JsonResponse $stream $corsHeaders $cleanJson
+                } else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($sapNewsDataFile, $postData, $Utf8NoBom)
+                        $jsContent = "window.PORTAL_DATA_SAP_NEWS = " + $postData + ";"
+                        [System.IO.File]::WriteAllText($sapNewsJsFile, $jsContent, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/sap-knowledge") {
+            if ($method -eq "GET") {
+                if (Test-Path $sapKnowledgeDataFile) {
+                    $rawText = [System.IO.File]::ReadAllText($sapKnowledgeDataFile, [System.Text.Encoding]::UTF8)
+                    Send-JsonResponse $stream $corsHeaders $rawText
+                } elseif (Test-Path $sapKnowledgeJsFile) {
+                    $rawText = [System.IO.File]::ReadAllText($sapKnowledgeJsFile, [System.Text.Encoding]::UTF8)
+                    $cleanJson = $rawText -replace '^window\.PORTAL_DATA_SAP_KNOWLEDGE\s*=\s*', '' -replace ';\s*$', ''
+                    Send-JsonResponse $stream $corsHeaders $cleanJson
+                } else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($sapKnowledgeDataFile, $postData, $Utf8NoBom)
+                        $jsContent = "window.PORTAL_DATA_SAP_KNOWLEDGE = " + $postData + ";"
+                        [System.IO.File]::WriteAllText($sapKnowledgeJsFile, $jsContent, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/sap-consulting") {
+            if ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                $consultingResult = $null
+                if ($headerBodySplit.Length -eq 2) {
+                    $reqBody = $headerBodySplit[1]
+                    try {
+                        $parsedReq = $reqBody | ConvertFrom-Json
+                        $userQuestion = $parsedReq.question
+                        $selectedTopic = $parsedReq.topic
+
+                        if (-not [string]::IsNullOrWhiteSpace($userQuestion)) {
+                            $geminiKey = Get-GeminiApiKey
+                            if ($null -ne $geminiKey -and $geminiKey.Length -gt 10) {
+                                $knowledgeSnippet = ""
+                                if (Test-Path $sapKnowledgeDataFile) {
+                                    $knowRaw = [System.IO.File]::ReadAllText($sapKnowledgeDataFile, [System.Text.Encoding]::UTF8)
+                                    $knowList = $knowRaw | ConvertFrom-Json
+                                    foreach ($k in $knowList[0..3]) {
+                                        $knowledgeSnippet += "[$($k.topic) - $($k.title)]: $($k.content)`n"
+                                    }
+                                }
+
+                                $systemPrompt = @"
+당신은 세계 최고 수준의 SAP Integration Suite (Cloud Integration) 수석 아키텍트 및 Groovy 스크립트 전문가입니다.
+
+[지침]
+1. 질문에 대해 실무에서 즉시 적용 가능한 검증된 가이드, iFlow 구성 패턴, 또는 무결한 Groovy 코드를 작성하세요.
+2. Groovy 작성 시 processData(Message message) 시그니처와 com.sap.gateway.ip.core.customdev.util.Message 임포트를 정확히 준수하세요.
+3. 불필요한 사족 없이 핵심 해결책을 명확한 한국어로 서술하세요.
+
+[참조 지식베이스]
+$knowledgeSnippet
+
+[사용자 질문]: $userQuestion
+"@
+
+                                $geminiBody = [PSCustomObject]@{
+                                    contents = @(
+                                        [PSCustomObject]@{
+                                            parts = @(
+                                                [PSCustomObject]@{ text = $systemPrompt }
+                                            )
+                                        }
+                                    )
+                                } | ConvertTo-Json -Depth 5
+
+                                $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$geminiKey"
+                                $gResp = Invoke-RestMethod -Uri $geminiUrl -Method Post -ContentType "application/json" -Body ([System.Text.Encoding]::UTF8.GetBytes($geminiBody)) -TimeoutSec 15 -ErrorAction SilentlyContinue
+                                if ($gResp.candidates -and $gResp.candidates[0].content.parts[0].text) {
+                                    $answerText = $gResp.candidates[0].content.parts[0].text
+                                    $consultingResult = [PSCustomObject]@{
+                                        success = $true
+                                        answer = $answerText
+                                        timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                                    }
+                                }
+                            }
+                        }
+                    } catch {}
+                }
+
+                if ($null -eq $consultingResult) {
+                    $consultingResult = [PSCustomObject]@{
+                        success = $false
+                        message = "Gemini API 키가 설정되지 않았거나 호출에 실패했습니다. (.env 확인 필요)"
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders ($consultingResult | ConvertTo-Json -Depth 5 -Compress)
+            }
+        }
         elseif ($urlPath -eq "/api/analyze-ai-term") {
+
             if ($method -eq "POST") {
                 $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
                 $termAnalysisResult = $null
