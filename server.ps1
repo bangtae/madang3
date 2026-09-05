@@ -1,8 +1,10 @@
-# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
+﻿# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
 param([int]$Port = 8080)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
+[System.Net.WebRequest]::DefaultWebProxy = $null
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
 
 $root = $PSScriptRoot
 $dataDir = Join-Path $root "data"
@@ -44,6 +46,238 @@ function Get-GeminiApiKey {
         }
     }
     return $null
+}
+
+$telegramConfigFile = Join-Path $dataDir "telegramConfig.json"
+$script:telegramAlertCooldown = @{}
+$script:telegramLastUpdateId = 0
+$telegramPollSw = [System.Diagnostics.Stopwatch]::StartNew()
+
+function Get-TelegramConfig {
+    $botToken = ""
+    $chatIds = ""
+    $localEnv = "C:\Users\bangt\Downloads\madang6\agent_supervisor\.env"
+    if (Test-Path $localEnv) {
+        try {
+            $lines = Get-Content $localEnv
+            foreach ($line in $lines) {
+                if ($line -match '^\s*TELEGRAM_BOT_TOKEN\s*=\s*(.+)$') {
+                    $botToken = $matches[1].Trim(' "''')
+                } elseif ($line -match '^\s*TELEGRAM_ALLOWED_CHAT_IDS\s*=\s*(.+)$') {
+                    $chatIds = $matches[1].Trim(' "''')
+                }
+            }
+        } catch {}
+    }
+    if ((-not $botToken -or -not $chatIds) -and (Test-Path $telegramConfigFile)) {
+        try {
+            $tRaw = [System.IO.File]::ReadAllText($telegramConfigFile, [System.Text.Encoding]::UTF8)
+            $tObj = $tRaw | ConvertFrom-Json
+            if (-not $botToken) { $botToken = $tObj.botToken }
+            if (-not $chatIds) { $chatIds = $tObj.allowedChatIds }
+        } catch {}
+    }
+    return [PSCustomObject]@{
+        botToken = $botToken
+        allowedChatIds = $chatIds
+        enabled = [bool](-not [string]::IsNullOrWhiteSpace($botToken) -and -not [string]::IsNullOrWhiteSpace($chatIds))
+    }
+}
+
+function Get-NormalizedIpList([string]$filePath) {
+    if (-not (Test-Path $filePath)) { return @() }
+    try {
+        $raw = Get-Content -Encoding utf8 -Raw $filePath
+        if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
+        $data = $raw | ConvertFrom-Json
+        $result = [System.Collections.Generic.List[string]]::new()
+        function Extract-Strings($obj) {
+            if ($null -eq $obj) { return }
+            if ($obj -is [string]) {
+                $trimmed = $obj.Trim()
+                if ($trimmed -and $trimmed -notmatch '^@\{' -and $trimmed -notmatch 'System\.Object') {
+                    $result.Add($trimmed)
+                }
+            } elseif ($obj -is [System.Collections.IEnumerable]) {
+                foreach ($item in $obj) { Extract-Strings $item }
+            } elseif ($obj.PSObject -and $obj.PSObject.Properties['value']) {
+                Extract-Strings $obj.value
+            }
+        }
+        Extract-Strings $data
+        return @($result | Select-Object -Unique)
+    } catch {
+        return @()
+    }
+}
+
+function Save-IpList([string]$filePath, [string[]]$ips) {
+    $cleanList = @($ips | Where-Object { $_ -and $_ -notmatch '^@\{' -and $_ -notmatch 'System\.Object' } | Select-Object -Unique)
+    $json = "[" + (($cleanList | ForEach-Object { "`"$_`"" }) -join ", ") + "]"
+    [System.IO.File]::WriteAllText($filePath, $json, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Is-PrivateOrLocalIp([string]$ip) {
+    if ([string]::IsNullOrWhiteSpace($ip)) { return $true }
+    $clean = $ip -replace '^.*:', ''
+    if ($clean -in @("127.0.0.1", "localhost", "::1", "")) { return $true }
+    if ($clean.StartsWith("192.168.") -or $clean.StartsWith("10.") -or $clean.StartsWith("169.254.")) { return $true }
+    if ($clean -match '^172\.(1[6-9]|2[0-9]|3[0-1])\.') { return $true }
+    return $false
+}
+
+function Send-TelegramNewIpAlert([string]$clientIp, [string]$requestPath, [string]$currentStatus) {
+    if (Is-PrivateOrLocalIp $clientIp) { return }
+    $tCfg = Get-TelegramConfig
+    if (-not $tCfg.enabled) { return }
+
+    $nowSec = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    if ($script:telegramAlertCooldown.ContainsKey($clientIp)) {
+        $lastSec = $script:telegramAlertCooldown[$clientIp]
+        if (($nowSec - $lastSec) -lt 3600) { return }
+    }
+    $script:telegramAlertCooldown[$clientIp] = $nowSec
+
+    # 화이트리스트 / 블랙리스트 등록 상태 판별 (정규화된 리스트 사용)
+    $aList = Get-NormalizedIpList $allowedIpsFile
+    $bList = Get-NormalizedIpList $blockedIpsFile
+
+    $isAllowed = $false
+    foreach ($p in $aList) {
+        if ($clientIp -eq $p -or $clientIp -like $p) { $isAllowed = $true; break }
+    }
+
+    $isBlocked = $false
+    foreach ($p in $bList) {
+        if ($clientIp -eq $p -or $clientIp -like $p) { $isBlocked = $true; break }
+    }
+
+    $buttons = @()
+    $stateDesc = $currentStatus
+    if ($isAllowed) {
+        $stateDesc = "🟢 화이트리스트 등록됨 (접속 허용 중)"
+        $buttons = @(
+            [PSCustomObject]@{ text = "⛔ 블랙리스트로 차단"; callback_data = "block:$clientIp" }
+        )
+    } elseif ($isBlocked) {
+        $stateDesc = "🔴 블랙리스트 등록됨 (접속 차단 중)"
+        $buttons = @(
+            [PSCustomObject]@{ text = "✅ 화이트리스트로 허용"; callback_data = "allow:$clientIp" }
+        )
+    } else {
+        $stateDesc = if ($currentStatus) { $currentStatus } else { "⚪ 미분류 (신규 외부 유입)" }
+        $buttons = @(
+            [PSCustomObject]@{ text = "✅ 화이트리스트 허용"; callback_data = "allow:$clientIp" },
+            [PSCustomObject]@{ text = "⛔ 블랙리스트 차단"; callback_data = "block:$clientIp" }
+        )
+    }
+
+    $kstTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    $msgText = "🌐 <b>[외부 IP 유입 모니터링 알림]</b>`n`n" +
+               "• <b>접속 IP:</b> <code>$clientIp</code>`n" +
+               "• <b>접속 일시:</b> $kstTime (KST)`n" +
+               "• <b>요청 경로:</b> <code>$requestPath</code>`n" +
+               "• <b>현재 상태:</b> $stateDesc`n`n" +
+               "아래 버튼을 눌러 권한을 변경할 수 있습니다:"
+
+    $cIds = $tCfg.allowedChatIds.Split(',')
+    foreach ($cId in $cIds) {
+        $cleanId = $cId.Trim()
+        if (-not $cleanId) { continue }
+        $jsonPayload = [PSCustomObject]@{
+            chat_id = $cleanId
+            text = $msgText
+            parse_mode = "HTML"
+            reply_markup = [PSCustomObject]@{
+                inline_keyboard = ,$buttons
+            }
+        }
+        $bodyData = $jsonPayload | ConvertTo-Json -Depth 5 -Compress
+
+        try {
+            $apiUrl = "https://api.telegram.org/bot$($tCfg.botToken)/sendMessage"
+            $r = Invoke-WebRequest -Uri $apiUrl -Method POST -Body ([System.Text.Encoding]::UTF8.GetBytes($bodyData)) -ContentType "application/json; charset=utf-8" -TimeoutSec 4 -UseBasicParsing -ErrorAction SilentlyContinue
+        } catch {}
+    }
+}
+
+function Check-TelegramCallbackUpdates {
+    $tCfg = Get-TelegramConfig
+    if (-not $tCfg.enabled) { return }
+
+    $targetOffset = $script:telegramLastUpdateId + 1
+    $url = "https://api.telegram.org/bot$($tCfg.botToken)/getUpdates?offset=$targetOffset&timeout=0"
+    try {
+        $res = Invoke-WebRequest -Uri $url -Method GET -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
+        if ($res.Content) {
+            $data = $res.Content | ConvertFrom-Json
+            if ($data.ok -and $data.result) {
+                foreach ($upd in $data.result) {
+                    if ($upd.update_id -ge $script:telegramLastUpdateId) {
+                        $script:telegramLastUpdateId = [int]$upd.update_id
+                    }
+                    if ($upd.callback_query) {
+                        $cq = $upd.callback_query
+                        $parts = $cq.data -split ':', 2
+                        if ($parts.Length -eq 2) {
+                            $action = $parts[0]
+                            $targetIp = $parts[1]
+
+                            $allowed = Get-NormalizedIpList $allowedIpsFile
+                            $blocked = Get-NormalizedIpList $blockedIpsFile
+
+                            $resTitle = ""
+                            $toastText = ""
+                            if ($action -eq "allow") {
+                                if ($targetIp -notin $allowed) { $allowed += $targetIp }
+                                $blocked = @($blocked | Where-Object { $_ -ne $targetIp })
+                                $resTitle = "✅ 화이트리스트 허용 완료"
+                                $toastText = "$targetIp IP가 화이트리스트에 등록되었습니다."
+                            } elseif ($action -eq "block") {
+                                if ($targetIp -notin $blocked) { $blocked += $targetIp }
+                                $allowed = @($allowed | Where-Object { $_ -ne $targetIp })
+                                $resTitle = "⛔ 블랙리스트 차단 완료"
+                                $toastText = "$targetIp IP가 블랙리스트에 등록되었습니다."
+                            }
+
+                            Save-IpList $allowedIpsFile $allowed
+                            Save-IpList $blockedIpsFile $blocked
+
+                            $fromUser = if ($cq.from.username) { "@$($cq.from.username)" } else { $cq.from.first_name }
+                            $kstNow = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                            $updatedText = "🌐 <b>[외부 IP 유입 처리 완료]</b>`n`n" +
+                                           "• <b>대상 IP:</b> <code>$targetIp</code>`n" +
+                                           "• <b>처리 결과:</b> <b>$resTitle</b>`n" +
+                                           "• <b>처리 일시:</b> $kstNow (KST)`n" +
+                                           "• <b>처리 관리자:</b> $fromUser"
+
+                            # 1. Edit message
+                            $editBody = @{
+                                chat_id = $cq.message.chat.id
+                                message_id = $cq.message.message_id
+                                text = $updatedText
+                                parse_mode = "HTML"
+                            } | ConvertTo-Json -Compress
+                            try {
+                                Invoke-WebRequest -Uri "https://api.telegram.org/bot$($tCfg.botToken)/editMessageText" -Method POST -Body ([System.Text.Encoding]::UTF8.GetBytes($editBody)) -ContentType "application/json; charset=utf-8" -TimeoutSec 3 -UseBasicParsing -ErrorAction SilentlyContinue
+                            } catch {}
+
+                            # 2. Answer callback query
+                            $ansBody = @{
+                                callback_query_id = $cq.id
+                                text = $toastText
+                            } | ConvertTo-Json -Compress
+                            try {
+                                Invoke-WebRequest -Uri "https://api.telegram.org/bot$($tCfg.botToken)/answerCallbackQuery" -Method POST -Body ([System.Text.Encoding]::UTF8.GetBytes($ansBody)) -ContentType "application/json; charset=utf-8" -TimeoutSec 3 -UseBasicParsing -ErrorAction SilentlyContinue
+                            } catch {}
+
+                            Write-Host " [Telegram Action] $targetIp -> $resTitle by $fromUser" -ForegroundColor Green
+                        }
+                    }
+                }
+            }
+        }
+    } catch {}
 }
 
 if (-not (Test-Path $dataDir)) {
@@ -127,6 +361,24 @@ function Log-Access([string]$clientIp, [string]$status, [string]$requestPath) {
 
         $jsonStr = $logs | ConvertTo-Json -Depth 3
         [System.IO.File]::WriteAllText($accessLogsFile, $jsonStr, $Utf8NoBom)
+
+        # 미분류 신규 외부 IP인 경우 텔레그램 알림 발송
+        if ($status -eq "ALLOWED" -or $status -eq "MISC") {
+            $aList = Get-NormalizedIpList $allowedIpsFile
+            $bList = Get-NormalizedIpList $blockedIpsFile
+            $isKnown = $false
+            foreach ($p in $aList) {
+                if ($clientIp -eq $p -or $clientIp -like $p) { $isKnown = $true; break }
+            }
+            if (-not $isKnown) {
+                foreach ($p in $bList) {
+                    if ($clientIp -eq $p -or $clientIp -like $p) { $isKnown = $true; break }
+                }
+            }
+            if (-not $isKnown -and -not (Is-PrivateOrLocalIp $clientIp)) {
+                Send-TelegramNewIpAlert $clientIp $requestPath "신규 미분류 접속"
+            }
+        }
     } catch {}
 }
 
@@ -163,6 +415,10 @@ try {
 while ($true) {
     try {
         if (-not $listener.Pending()) {
+            if ($telegramPollSw.ElapsedMilliseconds -gt 2500) {
+                $telegramPollSw.Restart()
+                Check-TelegramCallbackUpdates
+            }
             Start-Sleep -Milliseconds 20
             continue
         }
@@ -171,17 +427,7 @@ while ($true) {
         $clientIp = $client.Client.RemoteEndPoint.Address.ToString()
 
         # 1. IP Blacklist Check
-        $blockedIps = @()
-        if (Test-Path $blockedIpsFile) {
-            try {
-                $rawBlocked = [System.IO.File]::ReadAllText($blockedIpsFile, [System.Text.Encoding]::UTF8)
-                if ($rawBlocked.StartsWith([char]0xFEFF)) { $rawBlocked = $rawBlocked.Substring(1) }
-                if (-not [string]::IsNullOrWhiteSpace($rawBlocked)) {
-                    $parsed = $rawBlocked | ConvertFrom-Json
-                    if ($null -ne $parsed) { $blockedIps = @($parsed) }
-                }
-            } catch {}
-        }
+        $blockedIps = Get-NormalizedIpList $blockedIpsFile
 
         $isBlocked = $false
         foreach ($bPattern in $blockedIps) {
@@ -208,17 +454,7 @@ while ($true) {
         }
 
         # 2. IP Whitelist Check (Server IP & Local Subnet always guaranteed allowed)
-        $allowedIps = @("127.0.0.1", "::1", "192.168.219.115", "192.168.219.*", "192.168.*")
-        if (Test-Path $allowedIpsFile) {
-            try {
-                $rawAllowed = [System.IO.File]::ReadAllText($allowedIpsFile, [System.Text.Encoding]::UTF8)
-                if ($rawAllowed.StartsWith([char]0xFEFF)) { $rawAllowed = $rawAllowed.Substring(1) }
-                if (-not [string]::IsNullOrWhiteSpace($rawAllowed)) {
-                    $parsed = $rawAllowed | ConvertFrom-Json
-                    if ($null -ne $parsed) { $allowedIps = @($parsed) + $allowedIps }
-                }
-            } catch {}
-        }
+        $allowedIps = @("127.0.0.1", "::1", "192.168.219.115", "192.168.219.*", "192.168.*") + (Get-NormalizedIpList $allowedIpsFile)
 
         $isAllowed = $false
         foreach ($ipPattern in $allowedIps) {
@@ -421,7 +657,7 @@ while ($true) {
 
             try {
                 # 초고속 3초 타임아웃 웹 메타데이터 조사
-                $webRes = Invoke-WebRequest -Uri $targetUrl -TimeoutSec 3 -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -ErrorAction Stop
+                $webRes = Invoke-WebRequest -Uri $targetUrl -TimeoutSec 3 -UseBasicParsing -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -ErrorAction Stop
                 if ($webRes -and $webRes.Content) {
                     $html = $webRes.Content
                     if ($html -match '<title>(.*?)</title>') {
@@ -552,6 +788,7 @@ while ($true) {
                     Uri = $targetUrl
                     Method = $method
                     TimeoutSec = 4
+                    UseBasicParsing = $true
                     ErrorAction = "Stop"
                 }
                 if ($method -in @("POST", "PUT") -and -not [string]::IsNullOrWhiteSpace($reqBody)) {
@@ -560,7 +797,7 @@ while ($true) {
                 }
 
                 $proxyRes = Invoke-WebRequest @webParams
-                $rawBytes = $proxyRes.RawContentStream.ToArray()
+                $rawBytes = if ($proxyRes.RawContentStream) { $proxyRes.RawContentStream.ToArray() } else { [System.Text.Encoding]::UTF8.GetBytes($proxyRes.Content) }
                 Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $rawBytes
             } catch {
                 $errObj = [PSCustomObject]@{
@@ -574,6 +811,212 @@ while ($true) {
                     sources_health = @()
                 }
                 Send-JsonResponse $stream $corsHeaders ($errObj | ConvertTo-Json -Depth 5 -Compress)
+            }
+        }
+        elseif ($urlPath -eq "/api/sap-agent/status") {
+            $taskName = "SAPIntegrationSuiteAgent"
+            $taskState = "Unknown"
+            $lastRun = "확인 불가"
+            $nextRun = "확인 불가"
+            $isRunning = $false
+
+            # 1. Windows 작업 스케줄러 상태 조회
+            try {
+                $schRaw = schtasks /query /tn $taskName /fo CSV 2>$null
+                if ($schRaw) {
+                    $csv = $schRaw | ConvertFrom-Csv
+                    $csvArr = @($csv)
+                    if ($csvArr.Length -gt 0) {
+                        $taskState = $csvArr[0].Status
+                        $nextRun = $csvArr[0].'Next Run Time'
+                    }
+                }
+            } catch {}
+
+            # 2. 실행 중인 PowerShell 프로세스(sap_collector.ps1) 확인
+            try {
+                $runningProcs = Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%sap_collector.ps1%'" -ErrorAction SilentlyContinue
+                if ($runningProcs) {
+                    $isRunning = $true
+                    $taskState = "Running"
+                } elseif ($taskState -eq "Running") {
+                    $isRunning = $true
+                }
+            } catch {}
+
+            # 3. 수집된 뉴스 총 건수 파악
+            $newsCount = 0
+            $targetNewsPath = Join-Path $PSScriptRoot "data\sapNews.json"
+            if (-not (Test-Path $targetNewsPath)) {
+                $targetNewsPath = "C:\Users\bangt\Downloads\madang3\data\sapNews.json"
+            }
+            if (Test-Path $targetNewsPath) {
+                try {
+                    $jsonRaw = [System.IO.File]::ReadAllText($targetNewsPath, [System.Text.Encoding]::UTF8)
+                    if ($jsonRaw.StartsWith([char]0xFEFF)) { $jsonRaw = $jsonRaw.Substring(1) }
+                    $arr = $jsonRaw | ConvertFrom-Json
+                    $newsCount = @($arr).Count
+                } catch {}
+                if ($newsCount -eq 0) {
+                    try {
+                        $newsCount = @(Get-Content $targetNewsPath | Where-Object { $_ -match '"id":\s*"sap_news_' }).Count
+                    } catch {}
+                }
+            }
+
+            # 4. 설정 파일 조회
+            $sapCfgFile = Join-Path $dataDir "sapAgentConfig.json"
+            $sapBaseUrl = "http://127.0.0.1:8080"
+            $intervalMin = 60
+            if (Test-Path $sapCfgFile) {
+                try {
+                    $cRaw = [System.IO.File]::ReadAllText($sapCfgFile, [System.Text.Encoding]::UTF8)
+                    if ($cRaw.StartsWith([char]0xFEFF)) { $cRaw = $cRaw.Substring(1) }
+                    $cObj = $cRaw | ConvertFrom-Json
+                    if ($cObj) {
+                        if ($cObj.agentBaseUrl) { $sapBaseUrl = $cObj.agentBaseUrl }
+                        if ($cObj.intervalMinutes) { $intervalMin = [int]$cObj.intervalMinutes }
+                    }
+                } catch {}
+            }
+
+            $statObj = [PSCustomObject]@{
+                is_running = $isRunning
+                task_state = $taskState
+                last_run_time = $lastRun
+                next_run_time = $nextRun
+                total_news_count = $newsCount
+                agent_base_url = $sapBaseUrl
+                interval_minutes = $intervalMin
+                agent_dir = "C:\Users\bangt\Downloads\madang6\sap-integration-agent"
+            }
+            Send-JsonResponse $stream $corsHeaders ($statObj | ConvertTo-Json -Depth 3 -Compress)
+        }
+        elseif ($urlPath -eq "/api/sap-agent/start") {
+            $taskName = "SAPIntegrationSuiteAgent"
+            try {
+                & schtasks /run /tn $taskName | Out-Null
+                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"SAP Integration Suite 에이전트 작업을 시작했습니다."}'
+            } catch {
+                Send-JsonResponse $stream $corsHeaders "{`"success`":false,`"message`":`"실행 실패: $($_.Exception.Message)`"}"
+            }
+        }
+        elseif ($urlPath -eq "/api/sap-agent/stop") {
+            $taskName = "SAPIntegrationSuiteAgent"
+            try {
+                & schtasks /end /tn $taskName 2>$null | Out-Null
+                $procs = Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%sap_collector.ps1%'" -ErrorAction SilentlyContinue
+                if ($procs) {
+                    foreach ($p in $procs) {
+                        Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"SAP Integration Suite 에이전트 작업을 중지했습니다."}'
+            } catch {
+                Send-JsonResponse $stream $corsHeaders "{`"success`":false,`"message`":`"중지 실패: $($_.Exception.Message)`"}"
+            }
+        }
+        elseif ($urlPath -eq "/api/sap-agent/trigger") {
+            $agentScript = "C:\Users\bangt\Downloads\madang6\sap-integration-agent\sap_collector.ps1"
+            if (Test-Path $agentScript) {
+                try {
+                    $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+                    $pinfo.FileName = "powershell.exe"
+                    $pinfo.Arguments = "-ExecutionPolicy Bypass -File `"$agentScript`""
+                    $pinfo.WorkingDirectory = "C:\Users\bangt\Downloads\madang6\sap-integration-agent"
+                    $pinfo.UseShellExecute = $false
+                    $pinfo.CreateNoWindow = $true
+                    $proc = [System.Diagnostics.Process]::Start($pinfo)
+                    $proc.WaitForExit(15000)
+
+                    $cnt = 0
+                    if (Test-Path $sapNewsDataFile) {
+                        $nRaw = [System.IO.File]::ReadAllText($sapNewsDataFile, [System.Text.Encoding]::UTF8)
+                        if ($nRaw.StartsWith([char]0xFEFF)) { $nRaw = $nRaw.Substring(1) }
+                        $nArr = $nRaw | ConvertFrom-Json
+                        if ($nArr) { $cnt = @($nArr).Count }
+                    }
+                    Send-JsonResponse $stream $corsHeaders "{`"success`":true,`"message`":`"SAP 소식 즉시 수집을 완료했습니다.`",`"newsCount`":$cnt}"
+                } catch {
+                    Send-JsonResponse $stream $corsHeaders "{`"success`":false,`"message`":`"수집 실행 실패: $($_.Exception.Message)`"}"
+                }
+            } else {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"sap_collector.ps1 스크립트를 찾을 수 없습니다."}'
+            }
+        }
+        elseif ($urlPath -eq "/api/sap-agent/config") {
+            $sapCfgFile = Join-Path $dataDir "sapAgentConfig.json"
+            if ($method -eq "GET") {
+                if (Test-Path $sapCfgFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($sapCfgFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                } else {
+                    $defaultSapCfg = '{"agentBaseUrl":"http://127.0.0.1:8080","intervalMinutes":60,"taskName":"SAPIntegrationSuiteAgent"}'
+                    Send-JsonResponse $stream $corsHeaders $defaultSapCfg
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($sapCfgFile, $postData, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"SAP 에이전트 설정이 저장되었습니다."}'
+            }
+        }
+        elseif ($urlPath -eq "/api/agent/ping") {
+            $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+            $targetUrl = ""
+            if ($headerBodySplit.Length -eq 2) {
+                try {
+                    $bodyObj = $headerBodySplit[1] | ConvertFrom-Json
+                    if ($bodyObj -and $bodyObj.url) {
+                        $targetUrl = $bodyObj.url.Trim()
+                    }
+                } catch {}
+            }
+            if ([string]::IsNullOrWhiteSpace($targetUrl)) {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"유효한 URL이 지정되지 않았습니다."}'
+            } else {
+                $cleanTarget = $targetUrl -replace 'localhost', '127.0.0.1'
+
+                # 자기 자신(현재 서버 포트)에 대한 ping 요청 시 단일 스레드 데드락 방지
+                if ($cleanTarget -match ":$Port(/|$)" -or $cleanTarget -eq "http://127.0.0.1:$Port" -or $cleanTarget -eq "http://localhost:$Port") {
+                    $pingOut = [PSCustomObject]@{
+                        success = $true
+                        statusCode = 200
+                        latencyMs = 1
+                        url = $targetUrl
+                        message = "연결 성공 (로컬 포털 서버 가동 중, 1ms)"
+                    }
+                    Send-JsonResponse $stream $corsHeaders ($pingOut | ConvertTo-Json -Compress)
+                } else {
+                    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+                    try {
+                        $pingRes = Invoke-WebRequest -Uri $cleanTarget -Method GET -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
+                        $sw.Stop()
+                        $pingOut = [PSCustomObject]@{
+                            success = $true
+                            statusCode = [int]$pingRes.StatusCode
+                            latencyMs = [int]$sw.ElapsedMilliseconds
+                            url = $targetUrl
+                            message = "연결 성공 ($([int]$sw.ElapsedMilliseconds)ms, HTTP $([int]$pingRes.StatusCode))"
+                        }
+                        Send-JsonResponse $stream $corsHeaders ($pingOut | ConvertTo-Json -Compress)
+                    } catch {
+                        $sw.Stop()
+                        $errOut = [PSCustomObject]@{
+                            success = $false
+                            latencyMs = [int]$sw.ElapsedMilliseconds
+                            url = $targetUrl
+                            error = $_.Exception.Message
+                            message = "연결 실패: 에이전트 서버가 응답하지 않습니다."
+                        }
+                        Send-JsonResponse $stream $corsHeaders ($errOut | ConvertTo-Json -Compress)
+                    }
+                }
             }
         }
         elseif ($urlPath -eq "/api/apis") {
@@ -983,6 +1426,20 @@ $knowledgeSnippet
                     Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"SAP ?⑹뼱 遺꾩꽍 ?ㅽ뙣"}'
                 }
             }
+        }
+        elseif ($urlPath -eq "/api/telegram/test-alert") {
+            $testIp = "203.0.113.88"
+            if ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    try {
+                        $bObj = $headerBodySplit[1] | ConvertFrom-Json
+                        if ($bObj -and $bObj.ip) { $testIp = $bObj.ip }
+                    } catch {}
+                }
+            }
+            Send-TelegramNewIpAlert $testIp "/test" "테스트 유입 시뮬레이션"
+            Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"텔레그램 알림 발송 완료"}'
         }
         else {
             # Static File Handling

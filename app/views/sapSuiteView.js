@@ -83,7 +83,7 @@ window.SapSuiteView = {
 
   // 1. 뉴스 탭
   renderNewsTab() {
-    const categories = ['All', 'Release', 'Best Practice', 'Migration', 'Blog'];
+    const categories = ['All', 'Release', 'Best Practice', 'Migration', 'Q&A / Troubleshooting', 'Blog'];
     const filtered = window.SapSuiteModel.getFilteredNews(this.activeCategory, this.newsSearchTerm || '');
 
     return `

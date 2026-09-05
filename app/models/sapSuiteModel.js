@@ -166,7 +166,28 @@ window.SapSuiteModel = {
   generateOfflineConsulting(q, topic) {
     const qLower = q.toLowerCase();
     
-    // Groovy 스크립트 작성 질의
+    // 1. iFlow 프로세스 상세 디자인 질의 (ERP HTTPS ➔ XML/JSON ➔ 레거시 REST ➔ JSON/XML ➔ ERP 응답 등)
+    if (
+      (qLower.includes('디자인') || qLower.includes('design') || qLower.includes('iflow') || qLower.includes('설계') || qLower.includes('프로세스')) &&
+      (qLower.includes('erp') || qLower.includes('rest') || qLower.includes('xml') || qLower.includes('https') || qLower.includes('변환') || qLower.includes('step'))
+    ) {
+      return {
+        success: true,
+        answer: `### 📐 SAP Integration Suite iFlow 표준 아키텍처 사양서\n\n**시나리오:** ERP HTTPS 호출 ➔ XML to JSON 변환 ➔ 레거시 REST 전송 ➔ JSON to XML 변환 ➔ ERP 동기 응답\n\nSAP Design Guidelines 및 Business Accelerator Hub 베스트 프랙티스(3계층 구조)에 기반한 Step별 상세 구현 가이드입니다.\n\n---\n\n#### [1] iFlow 3계층 아키텍처 다이어그램\n\`\`\`\n[Main Integration Process]\n  ERP Sender (HTTPS)\n    └──> [Content Modifier: Init Context & MPL Properties]\n           └──> [Process Call: Call Sub_TransformAndCallLegacy] ──────────┐\n                  └──> [Content Modifier: Set ERP XML Response Header]     │\n                         └──> Message End Event (HTTP 200 OK)              │\n                                                                           │\n[Local Integration Process: Sub_TransformAndCallLegacy] <──────────────────┘\n  Start SubProcess Event\n    └──> [XML to JSON Converter] (Streaming: ON)\n           └──> [Content Modifier: Set REST Headers & Method]\n                  └──> [Request-Reply: Legacy REST Receiver (HTTP Adapter)]\n                         └──> [Router: Check HTTP Status 200 vs Fault]\n                                ├──> [Normal: JSON to XML Converter] ➔ End SubProcess\n                                └──> [Error: Throw Custom Business Exception]\n\n[Exception Subprocess: Error Handling & Fault Envelope]\n  Error Start Event\n    └──> [Groovy Script: Parse CamelExceptionCaught & Log to MPL]\n           └──> [Content Modifier: Construct Fault XML Response]\n                  └──> Message End Event (Return Fault XML to ERP)\n\`\`\`\n\n---\n\n#### [2] iFlow Step별 상세 설정 가이드\n\n1. **Step 1: ERP HTTPS 호출 (Inbound Sender)**\n   - **Adapter**: HTTPS Sender Adapter\n   - **Address**: \`/erp/legacy/order/v1\`\n   - **Authorization**: User Role (\`ESBMessaging.send\`) 또는 Client Certificate\n   - **Content Modifier (Init Context)**:\n     - Exchange Property: \`ERP_TxID = xpath(//Header/TransactionID/text())\`\n     - Exchange Property: \`Original_Payload = \${body}\`\n     - Header: \`Content-Type = application/xml\`\n\n2. **Step 2: XML to JSON 변환 (Data Transformation)**\n   - **컴포넌트**: \`XML to JSON Converter\`\n   - **Streaming**: \`true\` (메모리 절약 및 OOM 방지 표준)\n   - **Suppress JSON Root Element**: 요구 규격에 맞춰 설정 (false 권장)\n   - **JSON Output Encoding**: \`UTF-8\`\n   - *참고: 비즈니스 필드 매핑 및 연산이 수반되는 경우 Message Mapping(Graphical) 선행 적용*\n\n3. **Step 3: 레거시 REST 전송 (Outbound Communication)**\n   - **컴포넌트**: \`Request-Reply\` + \`HTTP Receiver Adapter\`\n   - **Content Modifier (Pre-REST)**:\n     - Header: \`Content-Type = application/json; charset=utf-8\`\n     - Header: \`Accept = application/json\`\n     - Header: \`CamelHttpMethod = POST\`\n   - **HTTP Receiver Adapter**:\n     - Address: \`https://legacy.internal.corp/api/v1/orders\`\n     - Authentication: \`OAuth2 Client Credentials\` (Security Material 별칭 참조)\n     - Throw Exception on Failure: \`false\` (HTTP 4xx/5xx 응답을 Router에서 안전하게 수신 및 분기)\n\n4. **Step 4: JSON to XML 변환 (Response Transformation)**\n   - **컴포넌트**: \`JSON to XML Converter\`\n   - **Add XML Root Element**: \`LegacyOrderResponse\`\n   - **Namespace**: \`http://erp.corp.com/legacy/response\`\n   - **Streaming**: \`true\`\n\n5. **Step 5: ERP 동기 응답 (Outbound Response)**\n   - **Content Modifier (Post-REST Response)**:\n     - Header: \`Content-Type = application/xml; charset=utf-8\`\n     - Header: \`CamelHttpResponseCode = 200\`\n   - **End Event**: Message End Event를 통해 ERP에 동기 XML 본문 반환\n\n6. **Step 6: 예외 처리 (Exception Subprocess)**\n   - **Error Start Event**: 런타임 오류 감지\n   - **Groovy Script**: \`CamelExceptionCaught\` 객체로부터 상태 코드 및 스택트레이스 추출 후 MPL 커스텀 프로퍼티 등록\n   - **Content Modifier**: ERP 표준 Fault XML (\`<Fault><Code>E500</Code><Message>\${property.ErrorMessage}</Message></Fault>\`) 생성 후 Message End Event로 안전 반환\n\n---\n\n#### [3] SAP API Management (Cloud Foundry) 및 베스트 프랙티스 연계\n- **API Management Facade**: Cloud Integration iFlow 전면에 API Proxy를 배치하여 \`VerifyAPIKey\`, \`SpikeArrest\`(초당 100건 제한), \`Quota\` 정책을 적용함으로써 백엔드 과부하를 방지합니다.\n- **보안 격리**: 비밀번호 및 API 토큰은 iFlow 내 하드코딩하지 않고 SAP Cloud Integration의 **Security Material (Secure Store)**에만 등록하여 운영합니다.`,
+        timestamp: new Date().toLocaleTimeString()
+      };
+    }
+
+    // 2. API Management 정책 질의
+    if (qLower.includes('api management') || qLower.includes('apim') || qLower.includes('api 매니지먼트') || qLower.includes('spikearrest')) {
+      return {
+        success: true,
+        answer: `### 🛡️ SAP API Management (Cloud Foundry) 아키텍처 가이드\n\n1. **역할 분담 (Facade Pattern)**:\n   - **SAP API Management**: 인가(\`VerifyAPIKey\`, \`OAuthV2\`), 트래픽 스로틀링(\`SpikeArrest\`, \`Quota\`), 경량 프로토콜 변환(\`XMLtoJSON\`).\n   - **Cloud Integration**: 복잡한 비즈니스 스키마 매핑, 사내 레거시 연동(Cloud Connector), 트랜잭션 오케스트레이션.\n\n2. **API Proxy 필수 정책**:\n   - **VerifyAPIKey (Pre-Flow)**: \`<APIKey ref="request.header.apikey"/>\` 로 무단 접근 차단.\n   - **SpikeArrest (Pre-Flow)**: 순간 폭주 트래픽 방어.\n   - **FaultRules**: 백엔드 시스템(ERP/레거시)의 내부 에러 스택을 은닉하고 표준화된 API 에러 반환.`,
+        timestamp: new Date().toLocaleTimeString()
+      };
+    }
+
+    // 3. Groovy 스크립트 작성 질의
     if (qLower.includes('groovy') || qLower.includes('그루비') || qLower.includes('스크립트') || qLower.includes('json') || qLower.includes('xml')) {
       return {
         success: true,

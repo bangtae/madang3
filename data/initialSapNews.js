@@ -1,5 +1,1112 @@
-﻿// data/initialSapNews.js - Auto-updated by SAP Agent
+// data/initialSapNews.js - Auto-updated by SAP Agent
 window.PORTAL_DATA_SAP_NEWS = [
+    {
+        "id":  "sap_news_design_guidelines_2026",
+        "title":  "SAP Integration Suite 공식 디자인 가이드라인 (Design Guidelines) 및 규칙 검증 체계",
+        "source":  "SAP Help Portal",
+        "source_url":  "https://help.sap.com/docs/integration-suite/isuite-integrations-and-apis/design-guidelines?locale=en-US",
+        "category":  "Best Practice",
+        "summary":  "대용량 스트리밍 처리, 보안 자격증명 분리, 프로세스 모듈화(Main/Local Subprocess), 예외 처리(Exception Subprocess) 등 엔터프라이즈급 iFlow 설계를 위한 SAP 공식 권장 표준 가이드라인입니다.",
+        "published_at":  "2026-09-06T00:00:00Z"
+    },
+    {
+        "id":  "sap_news_editor_guidelines_blog",
+        "title":  "iFlow 웹 에디터 내 디자인 가이드라인 실시간 진단 및 자동 룰셋 활용법",
+        "source":  "SAP Community (Blogs)",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/sap-integration-suite-design-guidelines-in-the-integration-flow-editor-of/ba-p/13696362",
+        "category":  "Blog",
+        "summary":  "iFlow Editor 내에서 비권장 패턴(하드코딩 자격증명, 비효율적 Groovy 스크립트, 미처리 예외 등)을 실시간으로 감지하고 권장 설계로 안내하는 에디터 내장 가이드라인 규칙 기능 분석입니다.",
+        "published_at":  "2026-09-06T00:00:00Z"
+    },
+    {
+        "id":  "sap_news_s4hana_fsm_package",
+        "title":  "SAP Business Accelerator Hub: S/4HANA \u0026 SAP Field Service Management 표준 통합 iFlow 패키지",
+        "source":  "SAP Business Accelerator Hub",
+        "source_url":  "https://api.sap.com/package/SAPS4HANAIntegrationwithSAPFieldServiceManagement/integrationflow",
+        "category":  "Release",
+        "summary":  "S/4HANA HTTPS 호출과 REST/클라우드 솔루션 간의 데이터 동기화를 다루는 3계층(Main/Subprocess/Exception) 표준 iFlow 구성 템플릿 및 어댑터 설정 명세입니다.",
+        "published_at":  "2026-09-06T00:00:00Z"
+    },
+    {
+        "id":  "sap_news_apim_cf_environment",
+        "title":  "SAP API Management (Cloud Foundry) 엔터프라이즈 게이트웨이 및 보안/정책 구성 가이드",
+        "source":  "SAP Help Portal",
+        "source_url":  "https://help.sap.com/docs/sap-api-management/sap-api-management/sap-api-management-in-cloud-foundry-environment?locale=en-US",
+        "category":  "Best Practice",
+        "summary":  "Cloud Integration 전면에 배치하는 API Proxy, VerifyAPIKey 인가, SpikeArrest 트래픽 제어, XMLtoJSON/JSONtoXML 엣지 변환 및 FaultRules 에러 마스킹 표준 정책입니다.",
+        "published_at":  "2026-09-06T00:00:00Z"
+    },
+    {
+        "id":  "sap_news_a91e9d88",
+        "title":  "Will Integration suite-RNIF Adapter support SHA-256?",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/will-integration-suite-rnif-adapter-support-sha-256/qaq-p/14450870",
+        "category":  "Migration",
+        "summary":  "Hi: Per the product roadmap, SAP Integration Suite will support the RNIF Adapter in Q3 2026. Could you please advise whether the RNIF Adapter will support SHA-256? If this capability is not availabl...",
+        "published_at":  "2026-07-28T18:26:42Z"
+    },
+    {
+        "id":  "sap_news_2e66476e",
+        "title":  "Unable to Create MIG in SAP Integration Suite (Trial Account)",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/unable-to-create-mig-in-sap-integration-suite-trial-account/qaq-p/14452098",
+        "category":  "Best Practice",
+        "summary":  "Hi SAP Community, I am trying to create a MIG (Message Implementation Guideline) in SAP Integration Suite (Trial Account) for EDI testing, but I am unable to complete the MIG creation process. Step...",
+        "published_at":  "2026-07-30T05:57:21Z"
+    },
+    {
+        "id":  "sap_news_2dc1c236",
+        "title":  "Query on SuccessFactors SFAPI Deprecation and Migration to OData",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/query-on-successfactors-sfapi-deprecation-and-migration-to-odata/qaq-p/14453074",
+        "category":  "Migration",
+        "summary":  "Hello Everyone! Currently, the majority of SuccessFactors integrations(55) with SAP CPI use the Compound Employee (SFAPI) entity. SAP has announced the deprecation of SFAPI, which has raised concern...",
+        "published_at":  "2026-07-31T07:55:59Z"
+    },
+    {
+        "id":  "sap_news_c6d509a7",
+        "title":  "Integration Cell Runtime in SAP Integration Suite",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/integration-cell-runtime-in-sap-integration-suite/qaq-p/14453568",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "In reference to the Integration Cell Runtime - can you please help with the following queries: Is the Integration Cell Runtime / Configuration available for use as part standard licensi...",
+        "published_at":  "2026-07-31T19:05:05Z"
+    },
+    {
+        "id":  "sap_news_7c47fa3a",
+        "title":  "Integration SF EC mit H4S4 über Cloud Integration und BTP",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/integration-sf-ec-mit-h4s4-%C3%BCber-cloud-integration-und-btp/qaq-p/14454616",
+        "category":  "Migration",
+        "summary":  "Wir haben versucht, mit der Cloud Integration und der BTP SuccessFactors Employee Central mit einem S4/HANA-System zu verbinden. Dabei kam es zu einem Show-Stopper. Es wird wohl der Service \"api-acce...",
+        "published_at":  "2026-08-03T14:39:59Z"
+    },
+    {
+        "id":  "sap_news_ce9902f5",
+        "title":  "Application job in IBP that triggers IFlow from CI fails due to User Error",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/application-job-in-ibp-that-triggers-iflow-from-ci-fails-due-to-user-error/qaq-p/14455127",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "Hi, In IBP we have set up the system to run an application job for the Standard IFlow Sales History from CI ( which is not modified in any way). This fails due to \"user error\" which is triggered by...",
+        "published_at":  "2026-08-04T10:05:10Z"
+    },
+    {
+        "id":  "sap_news_51e77f43",
+        "title":  "SAP Document and Reporting Compliance",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-document-and-reporting-compliance/qaq-p/14458060",
+        "category":  "Migration",
+        "summary":  "Hello Community, For a customer, we are implementing an eInvoice interface in SAP S/4HANA Public Cloud using the scope item 5XU - Document and Reporting Compliance. Our requirement is to\u0026n...",
+        "published_at":  "2026-08-06T15:31:22Z"
+    },
+    {
+        "id":  "sap_news_e35e0725",
+        "title":  "API_SUPPLIERINVOICE_PROCESS_SRV Mix credit and debit memo items in the same invoice",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/enterprise-resource-planning-q-a/api-supplierinvoice-process-srv-mix-credit-and-debit-memo-items-in-the-same/qaq-p/14460544",
+        "category":  "Migration",
+        "summary":  "Hi team, I need create an invoice with the API_SUPPLIERINVOICE_PROCESS_SRV API in S/4HANA Public Cloud and I can\u0027t create it mixing in the same invoice 101 and 161 movements. Do you know...",
+        "published_at":  "2026-08-10T12:46:34Z"
+    },
+    {
+        "id":  "sap_news_f666c352",
+        "title":  "SAP CPI - How to remove wrappers of an error message?",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-cpi-how-to-remove-wrappers-of-an-error-message/qaq-p/14461074",
+        "category":  "Migration",
+        "summary":  "Hi, I created a groovy script which takes a business error from SAP (in an exception subprocess) and creates a json message with the error note. The error note comes from the property Cam...",
+        "published_at":  "2026-08-11T07:24:38Z"
+    },
+    {
+        "id":  "sap_news_72c09288",
+        "title":  "SAP BTP Cloud Foundry – New IP Addresses / Allowlist Check",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-btp-cloud-foundry-new-ip-addresses-allowlist-check/qaq-p/14461369",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "We received a notification in SAP for Me regarding a new SAP BTP Cloud Foundry infrastructure change (Event ID: EVB14237732). https://me.sap.com/event/EVB14237732/notification SAP will...",
+        "published_at":  "2026-08-11T13:06:30Z"
+    },
+    {
+        "id":  "sap_news_b137ab61",
+        "title":  "Azure Storage adapter in SAP CPI not supporting blob download.",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/azure-storage-adapter-in-sap-cpi-not-supporting-blob-download/qaq-p/14462139",
+        "category":  "Migration",
+        "summary":  "I am trying to use the Azure Storage adapter in SAP Cloud Platform Integration (CPI), but it does not have an option to download blobs from Azure Blob Storage in a CPI Flow",
+        "published_at":  "2026-08-12T12:12:11Z"
+    },
+    {
+        "id":  "sap_news_d7062a14",
+        "title":  "SAP S/4HANA Cloud Public Edition – API for SOAP Error Log and OData Error Log",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-s-4hana-cloud-public-edition-api-for-soap-error-log-and-odata-error-log/qaq-p/14465915",
+        "category":  "Migration",
+        "summary":  "Hi everyone, I am looking for a standard API in SAP S/4HANA Cloud Public Edition to retrieve the error log information shown in the following Fiori apps: SOAP Error Log OData Error Log I sear...",
+        "published_at":  "2026-08-18T06:17:24Z"
+    },
+    {
+        "id":  "sap_news_5e25de50",
+        "title":  "Request for example code to reject a France eInvoice in SAP",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/request-for-example-code-to-reject-a-france-einvoice-in-sap/qaq-p/14467358",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "The user is requesting an example of how to reject a France eInvoice within SAP, specifically how to pass the France-specific rejection reason code from the table EDOFRSICODMOTIF, which is a CHAR 50 ...",
+        "published_at":  "2026-08-19T08:41:35Z"
+    },
+    {
+        "id":  "sap_news_dacc2168",
+        "title":  "DRC Cloud edition - Code error HTTP 500 - server error - Brazil Location NFS-e",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/enterprise-resource-planning-q-a/drc-cloud-edition-code-error-http-500-server-error-brazil-location-nfs-e/qaq-p/14471078",
+        "category":  "Migration",
+        "summary":  "We are implementing the DRC Cloud Edition in SAP ECC 6.17 for the issuance of NFS-e to the São Paulo municipality - Brazil Location. We completed all the configurations, and upon running the tests, ...",
+        "published_at":  "2026-08-24T16:04:28Z"
+    },
+    {
+        "id":  "sap_news_417b1f2a",
+        "title":  "SSH key creation on BTP CPI",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/ssh-key-creation-on-btp-cpi/qaq-p/14471303",
+        "category":  "Migration",
+        "summary":  "Hello, I want to know if it is possible and how, to create a SSH key pair from SAP BTP CPI so I can share with our service provider from an external application to get SFTP connection. \u0026nbs...",
+        "published_at":  "2026-08-25T00:37:55Z"
+    },
+    {
+        "id":  "sap_news_451a85ce",
+        "title":  "SAP Multi-Bank Connectivity",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-multi-bank-connectivity/qaq-p/14476143",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "I want to activate SAP Multi-Bank Connectivity, but the production option is not coming up in the Systems \u0026 Provisioning tab. Require your help on how I can activate it.",
+        "published_at":  "2026-08-31T08:40:02Z"
+    },
+    {
+        "id":  "sap_news_fa2c250c",
+        "title":  "Geological data integration in SAP - anyone doing this?",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/geological-data-integration-in-sap-anyone-doing-this/qaq-p/14477282",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "We\u0027re working on integrating geological survey data into SAP for mining operations. Looking at options for managing exploration data, drill results, and geological models within the SAP ecosystem. S...",
+        "published_at":  "2026-09-01T09:37:17Z"
+    },
+    {
+        "id":  "sap_news_e76138be",
+        "title":  "Trading Partner Communication Adapters",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/questions-about-sap-websites/trading-partner-communication-adapters/qaq-p/14478342",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "Hello, I\u0027m looking for a scenario where a trading partner be able to send EDI 850 or any EDI via HTTPS or ODATA channel? If yes, can someone explain how that can be achieved? I\u0027m aware that TPM supp...",
+        "published_at":  "2026-09-02T16:34:04Z"
+    },
+    {
+        "id":  "sap_news_83ec33de",
+        "title":  "How to connect an external display with SAP warehouse data?",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/supply-chain-management-q-a/how-to-connect-an-external-display-with-sap-warehouse-data/qaq-p/14479550",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "I\u0027m looking at a warehouse setup where some information from SAP needs to be shown on an external device instead of only on the normal SAP screen. The use case is pretty simple. We\u0027d want things lik...",
+        "published_at":  "2026-09-04T07:30:13Z"
+    },
+    {
+        "id":  "sap_news_78f81b0d",
+        "title":  "Cannot open ECDSA Key file",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/cannot-open-ecdsa-key-file/qaq-p/14479972",
+        "category":  "Release",
+        "summary":  "Hello Team, I am trying to update the site host key per KBA https://me.sap.com/notes/3793735. However, after downloading the file from the KBA, I am not able to open it in publisher. I tried openi...",
+        "published_at":  "2026-09-04T18:32:54Z"
+    },
+    {
+        "id":  "sap_news_33253b8f",
+        "title":  "NonComplaint: Avoid Creating MPL Attachments",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/noncomplaint-avoid-creating-mpl-attachments/qaq-p/14462030",
+        "category":  "Migration",
+        "summary":  "Hi Team, As of now we are storing the payload attachment during only message failure (errors) in CPI. Still, we are getting Non-complaint: Avoid Creating MPL Attachments. Please provide us any solut...",
+        "published_at":  "2026-08-12T10:43:38Z"
+    },
+    {
+        "id":  "sap_news_4c473098",
+        "title":  "Multi-tenant load balancing in Integration Suites",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/multi-tenant-load-balancing-in-integration-suites/qaq-p/14462508",
+        "category":  "Migration",
+        "summary":  "Dear Team We have two PRD subaccounts in the BTP Cockpit where I have activated SAP Integration Suite with the `standard_edition` plan. I now need to configure load balancing between these two Integ...",
+        "published_at":  "2026-08-12T20:05:42Z"
+    },
+    {
+        "id":  "sap_news_2356a196",
+        "title":  "Multiple values at the source to single filed at the target by using message mapping - CPI",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/multiple-values-at-the-source-to-single-filed-at-the-target-by-using/qaq-p/14462624",
+        "category":  "Migration",
+        "summary":  "Hello All, Input xml: \u003cRequest\u003e \u003cKeyD\u003e2\u003c/KeyD\u003e \u003ccompany\u003ePS\u003c/company\u003e \u003ccustomerN\u003ePS1234,PS5678\u003c/customerN\u003e \u003c/Request\u003e Target output: \u003cR...",
+        "published_at":  "2026-08-13T02:38:40Z"
+    },
+    {
+        "id":  "sap_news_70eff0c5",
+        "title":  "UAE e-Invoicing Implementation in SAP – Integration Experience and Number of Interfaces",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/uae-e-invoicing-implementation-in-sap-integration-experience-and-number-of/qaq-p/14462979",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "I’m looking to understand the practical implementation experience of UAE e-invoicing in SAP. I’m particularly interested in real project experience and the integration effort involved, rather than t...",
+        "published_at":  "2026-08-13T11:57:12Z"
+    },
+    {
+        "id":  "sap_news_60b5899d",
+        "title":  "How do I enable audit logs in Integration Suite",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/how-do-i-enable-audit-logs-in-integration-suite/qaq-p/14463363",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "Hello SAP Team I need your assistance in determining what type of audit logs I can activate in Integration Suite and how to enable them.",
+        "published_at":  "2026-08-13T22:13:08Z"
+    },
+    {
+        "id":  "sap_news_5d06bcde",
+        "title":  "Does Microsoft JDBC Driver 12.10 support MSSQL 2025?",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/does-microsoft-jdbc-driver-12-10-support-mssql-2025/qaq-p/14465805",
+        "category":  "Migration",
+        "summary":  "Hi All, Does Microsoft JDBC Driver 12.10 support MSSQL 2025 ? Does Microsoft JDBC Driver 12.4 support MSSQL 2025 ?",
+        "published_at":  "2026-08-18T02:57:46Z"
+    },
+    {
+        "id":  "sap_news_b2df4bca",
+        "title":  "JBDC Adapter in Integration Suite nicht vorhanden",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/jbdc-adapter-in-integration-suite-nicht-vorhanden/qaq-p/14465924",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "Guten Tag, wir verwenden die SAP Integration Suite, Starter Edition auf SAP BTP. Das Runtime Profile unseres Cloud-Integration-Tenants lautet: starter_edition Wir möchten einen Integration Flow e...",
+        "published_at":  "2026-08-18T06:25:58Z"
+    },
+    {
+        "id":  "sap_news_246f3ca0",
+        "title":  "Getting Request for artifact list failed: error in sap cpi",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/getting-request-for-artifact-list-failed-error-in-sap-cpi/qaq-p/14466294",
+        "category":  "Migration",
+        "summary":  "when i try to deploy the iflow and wanted to see the log in the monitor section it is throwing me the below mentioned error Request for artifact list failed: Requested runtime location (cloudint...",
+        "published_at":  "2026-08-18T12:04:54Z"
+    },
+    {
+        "id":  "sap_news_2ebe1e03",
+        "title":  "Best Practices for Cross-Subaccount Event-Driven Architecture (Event Mesh to Cloud Integration)",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/best-practices-for-cross-subaccount-event-driven-architecture-event-mesh-to/qaq-p/14466650",
+        "category":  "Migration",
+        "summary":  "Hi Experts, I am designing an event-driven architecture landscape on SAP BTP and would appreciate your feedback on best practices, potential pitfalls, or alternative approaches for our scenario. ...",
+        "published_at":  "2026-08-18T17:30:40Z"
+    },
+    {
+        "id":  "sap_news_84f79b49",
+        "title":  "SQL Server Stored Procedure is not Returning a Result Set in the Response to JDBC Adapter is SAP CPI",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sql-server-stored-procedure-is-not-returning-a-result-set-in-the-response/qaq-p/14467953",
+        "category":  "Migration",
+        "summary":  "Within a Content Modifier a payload is given in the Message Body to execute a Stored Procedure in a SQL Server Database. When this payload is sent to the Request Reply step that is attached to a JDBC...",
+        "published_at":  "2026-08-19T20:09:21Z"
+    },
+    {
+        "id":  "sap_news_6b42d0c7",
+        "title":  "Need Configuration and Implementation suggestion",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/need-configuration-and-implementation-suggestion/qaq-p/14468451",
+        "category":  "Migration",
+        "summary":  "Hi Team, currently we have built custom build integration for getting the alerts Using integration suite, but we would like to explore more a standard SAP approach of using API management + ANS or ...",
+        "published_at":  "2026-08-20T10:50:52Z"
+    },
+    {
+        "id":  "sap_news_bb2b6250",
+        "title":  "How to Set a Specific MQMD.MsgId When Sending Messages from SAP Integration Suite to IBM MQ",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/how-to-set-a-specific-mqmd-msgid-when-sending-messages-from-sap-integration/qaq-p/14469059",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "We are using SAP Integration Suite to send messages from an iFlow to an IBM MQ queue on a Mainframe (z/OS) system via the IBM MQ Adapter. The Mainframe application requires the MQMD.MsgId of the mes...",
+        "published_at":  "2026-08-21T06:43:29Z"
+    },
+    {
+        "id":  "sap_news_bd1761c7",
+        "title":  "issues with MS sharepoint adapter",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/issues-with-ms-sharepoint-adapter/qaq-p/14471048",
+        "category":  "Migration",
+        "summary":  "Hi all We are facing many issues with Sharepoint adapters in the our CPI messagemonitoing. Issues: every alternate message is failling due to missing files. Error: CheckIn DriveItem Failed for...",
+        "published_at":  "2026-08-24T15:23:51Z"
+    },
+    {
+        "id":  "sap_news_c48b2973",
+        "title":  "Using JDBC Adapter for connection to Oracle rdbthin in SAP Cloud Integration",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/using-jdbc-adapter-for-connection-to-oracle-rdbthin-in-sap-cloud/qaq-p/14471568",
+        "category":  "Migration",
+        "summary":  "Hello, During a migration from SAP PO to SAP Integration Suite, we need to connect to an Oracle Rdb database using the rdbThin driver. We attempted to upload the JAR containing the Oracle Rdb Thin J...",
+        "published_at":  "2026-08-25T08:07:53Z"
+    },
+    {
+        "id":  "sap_news_3ab5b207",
+        "title":  "Event Mesh to Cloud Integration AMQP Connection Failing with Error 220012 (Cross-Subaccount Setup)",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/event-mesh-to-cloud-integration-amqp-connection-failing-with-error-220012/qaq-p/14473242",
+        "category":  "Migration",
+        "summary":  "Hi Experts, I am encountering a persistent connection/consumption error while trying to connect SAP Cloud Integration (CPI / Integration Suite) to SAP BTP Event Mesh (Enterprise Messaging) via the...",
+        "published_at":  "2026-08-26T20:09:25Z"
+    },
+    {
+        "id":  "sap_news_4db438d1",
+        "title":  "Integration Suite JMS Large scale reference",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/integration-suite-jms-large-scale-reference/qaq-p/14473321",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "Hi Experts, I would like to ask whether anyone has experience using JMS extensively in SAP Integration Suite. Specifically, are there any real-world implementations where a large number of JMS queu...",
+        "published_at":  "2026-08-27T02:45:45Z"
+    },
+    {
+        "id":  "sap_news_81343924",
+        "title":  "Backup for Integration Suite",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/backup-for-integration-suite/qaq-p/14474418",
+        "category":  "Migration",
+        "summary":  "I found backup cycle for Integration Suite is a day in https://me.sap.com/notes/3280550 Q8. But Reference Link for Q8 is about SAP HANA Service, Backup and Restore | SAP Help Portal. ...",
+        "published_at":  "2026-08-28T04:43:59Z"
+    },
+    {
+        "id":  "sap_news_1e3fc076",
+        "title":  "B2B Migration – What\u0027s Your Approach for Handling Multiple Partners?",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/b2b-migration-what-s-your-approach-for-handling-multiple-partners/qaq-p/14474854",
+        "category":  "Migration",
+        "summary":  "We\u0027re in the middle of a B2B migration project and could use some advice from people who\u0027ve been through this. We have about 50 partners with different format requirements, and we\u0027re trying to figur...",
+        "published_at":  "2026-08-28T12:32:10Z"
+    },
+    {
+        "id":  "sap_news_4c525dcc",
+        "title":  "SAP CPI Integration Beginner",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/product-lifecycle-management-q-a/sap-cpi-integration-beginner/qaq-p/14475982",
+        "category":  "Migration",
+        "summary":  "Hi Everyone, Good day! Could you please assist me on SAP CPI. Currently I\u0027m going to start a project on integration of SAP S4 HANA 2021 and Oracle for PP master data creation (BOMs and Routings).\u0026nb...",
+        "published_at":  "2026-08-31T05:40:36Z"
+    },
+    {
+        "id":  "sap_news_97ecf1aa",
+        "title":  "SAP Cloud Integration  (Subaccount B)→ SQM (Subaccount A) Connectivity \u0026 Authentication",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-cloud-integration-subaccount-b-sqm-subaccount-a-connectivity-amp/qaq-p/14476397",
+        "category":  "Best Practice",
+        "summary":  "Hi Experts, We are currently evaluating a change in our integration architecture and would appreciate guidance from anyone with experience integrating SAP Cloud Integration with SAP Ariba Supplier Q...",
+        "published_at":  "2026-08-31T12:48:24Z"
+    },
+    {
+        "id":  "sap_news_988bc6fd",
+        "title":  "SAP Integration Suite - Free Trail Account - Deployment Failed - Kakfa Errors - Authorization Issue",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-integration-suite-free-trail-account-deployment-failed-kakfa-errors/qaq-p/14476486",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "Hi SAP Community, I am currently working with an SAP Integration Suite / Cloud Integration trial account and facing an authorization issue while deploying an iFlow. The iFlow deployment f...",
+        "published_at":  "2026-08-31T13:58:36Z"
+    },
+    {
+        "id":  "sap_news_0e21a2fd",
+        "title":  "API_CRDTMBUSINESSPARTNER $batch Update Returning 404 Not Found (/IWBEP/CX_MGW_BUSI_EXCEPTION)",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/api-crdtmbusinesspartner-batch-update-returning-404-not-found-iwbep-cx-mgw/qaq-p/14477734",
+        "category":  "Release",
+        "summary":  "Hi Experts, I am trying to update credit management data using the standard S/4HANA OData service API_CRDTMBUSINESSPARTNER through a $batch request from SAP Integration Suite (CPI). The...",
+        "published_at":  "2026-09-02T05:42:50Z"
+    },
+    {
+        "id":  "sap_news_0047b5cc",
+        "title":  "AS2 Integration – Options for Basic Authentication when receiver restricts username characters",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/as2-integration-options-for-basic-authentication-when-receiver-restricts/qaq-p/14477831",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "Hi SAP Community, We are implementing an AS2 integration using SAP Integration Suite and need to use HTTP Basic Authentication for the communication. The Basic Auth username generated/provided ...",
+        "published_at":  "2026-09-02T06:55:51Z"
+    },
+    {
+        "id":  "sap_news_e8438a9c",
+        "title":  "CPI HTTP/AMQP Adapter to SAP Event Mesh: HTTP 400 \"Missing grant type\" during OAuth Token Handshake",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/cpi-http-amqp-adapter-to-sap-event-mesh-http-400-quot-missing-grant-type/qaq-p/14478001",
+        "category":  "Migration",
+        "summary":  "Hi all, I am currently setting up an integration flow in SAP Integration Suite (Cloud Integration) to publish messages to SAP Event Mesh. Due to the known lowercasing behavior in the AMQP adapter d...",
+        "published_at":  "2026-09-02T09:12:04Z"
+    },
+    {
+        "id":  "sap_news_36b836b0",
+        "title":  "Value Mapping in Configure mode – no CSV/Excel upload option? How are you mass-maintaining valuepair",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/value-mapping-in-configure-mode-no-csv-excel-upload-option-how-are-you-mass/qaq-p/14479096",
+        "category":  "Migration",
+        "summary":  "Hi everyone, We use a Value Mapping artifact in SAP Integration Suite (Cloud Integration) to maintain lookups between external system IDs and SAP IDs. Some of the bi-directional mappings contain sev...",
+        "published_at":  "2026-09-03T13:12:42Z"
+    },
+    {
+        "id":  "sap_news_1b658464",
+        "title":  "Mass Invoice Reversals Without Customer Panic: A Clean Core, BTP Driven Strategy for ModernUtilities",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/sap-for-utilities-blog-posts/mass-invoice-reversals-without-customer-panic-a-clean-core-btp-driven/ba-p/14328325",
+        "category":  "Best Practice",
+        "summary":  "Mass Invoice Reversals Without Customer Panic: A Clean‑Core, BTP‑Driven Strategy for Modern Utilities Executive Summary If you’ve spent any time around utility billing operations, you know mass rev...",
+        "published_at":  "2026-02-27T12:18:41Z"
+    },
+    {
+        "id":  "sap_news_2865291a",
+        "title":  "Staging in SAP Advanced Event Mesh (AEM) – An Introduction to \"Config Push\"",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/enterprise-resource-planning-blog-posts-by-sap/staging-in-sap-advanced-event-mesh-aem-an-introduction-to-quot-config-push/ba-p/14338247",
+        "category":  "Best Practice",
+        "summary":  "Introduction Motivation and goal In software development, it is standard procedure to use staging for developed content, running it through quality assurance (QAS) before pushing it to the producti...",
+        "published_at":  "2026-02-27T15:04:40Z"
+    },
+    {
+        "id":  "sap_news_e1bab06f",
+        "title":  "Event Mesh + AMQP: The Retry Trap Nobody Warns You About",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/event-mesh-amqp-the-retry-trap-nobody-warns-you-about/ba-p/14343475",
+        "category":  "Best Practice",
+        "summary":  "Hello Experts, I have seen a number of implementations of event-driven design involving SAP Event Mesh and the AMQP sender adapter on Cloud Integration. Most were built on the incorrect assumption t...",
+        "published_at":  "2026-03-09T11:37:07Z"
+    },
+    {
+        "id":  "sap_news_25a4c3c3",
+        "title":  "Clean Core approach with the ASAPIO Clean Core Check",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/clean-core-approach-with-the-asapio-clean-core-check/ba-p/14344765",
+        "category":  "Migration",
+        "summary":  "Introduction In this blog, I am going to show how to use the ASAPIO Integration Add-on Clean Core Check as a proactiv...",
+        "published_at":  "2026-03-09T11:01:32Z"
+    },
+    {
+        "id":  "sap_news_49d47c80",
+        "title":  "Architecting Electronic Bill of Lading on SAP BTP - Rethinking Paper-Based Trade (Part 1 of 3)",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/architecting-electronic-bill-of-lading-on-sap-btp-rethinking-paper-based/ba-p/14352377",
+        "category":  "Migration",
+        "summary":  "Introduction After participating in the SAP Multidimensional Architect Program at the SAP Academy in California during Fall 2025, I was particularly inspired by a session titled “From Bluepr...",
+        "published_at":  "2026-03-27T09:29:07Z"
+    },
+    {
+        "id":  "sap_news_cae9a287",
+        "title":  "Architecting Electronic Bill of Lading on SAP BTP - Blueprint (Part 2 of 3)",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/architecting-electronic-bill-of-lading-on-sap-btp-blueprint-part-2-of-3/ba-p/14352463",
+        "category":  "Migration",
+        "summary":  "Introduction In Part 1 , we explored the transformative potential of the Electronic Bill of Lading in international trade, highlighting its impact on sustainability, enhanced supply chain transparen...",
+        "published_at":  "2026-04-01T22:23:19Z"
+    },
+    {
+        "id":  "sap_news_009d782b",
+        "title":  "Architecting Electronic Bill of Lading on SAP BTP - End-to-End Scenario(Part 3 of 3)",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/architecting-electronic-bill-of-lading-on-sap-btp-end-to-end-scenario-part/ba-p/14352514",
+        "category":  "Best Practice",
+        "summary":  "Introduction In Part 1 – Case Study and Part 2 – Blueprint, we introduced the concept of the Electronic Bill of Lading and walked through the key steps required for its implementation. The Part 3 p...",
+        "published_at":  "2026-04-02T17:09:58Z"
+    },
+    {
+        "id":  "sap_news_f0ed9a02",
+        "title":  "Clean Core for Utilities: The Missing Link Between S/4HANA and AI Driven Operations",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/sap-for-utilities-blog-posts/clean-core-for-utilities-the-missing-link-between-s-4hana-and-ai-driven/ba-p/14362238",
+        "category":  "Best Practice",
+        "summary":  "Clean Core for Utilities: The Missing Link Between S/4HANA and AI‑Driven Operations Most of the Utilities organization are entering one of the most disruptive decades the industry has ever s...",
+        "published_at":  "2026-04-02T16:35:42Z"
+    },
+    {
+        "id":  "sap_news_e8b353f6",
+        "title":  "The Utility Clean Core Blueprint: How SAP BTP Enables Modernization Without Disrupting Regulated OPR",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/sap-for-utilities-blog-posts/the-utility-clean-core-blueprint-how-sap-btp-enables-modernization-without/ba-p/14366797",
+        "category":  "Best Practice",
+        "summary":  "The Utility Clean Core Blueprint: How SAP BTP Enables Modernization Without Disrupting Regulated Operations A White Paper by Atul Joshi Executive Summary Utilities today f...",
+        "published_at":  "2026-04-07T11:31:11Z"
+    },
+    {
+        "id":  "sap_news_cb0258b7",
+        "title":  "Q1/2026 Product Highlights - SAP Integration Suite",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/q1-2026-product-highlights-sap-integration-suite/ba-p/14376750",
+        "category":  "Release",
+        "summary":  "Welcome to another quarterly recap of the latest released features in SAP Integration Suite! The new capabilities in Q1/2026 focus on better operations and smoother eventing for integration practitio...",
+        "published_at":  "2026-04-17T08:42:48Z"
+    },
+    {
+        "id":  "sap_news_31cf5597",
+        "title":  "Introducing ATUL Architecture :  A New Blog Series on SAP BTP for Intelligent Utilities",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/sap-for-utilities-blog-posts/introducing-atul-architecture-a-new-blog-series-on-sap-btp-for-intelligent/ba-p/14377656",
+        "category":  "Best Practice",
+        "summary":  "Over the past few years, I’ve had the chance to work closely with utilities that are modernizing their operations using SAP S/4HANA, SAP BTP, and event‑driven, real‑time architectures. One th...",
+        "published_at":  "2026-04-29T09:32:51Z"
+    },
+    {
+        "id":  "sap_news_0671c3a4",
+        "title":  "ATUL Architecture #1: Why Utilities Need an Intelligent Core on SAP BTP  Introduction Utilities are",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/sap-for-utilities-blog-posts/atul-architecture-1-why-utilities-need-an-intelligent-core-on-sap-btp/ba-p/14387727",
+        "category":  "Best Practice",
+        "summary":  "Introduction Utilities are entering a decade defined by real‑time operations, distributed energy, and AI‑driven decisioning. Yet most utility architectures were never designed for this level of spee...",
+        "published_at":  "2026-05-13T07:56:22Z"
+    },
+    {
+        "id":  "sap_news_3efe0d02",
+        "title":  "ATUL Architecture #2 — Event-Driven Utilities: Designing Real-Time Flows on SAP BTP",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/sap-for-utilities-blog-posts/atul-architecture-2-event-driven-utilities-designing-real-time-flows-on-sap/ba-p/14392712",
+        "category":  "Best Practice",
+        "summary":  "ATUL Architecture #2 — Event-Driven Utilities: Designing Real-Time Flows on SAP BTP Introduction Most of the utilities organization did not build batch-driven systems because they were wrong. They ...",
+        "published_at":  "2026-05-18T11:30:55Z"
+    },
+    {
+        "id":  "sap_news_3c84b9b6",
+        "title":  "Clean Core by Design: Event Enablement Cockpit as a Core Integration Enabler in SAP S/4HANA",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/clean-core-by-design-event-enablement-cockpit-as-a-core-integration-enabler/ba-p/14393022",
+        "category":  "Migration",
+        "summary":  "Enterprise Event Enablement is one of the core components of the modern SAP Enterprise Integration Architecture for SAP S/4 HANA, which enables seamless exchange of business events across different p...",
+        "published_at":  "2026-06-01T10:05:30Z"
+    },
+    {
+        "id":  "sap_news_7264e935",
+        "title":  "ATUL Architecture #3: Bridging OT and IT: Delivering Mission-Critical Grid Data to SAP BTP Safely, S",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/sap-for-utilities-blog-posts/atul-architecture-3-bridging-ot-and-it-delivering-mission-critical-grid/ba-p/14409130",
+        "category":  "Best Practice",
+        "summary":  "ATUL Architecture #3: Bridging OT and IT: Delivering Mission-Critical Grid Data to SAP BTP Safely, Scalably, and Cleanly 1. Introduction Utilities are accelerating the...",
+        "published_at":  "2026-06-08T08:52:29Z"
+    },
+    {
+        "id":  "sap_news_1fca9430",
+        "title":  "No Event Mesh? No Problem — Integrating Service Orders to FSM via CPI Polling",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/crm-and-cx-blog-posts-by-sap/no-event-mesh-no-problem-integrating-service-orders-to-fsm-via-cpi-polling/ba-p/14411079",
+        "category":  "Migration",
+        "summary":  "SAP Field Service Management (FSM) relies on timely and accurate service order data from SAP S/4HANA Cloud to dispatch technicians, schedule work, and close jobs efficiently. The standard integration...",
+        "published_at":  "2026-06-04T07:38:36Z"
+    },
+    {
+        "id":  "sap_news_3a5abd16",
+        "title":  "Connection Monitoring: Real-Time Connection Visibility for Event Mesh in SAP Integration Suite",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/connection-monitoring-real-time-connection-visibility-for-event-mesh-in-sap/ba-p/14418374",
+        "category":  "Best Practice",
+        "summary":  "Introduction When you run a messaging service like SAP Event Mesh in SAP Integration Suite, you quickly accumulate a wide mix of messaging clients and their connections — AMQP-based integrations, MQ...",
+        "published_at":  "2026-06-14T21:02:23Z"
+    },
+    {
+        "id":  "sap_news_3547c910",
+        "title":  "ATUL Architecture #4 — AI on SAP BTP for Grid Operations",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/sap-for-utilities-blog-posts/atul-architecture-4-ai-on-sap-btp-for-grid-operations/ba-p/14419316",
+        "category":  "Best Practice",
+        "summary":  "ATUL Architecture #4 — AI on SAP BTP for Grid Operations How AI Becomes Actionable Inside SAP Processes 1. Introduction Utilities generate massive volumes of operatio...",
+        "published_at":  "2026-06-17T09:21:39Z"
+    },
+    {
+        "id":  "sap_news_052510ce",
+        "title":  "From Batch to Event-Driven: Liberating SFTP Data with Micro-Integrations",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/from-batch-to-event-driven-liberating-sftp-data-with-micro-integrations/ba-p/14421234",
+        "category":  "Best Practice",
+        "summary":  "Introduction At the end of last year, Micro-Integrations were introduced as a new capability within SAP Integration Suite, advanced event mesh. This capability provides lightweight integration fu...",
+        "published_at":  "2026-06-19T05:00:00Z"
+    },
+    {
+        "id":  "sap_news_c3a83124",
+        "title":  "SAP Event Mesh for Beginners – Part 4: Troubleshooting \u0026 Quick Reference",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/sap-event-mesh-for-beginners-part-4-troubleshooting-amp-quick-reference/ba-p/14428993",
+        "category":  "Migration",
+        "summary":  "SAP Event Mesh for Beginners – Part 4: Troubleshooting \u0026 Quick Reference Part 4 (the finale) of the SAP Event Mesh beginner series. Part 1 (this post): EDA concepts + provisioning the Eve...",
+        "published_at":  "2026-07-27T16:00:00Z"
+    },
+    {
+        "id":  "sap_news_18db4414",
+        "title":  "SAP Event Mesh for Beginners – Part 3: Push Delivery with Webhooks",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/sap-event-mesh-for-beginners-part-3-push-delivery-with-webhooks/ba-p/14434605",
+        "category":  "Best Practice",
+        "summary":  "SAP Event Mesh for Beginners – Part 3: Push Delivery with Webhooks Part 3 of the SAP Event Mesh beginner series. A quick recap By the end of Part 2, you had events publishing into Event Mesh ove...",
+        "published_at":  "2026-07-13T16:00:00Z"
+    },
+    {
+        "id":  "sap_news_a270bd00",
+        "title":  "CAP Foundry: Engineering SAP CAP Applications from Business Intent with Guardrailed AI",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/cap-foundry-engineering-sap-cap-applications-from-business-intent-with/ba-p/14468083",
+        "category":  "Best Practice",
+        "summary":  "CAP Foundry is a prototype for engineering SAP Cloud Application Programming Model (CAP) applications from business intent. The user describes the business outcome, selects or supplies the relevant s...",
+        "published_at":  "2026-08-20T02:29:28Z"
+    },
+    {
+        "id":  "sap_news_d974f3a2",
+        "title":  "Turn SAP APIs into MCP Tools for AI Agents using SAP Integration Suite Free Trial",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/turn-sap-apis-into-mcp-tools-for-ai-agents-using-sap-integration-suite-free/ba-p/14439352",
+        "category":  "Migration",
+        "summary":  "The MCP Capability for SAP Integration Suite is finally here, and everyone can try it now! This last week I\u0027ve been playing around with the new MCP Server artifact in SAP Integration Suite and cre...",
+        "published_at":  "2026-07-13T14:41:31Z"
+    },
+    {
+        "id":  "sap_news_10dc6a13",
+        "title":  "MCP Servers on SAP Integration Suite : Build Your First MCP Server from an API",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/mcp-servers-on-sap-integration-suite-build-your-first-mcp-server-from-an/ba-p/14441034",
+        "category":  "Migration",
+        "summary":  "Introduction In the previous blog, I introduced the Model Context Protocol (MCP) and explored how it provides a standardized way for AI applications and agents to discover and invoke enterprise capa...",
+        "published_at":  "2026-07-15T11:38:00Z"
+    },
+    {
+        "id":  "sap_news_536a3fbe",
+        "title":  "One Blog, Two Strategic Topics: API-Centric Integration and MCP Gateway",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/one-blog-two-strategic-topics-api-centric-integration-and-mcp-gateway/ba-p/14441975",
+        "category":  "Migration",
+        "summary":  "This blog brings together to important concepts shaping the future of enterprise integration: API-centric integration and the MCP Gateway. To start, the following resources provide a clear introduct...",
+        "published_at":  "2026-07-16T12:46:05Z"
+    },
+    {
+        "id":  "sap_news_b32fb34b",
+        "title":  "Integration Suite: Building an MCP Server for a SAP CI Monitoring Assistant",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/integration-suite-building-an-mcp-server-for-a-sap-ci-monitoring-assistant/ba-p/14442685",
+        "category":  "Best Practice",
+        "summary":  "Introduction In SAP Integration Suite, Message Processing Logs (MPL) are the primary tool for monitoring and troubleshooting interfaces. Whenever something fails, the same routine follows: log into ...",
+        "published_at":  "2026-07-17T18:13:23Z"
+    },
+    {
+        "id":  "sap_news_c3054afe",
+        "title":  "Export SAP Integration Suite Inventory to Excel: Two Python Scripts for CPI iFlows and API Proxies.",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/export-sap-integration-suite-inventory-to-excel-two-python-scripts-for-cpi/ba-p/14443590",
+        "category":  "Migration",
+        "summary":  "If you have ever been asked how many iFlows sit on a tenant, or which API proxies belong to which product, you already know how it goes. You open the UI, click into one package at a time, and copy na...",
+        "published_at":  "2026-07-21T10:07:28Z"
+    },
+    {
+        "id":  "sap_news_7eff13a4",
+        "title":  "From API Management to SLG1: Centralized Error Logging with RAP and SAP Application Log",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/from-api-management-to-slg1-centralized-error-logging-with-rap-and-sap/ba-p/14448469",
+        "category":  "Migration",
+        "summary":  "Introduction SAP API Management provides monitoring and tracing capabilities and can also be integrated with observability and log management platforms such as SAP Cloud ALM, Splunk, Sumo Logic, Log...",
+        "published_at":  "2026-08-05T10:53:47Z"
+    },
+    {
+        "id":  "sap_news_9e28f3dd",
+        "title":  "API Composition: Seamless Enterprise Data Access for Developers and AI Agents",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/api-composition-seamless-enterprise-data-access-for-developers-and-ai/ba-p/14448753",
+        "category":  "Migration",
+        "summary":  "Business data lives in silos Whether it is a dealer checking live inventory to ensure adequate stock levels, a finance team reconciling payments to ensure compliance, or a customer tracking their or...",
+        "published_at":  "2026-07-27T09:12:23Z"
+    },
+    {
+        "id":  "sap_news_128c898a",
+        "title":  "Connecting SAP Commerce Cloud (CCv2) to SAP S/4HANA Cloud Private Edition",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/crm-and-cx-blog-posts-by-sap/connecting-sap-commerce-cloud-ccv2-to-sap-s-4hana-cloud-private-edition/ba-p/14449168",
+        "category":  "Best Practice",
+        "summary":  "1 Introduction If you use SAP Commerce Cloud (CCv2), you can leverage the SAP S/4HANA Order Management integration capabilities to integrate directly with SAP S/4...",
+        "published_at":  "2026-08-07T10:56:56Z"
+    },
+    {
+        "id":  "sap_news_9fe72f23",
+        "title":  "SAP API Management for Beginners – Part 1: What Is APIM \u0026 A Complete Features Tour",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/sap-api-management-for-beginners-part-1-what-is-apim-amp-a-complete/ba-p/14454832",
+        "category":  "Migration",
+        "summary":  "SAP API Management for Beginners – Part 1: What Is APIM \u0026 A Complete Features Tour Part 1 of a 5-part beginner series on SAP API Management within SAP Integration Suite. What this series cove...",
+        "published_at":  "2026-08-03T22:47:52Z"
+    },
+    {
+        "id":  "sap_news_e007bbe2",
+        "title":  "SAP API Management for Beginners – Part 2: Create Your First API Proxy with Northwind",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/sap-api-management-for-beginners-part-2-create-your-first-api-proxy-with/ba-p/14457228",
+        "category":  "Migration",
+        "summary":  "SAP API Management for Beginners – Part 2: Create Your First API Proxy with Northwind Part 2 of a 5-part beginner series on SAP API Management within SAP Integration Suite. A quick recap In Part...",
+        "published_at":  "2026-08-09T16:00:00Z"
+    },
+    {
+        "id":  "sap_news_dbed2d3f",
+        "title":  "SAP API Management for Beginners – Part 3: Policy, Verify API Key, Subscription, Debug, Versioning",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/sap-api-management-for-beginners-part-3-policy-verify-api-key-subscription/ba-p/14457249",
+        "category":  "Migration",
+        "summary":  "SAP API Management for Beginners – Part 3: Verify API Key, Subscription, Debug, Versioning \u0026 Policy Templates Part 3 of a 5-part beginner series on SAP API Management within SAP Integration Suit...",
+        "published_at":  "2026-08-17T16:00:00Z"
+    },
+    {
+        "id":  "sap_news_4adcb0e2",
+        "title":  "From SAP APIs to AI Tools: Building an AI-Ready SAP Integration Platform",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/from-sap-apis-to-ai-tools-building-an-ai-ready-sap-integration-platform/ba-p/14457525",
+        "category":  "Migration",
+        "summary":  "Introduction Artificial Intelligence is rapidly changing the way users interact with enterprise applications. Rather than navigating multiple interfaces or searching through complex systems, users i...",
+        "published_at":  "2026-08-10T09:07:39Z"
+    },
+    {
+        "id":  "sap_news_abc41201",
+        "title":  "SAP Profitability and Performance Management and Claude AI using SAP Integration Suite and MCP",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/financial-management-blog-posts-by-members/sap-profitability-and-performance-management-and-claude-ai-using-sap/ba-p/14461160",
+        "category":  "Migration",
+        "summary":  "This is a conceptual reference architecture for SAP PaPM itself to natively expose a particular set of MCP tools for use with Claude AI. SAP Integration Suite can expose APIs...",
+        "published_at":  "2026-08-20T05:42:24Z"
+    },
+    {
+        "id":  "sap_news_aadf42d5",
+        "title":  "Connect Advanced Event Mesh to API Management: Publish and Consume Events in Developer Hub",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/connect-advanced-event-mesh-to-api-management-publish-and-consume-events-in/ba-p/14463820",
+        "category":  "Migration",
+        "summary":  "Just like in the API world, governance and end-to-end lifecycle management are essential when building Event-Driven Architectures. SAP Integration Suite, advanced event mesh provides these capabiliti...",
+        "published_at":  "2026-08-19T11:43:23Z"
+    },
+    {
+        "id":  "sap_news_ed442125",
+        "title":  "Migrate Data from SAP IDM via API",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/migrate-data-from-sap-idm-via-api/ba-p/14474798",
+        "category":  "Migration",
+        "summary":  "Migrate Data from SAP IDM via API In my first post on SAP IDM data migration, I’ve introduced IDM CSV Server, an open source tool for replicating and migrating data from SAP Identity Management 8.0 ...",
+        "published_at":  "2026-08-31T04:50:00Z"
+    },
+    {
+        "id":  "sap_news_ba7d33c3",
+        "title":  "Partnering for Progress: Accelerate Your Move to SAP Integration Suite",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/partnering-for-progress-accelerate-your-move-to-sap-integration-suite/ba-p/14271374",
+        "category":  "Migration",
+        "summary":  "When I first started working with SAP’s Migration Factory program, I quickly realized just how big of a shift many organizations were facing. For years, SAP Process Integration (PI) and SAP Process ...",
+        "published_at":  "2025-11-17T20:08:53Z"
+    },
+    {
+        "id":  "sap_news_3487753d",
+        "title":  "Migrating XSLT mappings from SAP Process Orchestration to SAP Integration Suite",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/migrating-xslt-mappings-from-sap-process-orchestration-to-sap-integration/ba-p/14284726",
+        "category":  "Migration",
+        "summary":  "This blog post is part of the series Master Blog: SAP Process Orchestration to SAP Integration Suite Migration – Tool and Guidance exploring how to migrate various integration patterns from...",
+        "published_at":  "2025-12-05T13:14:56Z"
+    },
+    {
+        "id":  "sap_news_8842b68a",
+        "title":  "FAQ – Migration from SAP Process Orchestration to SAP Integration Suite",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/faq-migration-from-sap-process-orchestration-to-sap-integration-suite/ba-p/14284978",
+        "category":  "Migration",
+        "summary":  "This blog provides answers to the most frequently asked questions from customers and partners planning their migration from SAP Process Orchestration (PI/PO) to SAP Integration Suite. This content w...",
+        "published_at":  "2025-12-05T19:26:50Z"
+    },
+    {
+        "id":  "sap_news_f84c33e4",
+        "title":  "Fast-Track Your Integrations To The Cloud Through Our New Expert-Guided Implementation Service",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/fast-track-your-integrations-to-the-cloud-through-our-new-expert-guided/ba-p/14292493",
+        "category":  "Best Practice",
+        "summary":  "Fast-Track Your Integration Transformation To The Cloud Through Our New Expert-Guided Implementation service Are you ready to migrate your critical integration scenarios to the cloud - in a secure...",
+        "published_at":  "2025-12-17T14:16:01Z"
+    },
+    {
+        "id":  "sap_news_62584371",
+        "title":  "Using Migration Assessment to Plan Your SAP Process Orchestration to SAP Integration Suite Migration",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/using-migration-assessment-to-plan-your-sap-process-orchestration-to-sap/ba-p/14309843",
+        "category":  "Migration",
+        "summary":  "As customers transition from SAP Process Orchestration to SAP Integration Suite, one of the main challenges is gaining early and reliable visibility into the complexity of the existing integration la...",
+        "published_at":  "2026-01-19T10:26:23Z"
+    },
+    {
+        "id":  "sap_news_30f449f7",
+        "title":  "Using Client Certificate Authentication in SAP CPI HTTP Receiver Adapter",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/using-client-certificate-authentication-in-sap-cpi-http-receiver-adapter/ba-p/14321792",
+        "category":  "Migration",
+        "summary":  "Introduction Hi friends, in this blog lets see how to configure the HTTP receiver adapter using client certificate auth type and step by step explain how a PKCS#12 (.p12) certificate is stored ...",
+        "published_at":  "2026-02-17T09:17:51Z"
+    },
+    {
+        "id":  "sap_news_66260e8b",
+        "title":  "How to Get Started with Pipeline for Cloud Integration",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/how-to-get-started-with-pipeline-for-cloud-integration/ba-p/14325267",
+        "category":  "Migration",
+        "summary":  "This blog is a beginner’s blog for getting started with Pipeline for Cloud Integration, for integration developers having experience in Cloud Integration in general. The Pipeline was introduced begin...",
+        "published_at":  "2026-02-10T15:02:09Z"
+    },
+    {
+        "id":  "sap_news_7031bc34",
+        "title":  "Cloud Integration Pipeline - Datastore Extension UI",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/cloud-integration-pipeline-datastore-extension-ui/ba-p/14326020",
+        "category":  "Migration",
+        "summary":  "⚠️ Disclaimer: The UI described in this blog post is not an official product by SAP. If you are interested in using the UI, you can find the published code and set up instructions on th...",
+        "published_at":  "2026-03-30T12:18:10Z"
+    },
+    {
+        "id":  "sap_news_cff1ee9f",
+        "title":  "Migrating Content-Based Routing Scenarios Using the Migration Tool in SAP Integration Suite",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/migrating-content-based-routing-scenarios-using-the-migration-tool-in-sap/ba-p/14327459",
+        "category":  "Migration",
+        "summary":  "This blog post is part of the series Master Blog: SAP Process Orchestration to SAP Integration Suite Migration – Tool and Guidance exploring how to migrate various integration patterns from SAP Proce...",
+        "published_at":  "2026-02-12T22:29:04Z"
+    },
+    {
+        "id":  "sap_news_ea3d2d35",
+        "title":  "Legacy Excel to XML Conversion in Integration Suite: Handling BIFF5/Excel 5.0 during PI/PO migration",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/legacy-excel-to-xml-conversion-in-integration-suite-handling-biff5-excel-5/ba-p/14333488",
+        "category":  "Migration",
+        "summary":  "Migrating from PI/PO to Integration Suite comes with unexpected challenges - like handling legacy Excel files from the 90s. In this first post of our migration series, I\u0027ll show you how to convert th...",
+        "published_at":  "2026-03-05T05:48:30Z"
+    },
+    {
+        "id":  "sap_news_2bab4af5",
+        "title":  "Mapping SAP Process Orchestration JMS (IBM MQ) Adapter to SAP Integration Suite IBM MQ Adapter",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/mapping-sap-process-orchestration-jms-ibm-mq-adapter-to-sap-integration/ba-p/14347177",
+        "category":  "Migration",
+        "summary":  "This blog post is part of the series Master Blog: SAP Process Orchestration to SAP Integration Suite Migration – Tool and Guidance exploring how to migrate various integration patterns from SAP Proce...",
+        "published_at":  "2026-03-16T15:33:57Z"
+    },
+    {
+        "id":  "sap_news_422ee1e8",
+        "title":  "SAP Process Orchestration to SAP Integration Suite Migration - Alert Rules via SAP Cloud ALM",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/sap-process-orchestration-to-sap-integration-suite-migration-alert-rules/ba-p/14361287",
+        "category":  "Migration",
+        "summary":  "SAP Process Orchestration to SAP Integration Suite Migration – Alert Rules via SAP Cloud ALM Objective The goal of this blog is to explain how to migrate your alert rules from SAP Process O...",
+        "published_at":  "2026-03-30T08:06:06Z"
+    },
+    {
+        "id":  "sap_news_249e7c04",
+        "title":  "File Not Received in SAP PO After Server Change – Sender Channel Conflict Issue",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/file-not-received-in-sap-po-after-server-change-sender-channel-conflict/ba-p/14362059",
+        "category":  "Migration",
+        "summary":  "Scenario Overview: In our integration landscape, the data flow is: AccordFT (MFT) → FTP → SAP PO → File (Archival) → SAP PO → SAP CAR/POSDTA We are using a single standard interface and mapping fo...",
+        "published_at":  "2026-03-31T08:58:50Z"
+    },
+    {
+        "id":  "sap_news_9b61030e",
+        "title":  "Strengthen Your SAP Projects in Q2 with SAP Enterprise Support Advisory Council",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/product-lifecycle-management-blog-posts-by-sap/strengthen-your-sap-projects-in-q2-with-sap-enterprise-support-advisory/ba-p/14374750",
+        "category":  "Migration",
+        "summary":  "Looking for more hands-on support and early access to the latest SAP Enterprise Support services? With SAP Enterprise Support, part of the Foundational Success Plan included in all cloud subscriptio...",
+        "published_at":  "2026-04-15T08:24:30Z"
+    },
+    {
+        "id":  "sap_news_d5ee6a35",
+        "title":  "Simplifying ABAP Proxy Migration: From SAP PO to Integration Suite (No MDR Required)",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/simplifying-abap-proxy-migration-from-sap-po-to-integration-suite-no-mdr/ba-p/14379787",
+        "category":  "Migration",
+        "summary":  "Introduction This blog presents a complete walkthrough for migrating both outbound and inbound ABAP proxy configurations from SAP PO to SAP Integration Suite (Cloud Integration – CI). It is based on...",
+        "published_at":  "2026-04-29T10:30:28Z"
+    },
+    {
+        "id":  "sap_news_6df24ab8",
+        "title":  "Middleware Isn\u0027t Dead. It Grew Up.",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/middleware-isn-t-dead-it-grew-up/ba-p/14409100",
+        "category":  "Migration",
+        "summary":  "The recent online conversation sparked by SAP\u0027s strategic investment in n8n has been energetic, and largely for the right reasons. The excitement is warranted. The investment is significant. But some...",
+        "published_at":  "2026-06-02T18:12:24Z"
+    },
+    {
+        "id":  "sap_news_1340fb09",
+        "title":  "An XI (ABAP Proxy) Sender Simulator for SAP Integration Testing",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/an-xi-abap-proxy-sender-simulator-for-sap-integration-testing/ba-p/14429422",
+        "category":  "Migration",
+        "summary":  "Introduction Have you ever wanted to test one inbound ABAP Proxy interface, but before sending one single message you first had to prepare a PI, PO, or SAP Cloud Integration flow? I have run into t...",
+        "published_at":  "2026-06-29T15:02:58Z"
+    },
+    {
+        "id":  "sap_news_7ec4af06",
+        "title":  "Migrating Interfaces with Dynamic Configuration (ASMA) from SAP PO to SAP Integration Suite",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/migrating-interfaces-with-dynamic-configuration-asma-from-sap-po-to-sap/ba-p/14434776",
+        "category":  "Migration",
+        "summary":  "Migrating Interfaces with Dynamic Configuration (ASMA) from SAP Process Orchestration to SAP Integration Suite This article explains how to migrate integration interfaces that rely on Dynamic ...",
+        "published_at":  "2026-07-17T09:50:36Z"
+    },
+    {
+        "id":  "sap_news_034b2ca8",
+        "title":  "New Expert-guided Implementation Session: Migrating from SAP PI/PO to SAP Integration Suite",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/new-expert-guided-implementation-session-migrating-from-sap-pi-po-to-sap/ba-p/14454881",
+        "category":  "Migration",
+        "summary":  "Are you planning to migrate from SAP Process Integration (PI) / Process Orchestration (PO) to SAP Integration Suite? A successful migration begins with understanding the business value, assessing the...",
+        "published_at":  "2026-08-04T04:08:19Z"
+    },
+    {
+        "id":  "sap_news_6e876349",
+        "title":  "Build the Integration Foundation for the Agentic Era: 5 Sessions with SAP Integration Suite",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/build-the-integration-foundation-for-the-agentic-era-5-sessions-with-sap/ba-p/14459514",
+        "category":  "Migration",
+        "summary":  "Introduction The way enterprises integrate is changing fast: cloud-native platforms have replaced legacy middleware, event-driven architectures now power real-time business, and a new generation of ...",
+        "published_at":  "2026-08-07T12:10:27Z"
+    },
+    {
+        "id":  "sap_news_859f2f0c",
+        "title":  "SAP Integration Suite Webinar Series: Enabling Agentic AI, API-Centric, Event-Driven, B2B, and Moder",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/sap-integration-suite-webinar-series-enabling-agentic-ai-api-centric-event/ba-p/14463774",
+        "category":  "Migration",
+        "summary":  "Join Our SAP Integration Suite Webinar Series: From Agentic AI to API-Centric, Event-Driven, B2B, and Modern Integration Enterprise integration is evolving rapidly. As organizations move toward more...",
+        "published_at":  "2026-08-14T11:25:04Z"
+    },
+    {
+        "id":  "sap_news_2750a274",
+        "title":  "Automation of Communication Channel Monitoring in SAP PI/PO",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/automation-of-communication-channel-monitoring-in-sap-pi-po/ba-p/14468381",
+        "category":  "Migration",
+        "summary":  "In one of my SAP PI/PO landscapes, we had a requirement to monitor the health and availability of communication channels without manually logging into NWA or Communication Channel Monitoring. The ope...",
+        "published_at":  "2026-09-01T05:35:29Z"
+    },
+    {
+        "id":  "sap_news_dc8ffcab",
+        "title":  "Enhanced Landscape and Cost Estimation in Migration Assessment",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/enhanced-landscape-and-cost-estimation-in-migration-assessment/ba-p/14454645",
+        "category":  "Migration",
+        "summary":  "One of the most critical aspects of planning a migration from SAP Process Orchestration to SAP Integration Suite is understanding the real message consumption and performance characteristics of your ...",
+        "published_at":  "2026-08-03T15:52:51Z"
+    },
+    {
+        "id":  "sap_news_7f724d3a",
+        "title":  "SAP API Management for Beginners – Part 4: OAuth 2.0, KVM, Traffic Policies, Threat Protection\u0026CORS",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/sap-api-management-for-beginners-part-4-oauth-2-0-kvm-traffic-policies/ba-p/14457319",
+        "category":  "Migration",
+        "summary":  "SAP API Management for Beginners – Part 4: OAuth 2.0, KVM, Traffic Policies, Threat Protection \u0026 CORS Part 4 of a 5-part beginner series on SAP API Management within SAP Integration Suite. A ...",
+        "published_at":  "2026-08-24T16:00:00Z"
+    },
+    {
+        "id":  "sap_news_33cc400b",
+        "title":  "Exception Handling in SAP BTP Integration Suite Using AI Utility – Part 2",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/exception-handling-in-sap-btp-integration-suite-using-ai-utility-part-2/ba-p/14459904",
+        "category":  "Migration",
+        "summary":  "Building the Core Interface and AI Utility Helper — Part 2 Hey Again! So in Part 1, I gave you the big picture about Exception Handling in SAP BTP Integration Suite. Now comes the fun part (or mayb...",
+        "published_at":  "2026-08-10T21:47:20Z"
+    },
+    {
+        "id":  "sap_news_d89b1d43",
+        "title":  "One More iFlow? When Integration Becomes a Product",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/one-more-iflow-when-integration-becomes-a-product/ba-p/14460559",
+        "category":  "Blog",
+        "summary":  "Introduction: The goal of this document is not to build fewer iFlows — it is to stop building project-specific integrations every time a new requirement arrives. It includes practical examples of h...",
+        "published_at":  "2026-08-21T09:14:18Z"
+    },
+    {
+        "id":  "sap_news_5b7e54b4",
+        "title":  "Introducing the SAP Architecture Center to the Data Professionals Community",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/data-professionals-blog-posts/introducing-the-sap-architecture-center-to-the-data-professionals-community/ba-p/14460620",
+        "category":  "Best Practice",
+        "summary":  "If you work with data architectures today, your organization faces a familiar challenge. Proven blueprints for SAP plus non-SAP landscapes are scattered, inconsistent, and often are no...",
+        "published_at":  "2026-08-11T07:39:12Z"
+    },
+    {
+        "id":  "sap_news_2e3501f7",
+        "title":  "SAP Datasphere Integration Patterns: Lessons Learned from Two Years of Implementations",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/sap-datasphere-integration-patterns-lessons-learned-from-two-years-of/ba-p/14460833",
+        "category":  "Best Practice",
+        "summary":  "Over the past two years, we have implemented multiple SAP Datasphere integration scenarios across SAP and non-SAP landscapes. Our focus was on integrating data from: SAP S/4HANA Cloud Private Editi...",
+        "published_at":  "2026-08-17T10:53:25Z"
+    },
+    {
+        "id":  "sap_news_c0b4b8bc",
+        "title":  "SAP Cloud ALM (CALM) Task status integration with SAP Cloud Integration",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/sap-cloud-alm-calm-task-status-integration-with-sap-cloud-integration/ba-p/14461594",
+        "category":  "Blog",
+        "summary":  "You are using Cloud ALM, and you want to integrate your task statuses, i.e., in the following way: Change the status of the Requirements to status \"In Realization\", once the related feature is ...",
+        "published_at":  "2026-08-13T15:23:32Z"
+    },
+    {
+        "id":  "sap_news_6af9f2b0",
+        "title":  "AI-based Memory Profiling for Integration Flow Simulation: Optimize Before You Deploy",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/ai-based-memory-profiling-for-integration-flow-simulation-optimize-before/ba-p/14461815",
+        "category":  "Blog",
+        "summary":  "Memory optimization is often discovered too late, after an integration flow has already been deployed and is consuming unnecessary resources in productive environments. To address this challenge, SA...",
+        "published_at":  "2026-08-20T04:39:57Z"
+    },
+    {
+        "id":  "sap_news_92406df0",
+        "title":  "Signavio Process Transformation Manager API Landscape",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/signavio-process-transformation-manager-api-landscape/ba-p/14463673",
+        "category":  "Migration",
+        "summary":  "From a Transformation Cockpit to a Connected Enterprise Capability Fragmentation is one of the issues that constantly occur in large transformation programs. There can be a well-defined strategy; h...",
+        "published_at":  "2026-08-14T09:26:24Z"
+    },
+    {
+        "id":  "sap_news_56287631",
+        "title":  "Untangle the Spaghetti: Introducing the 1-Click Message Mapping Beautifier for SAP Cloud Integration",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/untangle-the-spaghetti-introducing-the-1-click-message-mapping-beautifier/ba-p/14463778",
+        "category":  "Migration",
+        "summary":  "The Common Struggle with Message Mappings If you have ever built or maintained a complex Message Mapping in SAP Integration Suite (Cloud Integration / CPI), this scenario will sound familiar: You o...",
+        "published_at":  "2026-08-17T12:16:35Z"
+    },
+    {
+        "id":  "sap_news_bc328fe8",
+        "title":  "Integrating Groq AI with SAP Cloud Integration (CPI) – Calling an AI API and Returning the Response",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/integrating-groq-ai-with-sap-cloud-integration-cpi-calling-an-ai-api-and/ba-p/14463798",
+        "category":  "Migration",
+        "summary":  "Introduction Generative AI is becoming an important part of modern integration architectures. SAP Integration Suite – Cloud Integration (CPI) can act as an orchestration layer between enterprise app...",
+        "published_at":  "2026-08-20T09:53:20Z"
+    },
+    {
+        "id":  "sap_news_b4506c71",
+        "title":  "Generative AI-Powered Document Processing in SAP Integration Suite",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/generative-ai-powered-document-processing-in-sap-integration-suite/ba-p/14466536",
+        "category":  "Migration",
+        "summary":  "Introduction What if SAP Integration Suite could understand a PDF document instead of simply processing it? Invoices, sales orders, and other business documents are often received as PDF attachment...",
+        "published_at":  "2026-08-26T11:16:33Z"
+    },
+    {
+        "id":  "sap_news_2adb0abc",
+        "title":  "The Event \u0026 API journey: From S/4 to empowered Agents via Integration Suite/Advanced Event Mesh/MCP",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/the-event-amp-api-journey-from-s-4-to-empowered-agents-via-integration/ba-p/14466816",
+        "category":  "Migration",
+        "summary":  "Intro \u0026 story Imagine this: It’s Tuesday, 9:00 AM. The Compliance Manager Michael sets a delivery block on a major Business Partner in SAP S/4HANA due to missing export control documen...",
+        "published_at":  "2026-09-03T09:51:59Z"
+    },
+    {
+        "id":  "sap_news_23d049e9",
+        "title":  "Understanding How to Use SAP Standard APIs for SAP S/4 Public Cloud in SAP CPI",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/understanding-how-to-use-sap-standard-apis-for-sap-s-4-public-cloud-in-sap/ba-p/14472548",
+        "category":  "Migration",
+        "summary":  "Understanding How to Use SAP Standard APIs for SAP S/4 Public Cloud in SAP CPI For using SAP Standard APIs in CPI we first need to create communication arrangement in the SAP System. Communication...",
+        "published_at":  "2026-08-27T05:17:32Z"
+    },
+    {
+        "id":  "sap_news_0cc562d1",
+        "title":  "Building a Conversational Monitoring Assistant for SAP Integration Suite IE + API+MCP+Anti-gravity",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/building-a-conversational-monitoring-assistant-for-sap-integration-suite-ie/ba-p/14477566",
+        "category":  "Migration",
+        "summary":  "Building a Conversational Monitoring Assistant for SAP Integration Suite Integration Cell + API Management + MCP + Google Antigravity What this blog demonstrates How to expose SAP Cloud I...",
+        "published_at":  "2026-09-01T16:02:36Z"
+    },
     {
         "id":  "sap_news_726b9222",
         "title":  "SAP Order Management Services Named a Leader in IDC MarketScape: Worldwide AI-Enabled Order Orchestration and Fulfillment Applications for Retail and B2C 2026 Vendor Assessment",

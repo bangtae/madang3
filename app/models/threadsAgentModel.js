@@ -23,6 +23,20 @@ window.ThreadsAgentModel = {
   sourcesList: [],
   publishedPosts: [],
   runtimeConfig: {},
+  sapAgentConfig: {
+    agentBaseUrl: "http://127.0.0.1:8080",
+    intervalMinutes: 60,
+    taskName: "SAPIntegrationSuiteAgent"
+  },
+  sapAgentStatus: {
+    is_running: false,
+    task_state: "Unknown",
+    last_run_time: "확인 불가",
+    next_run_time: "확인 불가",
+    total_news_count: 0,
+    agent_base_url: "http://127.0.0.1:8080",
+    interval_minutes: 60
+  },
 
   async loadTokenConfig() {
     try {
@@ -220,5 +234,122 @@ window.ThreadsAgentModel = {
     const isWarning = dDay <= 7;
 
     return { dDay, expiryDateStr, isExpired, isWarning };
+  },
+
+  /**
+   * SAP Integration Suite 에이전트 상태 조회
+   */
+  async fetchSapStatus() {
+    try {
+      const res = await fetch('/api/sap-agent/status');
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          this.sapAgentStatus = data;
+          return this.sapAgentStatus;
+        }
+      }
+    } catch (e) {
+      console.warn('[ThreadsAgentModel] Failed to fetch SAP agent status:', e);
+    }
+    return this.sapAgentStatus;
+  },
+
+  /**
+   * SAP Integration Suite 에이전트 시작
+   */
+  async startSapAgent() {
+    try {
+      const res = await fetch('/api/sap-agent/start', { method: 'POST' });
+      const data = await res.json();
+      await this.fetchSapStatus();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  },
+
+  /**
+   * SAP Integration Suite 에이전트 중지
+   */
+  async stopSapAgent() {
+    try {
+      const res = await fetch('/api/sap-agent/stop', { method: 'POST' });
+      const data = await res.json();
+      await this.fetchSapStatus();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  },
+
+  /**
+   * SAP Integration Suite 에이전트 1회 즉시 수집 트리거
+   */
+  async triggerSapAgent() {
+    try {
+      const res = await fetch('/api/sap-agent/trigger', { method: 'POST' });
+      const data = await res.json();
+      await this.fetchSapStatus();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  },
+
+  /**
+   * SAP Integration Suite 에이전트 설정 로드
+   */
+  async loadSapConfig() {
+    try {
+      const res = await fetch('/api/sap-agent/config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          this.sapAgentConfig = Object.assign({}, this.sapAgentConfig, data);
+        }
+      }
+    } catch (e) {
+      console.warn('[ThreadsAgentModel] Failed to load SAP config:', e);
+    }
+    return this.sapAgentConfig;
+  },
+
+  /**
+   * SAP Integration Suite 에이전트 설정 저장
+   */
+  async saveSapConfig(newConfig) {
+    try {
+      this.sapAgentConfig = Object.assign({}, this.sapAgentConfig, newConfig);
+      const res = await fetch('/api/sap-agent/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.sapAgentConfig)
+      });
+      const data = await res.json();
+      await this.fetchSapStatus();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  },
+
+  /**
+   * 범용 에이전트 Base URL Ping 연결 진단
+   */
+  async pingUrl(url) {
+    if (!url || !url.trim()) {
+      return { success: false, message: 'URL을 입력해주세요.' };
+    }
+    try {
+      const res = await fetch('/api/agent/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url.trim() })
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false, message: `연결 테스트 실패: ${e.message}` };
+    }
   }
 };

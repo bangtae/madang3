@@ -139,7 +139,7 @@
                 <span class="icon">🌐</span> 외부 유입 IP
               </button>
               <button class="nav-side-btn" data-side="batch-register">
-                <span class="icon">📥</span> 일괄등록
+                <span class="icon">📥</span> API정보 일괄등록
               </button>
               <button class="nav-side-btn" data-side="tech-stack">
                 <span class="icon">💻</span> 사이트 기술 정보 & 아키텍처
@@ -720,7 +720,8 @@
           <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
               <h3 style="margin: 0;">📜 실시간 접속 IP 기록 목록</h3>
-              <div style="display: flex; gap: 8px;">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" id="btn-test-telegram-alert" class="btn btn-warning btn-sm" title="가상 외부 IP 유입 텔레그램 알림 발송">📲 텔레그램 알림 테스트</button>
                 <button type="button" id="btn-refresh-logs" class="btn btn-secondary btn-sm">🔄 새로고침</button>
                 <button type="button" id="btn-clear-logs" class="btn btn-danger btn-sm">🗑️ 로그 전체 삭제</button>
               </div>

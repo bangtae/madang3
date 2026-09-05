@@ -116,7 +116,7 @@
   },
   {
     "id": "batch-register",
-    "name": "API 일괄등록",
+    "name": "API정보 일괄등록",
     "icon": "📥",
     "category": "admin",
     "guest": false,

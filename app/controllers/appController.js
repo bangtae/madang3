@@ -380,7 +380,7 @@ window.AppController = {
             { id: "ip-whitelist", name: "IP 화이트리스트", icon: "🛡️", category: "admin", guest: false, admin: true, description: "접속 허용 IP 주소 관리" },
             { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
             { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
-            { id: "batch-register", name: "API 일괄등록", icon: "📥", category: "admin", guest: false, admin: true, description: "엑셀 파일 업로드를 통한 API bulk 등록" },
+            { id: "batch-register", name: "API정보 일괄등록", icon: "📥", category: "admin", guest: false, admin: true, description: "엑셀 파일 업로드를 통한 API bulk 등록" },
             { id: "menu-config", name: "메뉴 권한 설정", icon: "⚙️", category: "admin", guest: false, admin: true, description: "게스트 및 관리자 모드 메뉴 노출 설정" }
           ];
           this.saveMenuConfig(defaultConfig);
@@ -551,6 +551,24 @@ window.AppController = {
           await window.IpModel.clearAccessLogs();
           this.loadAndRenderAccessLogs();
           window.UiView.showToast('🗑️ 접속 로그 기록이 전체 삭제되었습니다.');
+        }
+      });
+    }
+
+    const btnTestTelegramAlert = document.getElementById('btn-test-telegram-alert');
+    if (btnTestTelegramAlert) {
+      btnTestTelegramAlert.addEventListener('click', async () => {
+        try {
+          const fakeIp = `203.0.113.${Math.floor(Math.random() * 200) + 10}`;
+          const res = await fetch('/api/telegram/test-alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip: fakeIp })
+          });
+          const data = await res.json();
+          window.UiView.showToast(data.message || '📲 텔레그램 알림을 발송했습니다.');
+        } catch (e) {
+          window.UiView.showToast('⚠️ 텔레그램 알림 발송 중 오류가 발생했습니다.');
         }
       });
     }
@@ -1438,6 +1456,7 @@ window.AppController = {
   async refreshThreadsAgentStatus() {
     if (!window.ThreadsAgentModel) return;
     const status = await window.ThreadsAgentModel.fetchStatus();
+    await window.ThreadsAgentModel.fetchSapStatus();
     const dDayInfo = window.ThreadsAgentModel.getTokenDDay();
     if (window.ThreadsAgentView) {
       window.ThreadsAgentView.renderHeaderQuickBar(status, dDayInfo);
@@ -1450,7 +1469,9 @@ window.AppController = {
   async refreshThreadsAgentView() {
     if (!window.ThreadsAgentModel) return;
     await window.ThreadsAgentModel.loadTokenConfig();
+    await window.ThreadsAgentModel.loadSapConfig();
     await window.ThreadsAgentModel.fetchStatus();
+    await window.ThreadsAgentModel.fetchSapStatus();
     await window.ThreadsAgentModel.fetchSources();
     await window.ThreadsAgentModel.fetchPosts();
     await window.ThreadsAgentModel.fetchRuntimeConfig();
@@ -1494,7 +1515,7 @@ window.AppController = {
       { id: "ip-whitelist", name: "IP 화이트리스트", icon: "🛡️", category: "admin", guest: false, admin: true, description: "접속 허용 IP 주소 관리" },
       { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
       { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
-      { id: "batch-register", name: "API 일괄등록", icon: "📥", category: "admin", guest: false, admin: true, description: "엑셀 파일 업로드를 통한 API bulk 등록" },
+      { id: "batch-register", name: "API정보 일괄등록", icon: "📥", category: "admin", guest: false, admin: true, description: "엑셀 파일 업로드를 통한 API bulk 등록" },
       { id: "menu-config", name: "메뉴 권한 설정", icon: "⚙️", category: "admin", guest: false, admin: true, description: "게스트 및 관리자 모드 메뉴 노출 설정" }
     ];
   },

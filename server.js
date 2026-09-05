@@ -8,12 +8,38 @@ process.on('unhandledRejection', (reason, promise) => {
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const telegramBot = require('./app/utils/telegramBotHelper');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// 외부 유입 IP 실시간 감지 및 텔레그램 승인/차단 알림 미들웨어
+app.use((req, res, next) => {
+  const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  const cleanIp = rawIp.split(',')[0].trim().replace(/^.*:/, '');
+  if (cleanIp && !req.path.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff2?|map|ttf)$/i)) {
+    try {
+      const dataDir = path.join(__dirname, 'data');
+      let allowed = [];
+      let blocked = [];
+      const aPath = path.join(dataDir, 'allowed_ips.json');
+      const bPath = path.join(dataDir, 'blocked_ips.json');
+      if (fs.existsSync(aPath)) allowed = JSON.parse(fs.readFileSync(aPath, 'utf8'));
+      if (fs.existsSync(bPath)) blocked = JSON.parse(fs.readFileSync(bPath, 'utf8'));
+
+      const isAllowed = allowed.some(p => telegramBot.isIpMatch(cleanIp, p));
+      const isBlocked = blocked.some(p => telegramBot.isIpMatch(cleanIp, p));
+
+      if (!isAllowed && !isBlocked && !telegramBot.isPrivateOrLocalIp(cleanIp)) {
+        telegramBot.sendNewIpAlert(cleanIp, req.path, '미분류 외부 접속');
+      }
+    } catch (e) {}
+  }
+  next();
+});
 
 // Static files serving
 app.use(express.static(__dirname));
@@ -349,11 +375,160 @@ app.all('/api/threads-agent/*', async (req, res) => {
   }
 });
 
+// SAP Integration Suite Agent Endpoints
+const sapAgentConfigFile = path.join(dataDir, 'sapAgentConfig.json');
+
+app.get('/api/sap-agent/status', (req, res) => {
+  const { exec } = require('child_process');
+  let newsCount = 0;
+  const sapNewsFile = path.join(dataDir, 'sapNews.json');
+  if (fs.existsSync(sapNewsFile)) {
+    try {
+      const arr = JSON.parse(fs.readFileSync(sapNewsFile, 'utf8'));
+      if (Array.isArray(arr)) newsCount = arr.length;
+    } catch(e) {}
+  }
+  let baseUrl = 'http://127.0.0.1:8080';
+  let intervalMinutes = 60;
+  if (fs.existsSync(sapAgentConfigFile)) {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(sapAgentConfigFile, 'utf8'));
+      if (cfg.agentBaseUrl) baseUrl = cfg.agentBaseUrl;
+      if (cfg.intervalMinutes) intervalMinutes = parseInt(cfg.intervalMinutes, 10);
+    } catch(e) {}
+  }
+
+  exec('schtasks /query /tn "SAPIntegrationSuiteAgent" /fo CSV', (err, stdout) => {
+    let taskState = 'Unknown';
+    let nextRun = '확인 불가';
+    let isRunning = false;
+    if (!err && stdout) {
+      const lines = stdout.trim().split('\n');
+      if (lines.length > 1) {
+        const parts = lines[1].split('","').map(s => s.replace(/(^"|"$)/g, ''));
+        if (parts.length > 2) {
+          taskState = parts[2] || 'Ready';
+          nextRun = parts[1] || '확인 불가';
+          if (taskState.toLowerCase() === 'running') isRunning = true;
+        }
+      }
+    }
+    res.json({
+      is_running: isRunning,
+      task_state: taskState,
+      last_run_time: '기록됨',
+      next_run_time: nextRun,
+      total_news_count: newsCount,
+      agent_base_url: baseUrl,
+      interval_minutes: intervalMinutes,
+      agent_dir: 'C:\\Users\\bangt\\Downloads\\madang6\\sap-integration-agent'
+    });
+  });
+});
+
+app.post('/api/sap-agent/start', (req, res) => {
+  const { exec } = require('child_process');
+  exec('schtasks /run /tn "SAPIntegrationSuiteAgent"', (err) => {
+    if (err) {
+      res.json({ success: false, message: `실행 실패: ${err.message}` });
+    } else {
+      res.json({ success: true, message: 'SAP Integration Suite 에이전트 작업을 시작했습니다.' });
+    }
+  });
+});
+
+app.post('/api/sap-agent/stop', (req, res) => {
+  const { exec } = require('child_process');
+  exec('schtasks /end /tn "SAPIntegrationSuiteAgent"', () => {
+    exec('taskkill /f /fi "IMAGENAME eq powershell.exe" /fi "WINDOWTITLE eq *sap_collector*"', () => {
+      res.json({ success: true, message: 'SAP Integration Suite 에이전트 작업을 중지했습니다.' });
+    });
+  });
+});
+
+app.post('/api/sap-agent/trigger', (req, res) => {
+  const { exec } = require('child_process');
+  const agentScript = 'C:\\Users\\bangt\\Downloads\\madang6\\sap-integration-agent\\sap_collector.ps1';
+  exec(`powershell -ExecutionPolicy Bypass -File "${agentScript}"`, { timeout: 20000 }, (err) => {
+    let newsCount = 0;
+    const sapNewsFile = path.join(dataDir, 'sapNews.json');
+    if (fs.existsSync(sapNewsFile)) {
+      try {
+        const arr = JSON.parse(fs.readFileSync(sapNewsFile, 'utf8'));
+        if (Array.isArray(arr)) newsCount = arr.length;
+      } catch(e) {}
+    }
+    if (err) {
+      res.json({ success: false, message: `수집 실패: ${err.message}` });
+    } else {
+      res.json({ success: true, message: 'SAP 최신 소식 즉시 수집을 완료했습니다.', newsCount });
+    }
+  });
+});
+
+app.get('/api/sap-agent/config', (req, res) => {
+  if (fs.existsSync(sapAgentConfigFile)) {
+    try {
+      res.json(JSON.parse(fs.readFileSync(sapAgentConfigFile, 'utf8')));
+      return;
+    } catch(e) {}
+  }
+  res.json({ agentBaseUrl: 'http://127.0.0.1:8080', intervalMinutes: 60, taskName: 'SAPIntegrationSuiteAgent' });
+});
+
+app.post('/api/sap-agent/config', (req, res) => {
+  try {
+    fs.writeFileSync(sapAgentConfigFile, JSON.stringify(req.body || {}, null, 2), 'utf8');
+    res.json({ success: true, message: 'SAP 에이전트 설정이 저장되었습니다.' });
+  } catch(e) {
+    res.json({ success: false, message: e.message });
+  }
+});
+
+// Ping Endpoint
+app.post('/api/agent/ping', async (req, res) => {
+  const targetUrl = (req.body && req.body.url ? req.body.url : '').replace('localhost', '127.0.0.1');
+  if (!targetUrl) return res.json({ success: false, message: '유효한 URL이 지정되지 않았습니다.' });
+  const start = Date.now();
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 3000);
+    const r = await fetch(targetUrl, { signal: controller.signal });
+    clearTimeout(id);
+    const latencyMs = Date.now() - start;
+    res.json({
+      success: true,
+      statusCode: r.status,
+      latencyMs,
+      url: targetUrl,
+      message: `연결 성공 (${latencyMs}ms, HTTP ${r.status})`
+    });
+  } catch(err) {
+    const latencyMs = Date.now() - start;
+    res.json({
+      success: false,
+      latencyMs,
+      url: targetUrl,
+      error: err.message,
+      message: '연결 실패: 에이전트 서버가 응답하지 않습니다.'
+    });
+  }
+});
+
 // Health check endpoint for GCP Cloud Engine/Run
 app.get('/_health', (req, res) => {
   res.status(200).send('OK');
 });
 
+// 텔레그램 알림 테스트 엔드포인트
+app.post('/api/telegram/test-alert', async (req, res) => {
+  const testIp = (req.body && req.body.ip) || '203.0.113.88';
+  const sent = await telegramBot.sendNewIpAlert(testIp, '/test', '테스트 유입 시뮬레이션');
+  res.json({ success: sent, message: sent ? `텔레그램 알림 발송 완료: ${testIp}` : '알림 발송 실패 (설정 또는 쿨다운 확인)' });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 PORTAL BANG Server running on 0.0.0.0:${PORT}`);
+  telegramBot.startPolling(3000);
 });
+

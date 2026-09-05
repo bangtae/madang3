@@ -453,8 +453,23 @@ window.MonsterDefenseView = (function() {
       }
     };
 
-    // 키보드 이벤트
-    window.addEventListener('keydown', (e) => {
+    // 키보드 이벤트 (이전 리스너 중복 방지 및 입력창/화면 이탈 시 차단 방어)
+    if (window._monsterDefenseKeyHandler) {
+      window.removeEventListener('keydown', window._monsterDefenseKeyHandler);
+    }
+    window._monsterDefenseKeyHandler = (e) => {
+      // 1. 현재 화면에 몬스터 디펜스 게임 캔버스가 없으면 무시
+      const canvasEl = document.getElementById('monster-defense-canvas');
+      if (!canvasEl || !document.body.contains(canvasEl)) {
+        return;
+      }
+
+      // 2. input, textarea 등 텍스트 입력창 포커스 시 키 가로채기 금지 (스페이스 띄어쓰기 보호)
+      const target = e.target;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
       if (e.key === '1') selectHero('regool');
       if (e.key === '2') selectHero('himo');
       if (e.key === '3') selectHero('gomdum');
@@ -463,7 +478,8 @@ window.MonsterDefenseView = (function() {
         triggerUltimate();
       }
       if (e.key === 'r' || e.key === 'R') restartGame();
-    });
+    };
+    window.addEventListener('keydown', window._monsterDefenseKeyHandler);
 
     /* ==========================================================
        9. 마우스 드래그 & 투척 이벤트 처리
