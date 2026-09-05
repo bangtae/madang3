@@ -12,6 +12,7 @@ const telegramBot = require('./app/utils/telegramBotHelper');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);
+const dataDir = path.join(__dirname, 'data');
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -22,7 +23,6 @@ app.use((req, res, next) => {
   const cleanIp = rawIp.split(',')[0].trim().replace(/^.*:/, '');
   if (cleanIp && !req.path.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff2?|map|ttf)$/i)) {
     try {
-      const dataDir = path.join(__dirname, 'data');
       let allowed = [];
       let blocked = [];
       const aPath = path.join(dataDir, 'allowed_ips.json');
