@@ -33,16 +33,25 @@ function Get-GeminiApiKey {
     if ($env:GEMINI_API_KEY -and $env:GEMINI_API_KEY -ne "your_gemini_api_key_here") {
         return $env:GEMINI_API_KEY
     }
-    $envFile = Join-Path $PSScriptRoot ".env"
-    if (Test-Path $envFile) {
-        $lines = Get-Content $envFile
-        foreach ($line in $lines) {
-            if ($line -match '^\s*GEMINI_API_KEY\s*=\s*(.+)$') {
-                $k = $matches[1].Trim()
-                if ($k -and $k -ne "your_gemini_api_key_here") {
-                    return $k
+    $candidateFiles = @()
+    if ($PSScriptRoot) { $candidateFiles += (Join-Path $PSScriptRoot ".env") }
+    if ($script:root) { $candidateFiles += (Join-Path $script:root ".env") }
+    $candidateFiles += (Join-Path (Get-Location) ".env")
+    $candidateFiles += "C:\Users\bangt\Downloads\madang3\.env"
+
+    foreach ($envFile in $candidateFiles) {
+        if ($envFile -and (Test-Path $envFile)) {
+            try {
+                $lines = [System.IO.File]::ReadAllLines($envFile, [System.Text.Encoding]::UTF8)
+                foreach ($line in $lines) {
+                    if ($line -match '^\s*GEMINI_API_KEY\s*=\s*(.+)$') {
+                        $k = $matches[1].Trim().Trim('"').Trim("'")
+                        if ($k -and $k -ne "your_gemini_api_key_here") {
+                            return $k
+                        }
+                    }
                 }
-            }
+            } catch {}
         }
     }
     return $null
@@ -1177,56 +1186,168 @@ while ($true) {
                             if ($null -ne $geminiKey -and $geminiKey.Length -gt 10) {
                                 $knowledgeSnippet = ""
                                 if (Test-Path $sapKnowledgeDataFile) {
-                                    $knowRaw = [System.IO.File]::ReadAllText($sapKnowledgeDataFile, [System.Text.Encoding]::UTF8)
-                                    $knowList = $knowRaw | ConvertFrom-Json
-                                    foreach ($k in $knowList[0..3]) {
-                                        $knowledgeSnippet += "[$($k.topic) - $($k.title)]: $($k.content)`n"
-                                    }
+                                    try {
+                                        $knowRaw = [System.IO.File]::ReadAllText($sapKnowledgeDataFile, [System.Text.Encoding]::UTF8)
+                                        $knowList = $knowRaw | ConvertFrom-Json
+                                        $qTerms = $userQuestion.ToLower().Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)
+                                        $scoredList = @()
+                                        foreach ($item in $knowList) {
+                                            $score = 0
+                                            $txt = "$($item.title) $($item.topic) $($item.content)".ToLower()
+                                            foreach ($w in $qTerms) {
+                                                if ($w.Length -gt 1 -and $txt.Contains($w)) { $score += 2 }
+                                            }
+                                            $scoredList += [PSCustomObject]@{ Item = $item; Score = $score }
+                                        }
+                                        $top = $scoredList | Sort-Object Score -Descending | Select-Object -First 4
+                                        foreach ($s in $top) {
+                                            $k = $s.Item
+                                            $knowledgeSnippet += "[사내 등록 지식: $($k.topic) - $($k.title)]`n$($k.content)`n`n"
+                                        }
+                                    } catch {}
+                                }
+
+                                $newsSnippet = ""
+                                if (Test-Path $sapNewsDataFile) {
+                                    try {
+                                        $newsRaw = [System.IO.File]::ReadAllText($sapNewsDataFile, [System.Text.Encoding]::UTF8)
+                                        $newsList = $newsRaw | ConvertFrom-Json
+                                        foreach ($n in $newsList[0..1]) {
+                                            $newsSnippet += "[SAP 최신 뉴스/업데이트]: $($n.title) ($($n.category))`n"
+                                        }
+                                    } catch {}
                                 }
 
                                 $systemPrompt = @"
-당신은 세계 최고 수준의 SAP Integration Suite (Cloud Integration) 수석 아키텍트 및 Groovy 스크립트 전문가입니다.
+당신은 세계 최고 수준의 SAP Integration Suite (Cloud Integration, API Management, Open Connectors) 수석 솔루션 아키텍트이자 Groovy 스크립트 전문가입니다.
 
-[지침]
-1. 질문에 대해 실무에서 즉시 적용 가능한 검증된 가이드, iFlow 구성 패턴, 또는 무결한 Groovy 코드를 작성하세요.
-2. Groovy 작성 시 processData(Message message) 시그니처와 com.sap.gateway.ip.core.customdev.util.Message 임포트를 정확히 준수하세요.
-3. 불필요한 사족 없이 핵심 해결책을 명확한 한국어로 서술하세요.
-
-[참조 지식베이스]
-$knowledgeSnippet
-
+[답변 생성 핵심 원칙]
+1. 사용자의 질문에 정확히 맞추어 실무 적용 가능한 완벽한 iFlow 단계별 구성 가이드, 프로토콜 설정(Adapter, Content Modifier, Request-Reply, Exception Subprocess 등) 및 무결한 Groovy 코드를 작성하세요.
+2. 아래에 제공된 [사내 SAP Integration Suite 등록 지식베이스]를 적극 반영하여, 최신 SAP BTP 표준과 모범 사례(Best Practices)에 입각하여 답변하세요.
+3. 인사말이나 '고객님은 ... 전문가로서' 같은 불필요한 사족을 절대 출력하지 말고 곧바로 본론을 서술하세요.
+4. [답변 포맷 구조 규칙 - 반드시 준수]:
+   - 먼저 상단에 간결하고 명확한 요약 섹션을 작성하세요:
+     ### 📋 핵심 요약 및 추천 iFlow 구성
+     (3~5줄 분량의 개요 및 필수 iFlow 스텝 목록)
+   - 요약이 끝나면 반드시 아래 구분자 한 줄을 단독으로 출력하세요:
+     ---DETAILS---
+   - 구분자 아래에는 상세 설정과 코드를 빠짐없이 완벽하게 작성하세요:
+     ### 🔍 상세 구현 가이드 & Groovy 코드
+     (각 스텝별 세부 설정 파라미터, Adapter 프로토콜 설정, Request-Reply, 무결한 Groovy 스크립트 전문, Exception Subprocess, End Event 및 테스트 검증 절차)
+5. Groovy 스크립트 작성 시 processData(Message message) 시그니처와 com.sap.gateway.ip.core.customdev.util.Message 임포트를 정확히 준수하세요.
+6. 마지막 End Event 및 테스트/검증 요령까지 생략 없이 100% 완전하게 문장을 끝맺으세요.
+"@
+                                $userContentText = @"
+$(if (-not [string]::IsNullOrWhiteSpace($knowledgeSnippet)) { "[사내 SAP Integration Suite 등록 지식베이스]`n$knowledgeSnippet`n" })
+$(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 SAP 뉴스/업데이트]`n$newsSnippet`n" })
 [사용자 질문]: $userQuestion
 "@
 
-                                $geminiBody = [PSCustomObject]@{
-                                    contents = @(
-                                        [PSCustomObject]@{
-                                            parts = @(
-                                                [PSCustomObject]@{ text = $systemPrompt }
-                                            )
-                                        }
-                                    )
-                                } | ConvertTo-Json -Depth 5
+                                $isSearchQuery = ($userQuestion -match "최신|뉴스|공지|업데이트|릴리즈|검색|동향|사이트|url|링크")
+                                $modelList = @("gemini-2.5-flash-lite", "gemini-2.5-flash")
+                                $gResp = $null
 
-                                $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$geminiKey"
-                                $gResp = Invoke-RestMethod -Uri $geminiUrl -Method Post -ContentType "application/json" -Body ([System.Text.Encoding]::UTF8.GetBytes($geminiBody)) -TimeoutSec 15 -ErrorAction SilentlyContinue
-                                if ($gResp.candidates -and $gResp.candidates[0].content.parts[0].text) {
-                                    $answerText = $gResp.candidates[0].content.parts[0].text
+                                # Gemini 호출 람다 (검색 도구 옵션 포함)
+                                $callGemini = {
+                                    param([bool]$withSearch)
+                                    $payloadObj = [PSCustomObject]@{
+                                        system_instruction = [PSCustomObject]@{
+                                            parts = @( [PSCustomObject]@{ text = $systemPrompt } )
+                                        }
+                                        contents = @(
+                                            [PSCustomObject]@{
+                                                role = "user"
+                                                parts = @( [PSCustomObject]@{ text = $userContentText } )
+                                            }
+                                        )
+                                        generationConfig = [PSCustomObject]@{
+                                            temperature = 0.2
+                                            maxOutputTokens = 8192
+                                        }
+                                    }
+                                    if ($withSearch) {
+                                        $payloadObj | Add-Member -NotePropertyName "tools" -NotePropertyValue @( [PSCustomObject]@{ google_search = [PSCustomObject]@{} } )
+                                    }
+                                    $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes(($payloadObj | ConvertTo-Json -Depth 6))
+
+                                    foreach ($mName in $modelList) {
+                                        $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/${mName}:generateContent?key=$geminiKey"
+                                        try {
+                                            $res = Invoke-RestMethod -Uri $geminiUrl -Method Post -ContentType "application/json" -Body $jsonBytes -TimeoutSec 75 -ErrorAction Stop
+                                            if ($res.candidates -and $res.candidates[0].content.parts[0].text) {
+                                                return $res
+                                            }
+                                        } catch {}
+                                    }
+                                    return $null
+                                }
+
+                                try {
+                                    # 기술/설계 질문은 검색도구 없이 온전한 코드/다이어그램 생성, 뉴스/최신 질문은 검색도구 활성화
+                                    if ($isSearchQuery) {
+                                        $gResp = & $callGemini $true
+                                        # 검색 결과가 비정상적으로 잘렸거나 너무 짧은 경우 온전한 생성을 위해 재시도
+                                        if ($null -eq $gResp -or ($gResp.candidates[0].content.parts[0].text.Length -lt 1500 -and $gResp.candidates[0].content.parts[0].text -match ":\s*$")) {
+                                            $retryResp = & $callGemini $false
+                                            if ($null -ne $retryResp) { $gResp = $retryResp }
+                                        }
+                                    } else {
+                                        $gResp = & $callGemini $false
+                                    }
+
+                                    if ($null -ne $gResp -and $gResp.candidates -and $gResp.candidates[0].content.parts[0].text) {
+                                        $answerText = $gResp.candidates[0].content.parts[0].text
+
+                                        # Grounding 출처 링크 추가 (검색 도구 사용 시)
+                                        if ($gResp.candidates[0].groundingMetadata -and $gResp.candidates[0].groundingMetadata.groundingChunks) {
+                                            $sources = @()
+                                            foreach ($chunk in $gResp.candidates[0].groundingMetadata.groundingChunks) {
+                                                if ($chunk.web -and $chunk.web.uri -and -not ($sources | Where-Object { $_.uri -eq $chunk.web.uri })) {
+                                                    $srcTitle = if ($chunk.web.title) { $chunk.web.title } else { "SAP 공식 문서/참조" }
+                                                    $sources += [PSCustomObject]@{ uri = $chunk.web.uri; title = $srcTitle }
+                                                }
+                                            }
+                                            if ($sources.Count -gt 0) {
+                                                $answerText += "`n`n---`n#### 🌐 실시간 인터넷 검색 및 공식 SAP 참조 자료`n"
+                                                $idx = 1
+                                                foreach ($src in $sources[0..[Math]::Min(4, $sources.Count - 1)]) {
+                                                    $answerText += "$idx. [$($src.title)]($($src.uri))`n"
+                                                    $idx++
+                                                }
+                                            }
+                                        }
+
+                                        $consultingResult = [PSCustomObject]@{
+                                            success = $true
+                                            answer = $answerText
+                                            timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                                        }
+                                    } else {
+                                        $consultingResult = [PSCustomObject]@{
+                                            success = $false
+                                            message = "Gemini API로부터 유효한 답변을 받지 못했습니다. 잠시 후 다시 시도해주세요."
+                                        }
+                                    }
+                                } catch {
                                     $consultingResult = [PSCustomObject]@{
-                                        success = $true
-                                        answer = $answerText
-                                        timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                                        success = $false
+                                        message = "Gemini API 호출 실패: $($_.Exception.Message)"
                                     }
                                 }
                             }
                         }
-                    } catch {}
+                    } catch {
+                        $consultingResult = [PSCustomObject]@{
+                            success = $false
+                            message = "요청 처리 중 오류 발생: $($_.Exception.Message)"
+                        }
+                    }
                 }
 
                 if ($null -eq $consultingResult) {
                     $consultingResult = [PSCustomObject]@{
                         success = $false
-                        message = "Gemini API 키가 설정되지 않았거나 호출에 실패했습니다. (.env 확인 필요)"
+                        message = "GEMINI_API_KEY가 설정되지 않았습니다. .env 파일에 유효한 Gemini API 키를 설정해주세요."
                     }
                 }
                 Send-JsonResponse $stream $corsHeaders ($consultingResult | ConvertTo-Json -Depth 5 -Compress)
@@ -1261,7 +1382,7 @@ $knowledgeSnippet
                                         )
                                     } | ConvertTo-Json -Depth 5
 
-                                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$geminiKey"
+                                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$geminiKey"
                                     $gResp = Invoke-RestMethod -Uri $geminiUrl -Method Post -ContentType "application/json" -Body ([System.Text.Encoding]::UTF8.GetBytes($geminiBody)) -TimeoutSec 5 -ErrorAction SilentlyContinue
 
                                     if ($gResp.candidates -and $gResp.candidates[0].content.parts[0].text) {
@@ -1353,7 +1474,7 @@ $knowledgeSnippet
                                         )
                                     } | ConvertTo-Json -Depth 5
 
-                                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$geminiKey"
+                                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$geminiKey"
                                     $gResp = Invoke-RestMethod -Uri $geminiUrl -Method Post -ContentType "application/json" -Body ([System.Text.Encoding]::UTF8.GetBytes($geminiBody)) -TimeoutSec 5 -ErrorAction SilentlyContinue
 
                                     if ($gResp.candidates -and $gResp.candidates[0].content.parts[0].text) {

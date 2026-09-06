@@ -3731,6 +3731,141 @@ input:disabled + .slider {
   font-size: 0.82rem;
 }
 
+/* SAP Consulting Summary & Accordion UI */
+.sap-consulting-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.sap-summary-box {
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-left: 4px solid #38bdf8;
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #f1f5f9;
+}
+
+.sap-summary-box h3,
+.sap-summary-box h4 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #38bdf8;
+  font-size: 1rem;
+}
+
+.sap-detail-action-bar {
+  display: flex;
+  justify-content: flex-start;
+  margin: 4px 0;
+}
+
+.sap-detail-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.25), rgba(14, 165, 233, 0.25));
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.sap-detail-toggle-btn:hover {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.45), rgba(14, 165, 233, 0.45));
+  border-color: #38bdf8;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3);
+}
+
+.sap-detail-toggle-btn.active {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+}
+
+.sap-detail-toggle-btn.active:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #f87171;
+  color: #fff;
+}
+
+.sap-detail-toggle-btn .toggle-icon {
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.sap-details-box {
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+.sap-details-box.collapsed {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sap-details-box.expanded {
+  max-height: 35000px;
+  opacity: 1;
+  pointer-events: auto;
+  margin-top: 8px;
+}
+
+.sap-details-content {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 16px 18px;
+  line-height: 1.6;
+}
+
+/* Code block header with copy button */
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 5px 12px;
+}
+
+.code-copy-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #94a3b8;
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-color: #38bdf8;
+}
+
+.code-copy-btn.copied {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border-color: #22c55e;
+}
+
 /* Knowledge List */
 .sap-knowledge-list {
   display: flex;

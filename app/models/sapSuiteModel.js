@@ -144,7 +144,7 @@ window.SapSuiteModel = {
       return { success: false, message: '질문 내용을 입력해주세요.' };
     }
 
-    // 1. 서버 REST API (/api/sap-consulting) 호출 시도
+    // 1. 서버 REST API (/api/sap-consulting) 호출
     try {
       const res = await fetch('/api/sap-consulting', {
         method: 'POST',
@@ -156,11 +156,23 @@ window.SapSuiteModel = {
         if (data.success && data.answer) {
           return { success: true, answer: data.answer, timestamp: data.timestamp };
         }
+        return {
+          success: false,
+          message: data.message || 'LLM 답변 생성에 실패했습니다. (서버 응답 오류)'
+        };
+      } else {
+        const errText = await res.text().catch(() => '');
+        return {
+          success: false,
+          message: `서버 통신 실패 (HTTP ${res.status}): ${errText || '서버가 응답하지 않습니다.'}`
+        };
       }
-    } catch (e) {}
-
-    // 2. 오프라인/로컬 지능형 도우미 (내장 컨설팅 엔진)
-    return this.generateOfflineConsulting(question.trim(), topic);
+    } catch (e) {
+      return {
+        success: false,
+        message: `백엔드 서버(/api/sap-consulting)에 연결할 수 없습니다 (${e.message}). 서버(server.js / server.ps1) 실행 상태와 .env의 GEMINI_API_KEY 설정을 확인해주세요.`
+      };
+    }
   },
 
   generateOfflineConsulting(q, topic) {

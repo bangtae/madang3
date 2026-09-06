@@ -245,21 +245,146 @@ app.post('/api/sap-consulting', async (req, res) => {
   const { question, topic } = req.body || {};
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!geminiKey || geminiKey === 'your_gemini_api_key_here') {
-    return res.json({ success: false, message: 'GEMINI_API_KEY가 설정되지 않았습니다.' });
+    return res.json({ 
+      success: false, 
+      message: 'GEMINI_API_KEY가 설정되지 않았습니다. .env 파일에 유효한 Google Gemini API 키를 입력해주세요.' 
+    });
   }
   try {
-    const prompt = `당신은 SAP Integration Suite 수석 전문가입니다. 질문: ${question}`;
-    const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
-    const r = await fetch(gUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-    });
-    const d = await r.json();
-    const answer = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    let knowledgeSnippet = '';
+    const knowFilePath = path.join(__dirname, 'data', 'sapKnowledge.json');
+    const newsFilePath = path.join(__dirname, 'data', 'sapNews.json');
+    
+    // 1. SAP 메뉴에 등록된 지식베이스(Knowledge Base)에서 연관 항목 검색
+    if (fs.existsSync(knowFilePath)) {
+      try {
+        const list = JSON.parse(fs.readFileSync(knowFilePath, 'utf8'));
+        if (Array.isArray(list)) {
+          const qWords = (question || '').toLowerCase().split(/\s+/).filter(w => w.length > 1);
+          // 연관도 점수 매기기
+          const scored = list.map(item => {
+            let score = 0;
+            const targetText = `${item.title || ''} ${item.topic || ''} ${(item.tags || []).join(' ')} ${item.content || ''}`.toLowerCase();
+            for (const word of qWords) {
+              if (targetText.includes(word)) score += 2;
+            }
+            return { item, score };
+          });
+          scored.sort((a, b) => b.score - a.score);
+          const topItems = scored.slice(0, 4).map(s => s.item);
+          knowledgeSnippet = topItems.map(k => `[사내 등록 지식: ${k.topic} - ${k.title}]\n${k.content}`).join('\n\n');
+        }
+      } catch (e) {}
+    }
+
+    // 2. SAP 최신 뉴스/업데이트 요약 참조
+    let newsSnippet = '';
+    if (fs.existsSync(newsFilePath)) {
+      try {
+        const nList = JSON.parse(fs.readFileSync(newsFilePath, 'utf8'));
+        if (Array.isArray(nList) && nList.length > 0) {
+          newsSnippet = nList.slice(0, 2).map(n => `[SAP 뉴스/업데이트]: ${n.title} (${n.category || '공지'})`).join('\n');
+        }
+      } catch (e) {}
+    }
+
+    const systemPrompt = `당신은 세계 최고 수준의 SAP Integration Suite (Cloud Integration, API Management, Open Connectors) 수석 솔루션 아키텍트이자 Groovy 스크립트 전문가입니다.
+
+[답변 생성 핵심 원칙]
+1. 사용자의 질문에 정확히 맞추어 실무 적용 가능한 완벽한 iFlow 단계별 구성 가이드, 프로토콜 설정(Adapter, Content Modifier, Request-Reply, Exception Subprocess 등) 및 무결한 Groovy 코드를 작성하세요.
+2. 아래에 제공된 [사내 SAP Integration Suite 등록 지식베이스]를 적극 반영하여, 최신 SAP BTP 표준과 모범 사례(Best Practices)에 입각하여 답변하세요.
+3. 인사말이나 '고객님은 ... 전문가로서' 같은 불필요한 사족을 절대 출력하지 말고 곧바로 본론을 서술하세요.
+4. [답변 포맷 구조 규칙 - 반드시 준수]:
+   - 먼저 상단에 간결하고 명확한 요약 섹션을 작성하세요:
+     ### 📋 핵심 요약 및 추천 iFlow 구성
+     (3~5줄 분량의 개요 및 필수 iFlow 스텝 목록)
+   - 요약이 끝나면 반드시 아래 구분자 한 줄을 단독으로 출력하세요:
+     ---DETAILS---
+   - 구분자 아래에는 상세 설정과 코드를 빠짐없이 완벽하게 작성하세요:
+     ### 🔍 상세 구현 가이드 & Groovy 코드
+     (각 스텝별 세부 설정 파라미터, Adapter 프로토콜 설정, Request-Reply, 무결한 Groovy 스크립트 전문, Exception Subprocess, End Event 및 테스트 검증 절차)
+5. Groovy 스크립트 작성 시 processData(Message message) 시그니처와 com.sap.gateway.ip.core.customdev.util.Message 임포트를 정확히 준수하세요.
+6. 마지막 End Event 및 테스트/검증 요령까지 생략 없이 100% 완전하게 문장을 끝맺으세요.`;
+
+    const userContentText = `${knowledgeSnippet ? `[사내 SAP Integration Suite 등록 지식베이스]\n${knowledgeSnippet}\n\n` : ''}${newsSnippet ? `[사내 등록 최신 SAP 뉴스/업데이트]\n${newsSnippet}\n\n` : ''}[사용자 질문]: ${question}`;
+
+    const isSearchQuery = /최신|뉴스|공지|업데이트|릴리즈|검색|동향|사이트|url|링크/i.test(question || '');
+    const modelList = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+
+    const callGemini = async (withSearch) => {
+      const payload = {
+        system_instruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: userContentText }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 8192
+        }
+      };
+      if (withSearch) {
+        payload.tools = [{ google_search: {} }];
+      }
+
+      for (const mName of modelList) {
+        try {
+          const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${mName}:generateContent?key=${geminiKey}`;
+          const r = await fetch(gUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const d = await r.json();
+          if (d.candidates?.[0]?.content?.parts?.[0]?.text) {
+            return d;
+          }
+        } catch (err) {}
+      }
+      return null;
+    };
+
+    let d = null;
+    if (isSearchQuery) {
+      d = await callGemini(true);
+      if (!d || ((d.candidates?.[0]?.content?.parts?.[0]?.text?.length || 0) < 1500 && /:\s*$/.test(d.candidates?.[0]?.content?.parts?.[0]?.text || ''))) {
+        const retryD = await callGemini(false);
+        if (retryD) d = retryD;
+      }
+    } else {
+      d = await callGemini(false);
+    }
+
+    if (!d || !d.candidates?.[0]?.content?.parts?.[0]?.text) {
+      return res.json({ success: false, message: 'Gemini 모델로부터 유효한 답변을 받지 못했습니다. 잠시 후 다시 시도해주세요.' });
+    }
+
+    let answer = d.candidates[0].content.parts[0].text;
+
+    // Google Search Grounding 메타데이터 출처가 있는 경우 마크다운 출처 링크 추가
+    const groundingChunks = d.candidates[0]?.groundingMetadata?.groundingChunks;
+    if (Array.isArray(groundingChunks) && groundingChunks.length > 0) {
+      const uniqueUris = [];
+      for (const chunk of groundingChunks) {
+        if (chunk.web && chunk.web.uri && !uniqueUris.some(u => u.uri === chunk.web.uri)) {
+          uniqueUris.push({ uri: chunk.web.uri, title: chunk.web.title || 'SAP 공식 문서/참조' });
+        }
+      }
+      if (uniqueUris.length > 0) {
+        answer += '\n\n---\n#### 🌐 실시간 인터넷 검색 및 공식 SAP 참조 자료\n';
+        uniqueUris.slice(0, 5).forEach((u, i) => {
+          answer += `${i + 1}. [${u.title}](${u.uri})\n`;
+        });
+      }
+    }
+
     res.json({ success: true, answer, timestamp: new Date().toISOString() });
   } catch (e) {
-    res.json({ success: false, message: e.message });
+    res.json({ success: false, message: `서버 처리 오류: ${e.message}` });
   }
 });
 

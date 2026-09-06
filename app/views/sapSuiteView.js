@@ -414,16 +414,120 @@ window.SapSuiteView = {
   updateChatUI() {
     const chatContainer = document.getElementById('sap-chat-messages');
     if (!chatContainer) return;
-    chatContainer.innerHTML = this.chatMessages.map(msg => `
-      <div class="chat-message ${msg.sender} ${msg.loading ? 'loading' : ''}">
-        <div class="msg-avatar">${msg.sender === 'bot' ? '⚡' : '👤'}</div>
-        <div class="msg-bubble">
-          <div class="msg-text">${this.formatMarkdown(msg.text)}</div>
-          <div class="msg-time">${msg.time}</div>
+    chatContainer.innerHTML = this.chatMessages.map((msg, idx) => {
+      let contentHtml = '';
+      if (msg.sender === 'bot' && !msg.loading && msg.text) {
+        contentHtml = this.renderBotMessage(msg.text, idx);
+      } else {
+        contentHtml = this.formatMarkdown(msg.text);
+      }
+
+      return `
+        <div class="chat-message ${msg.sender} ${msg.loading ? 'loading' : ''}">
+          <div class="msg-avatar">${msg.sender === 'bot' ? '⚡' : '👤'}</div>
+          <div class="msg-bubble">
+            <div class="msg-text">${contentHtml}</div>
+            <div class="msg-time">${msg.time}</div>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
     chatContainer.scrollTop = chatContainer.scrollHeight;
+  },
+
+  renderBotMessage(text, idx) {
+    if (!text) return '';
+    const msgId = `sap-msg-${idx}`;
+    let summaryRaw = '';
+    let detailsRaw = '';
+
+    // 1. 프롬프트 표준 구분자 (---DETAILS---) 확인
+    if (text.includes('---DETAILS---')) {
+      const parts = text.split('---DETAILS---');
+      summaryRaw = parts[0].trim();
+      detailsRaw = parts.slice(1).join('\n\n').trim();
+    } else if (text.length > 600) {
+      // 2. 구분자가 없는 경우의 지능형 폴백 분할
+      let splitIdx = -1;
+      const markers = ['\n### 2.', '\n### 🔍', '\n#### 2.', '\n```'];
+      for (const m of markers) {
+        const found = text.indexOf(m);
+        if (found > 100) {
+          splitIdx = found;
+          break;
+        }
+      }
+      if (splitIdx > -1) {
+        summaryRaw = text.substring(0, splitIdx).trim();
+        detailsRaw = text.substring(splitIdx).trim();
+      }
+    }
+
+    // 상세 내용이 분리된 경우: 2단 접기/펼치기 아코디언 카드 렌더링
+    if (detailsRaw) {
+      return `
+        <div class="sap-consulting-card" id="card-${msgId}">
+          <div class="sap-summary-box">
+            ${this.formatMarkdown(summaryRaw)}
+          </div>
+          <div class="sap-detail-action-bar">
+            <button type="button" class="sap-detail-toggle-btn" onclick="window.SapSuiteView.toggleDetails('${msgId}')" id="btn-${msgId}">
+              <span class="toggle-icon">▼</span>
+              <span class="toggle-text">자세히 보기 (상세 설정 &amp; Groovy 코드)</span>
+            </button>
+          </div>
+          <div class="sap-details-box collapsed" id="details-${msgId}">
+            <div class="sap-details-content">
+              ${this.formatMarkdown(detailsRaw)}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 일반 단일 메시지
+    return this.formatMarkdown(text);
+  },
+
+  toggleDetails(msgId) {
+    const detailsEl = document.getElementById(`details-${msgId}`);
+    const btnEl = document.getElementById(`btn-${msgId}`);
+    if (!detailsEl || !btnEl) return;
+    const isCollapsed = detailsEl.classList.contains('collapsed');
+    if (isCollapsed) {
+      detailsEl.classList.remove('collapsed');
+      detailsEl.classList.add('expanded');
+      btnEl.classList.add('active');
+      const icon = btnEl.querySelector('.toggle-icon');
+      const txt = btnEl.querySelector('.toggle-text');
+      if (icon) icon.textContent = '▲';
+      if (txt) txt.textContent = '간단히 접기';
+    } else {
+      detailsEl.classList.remove('expanded');
+      detailsEl.classList.add('collapsed');
+      btnEl.classList.remove('active');
+      const icon = btnEl.querySelector('.toggle-icon');
+      const txt = btnEl.querySelector('.toggle-text');
+      if (icon) icon.textContent = '▼';
+      if (txt) txt.textContent = '자세히 보기 (상세 설정 & Groovy 코드)';
+    }
+  },
+
+  copyCode(codeId, btn) {
+    const el = document.getElementById(codeId);
+    if (!el) return;
+    const text = el.innerText || el.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '✅ 복사됨!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(() => {
+      alert('클립보드 복사에 실패했습니다.');
+    });
   },
 
   postRender() {
@@ -436,8 +540,16 @@ window.SapSuiteView = {
     let html = this.escapeHtml(text);
 
     // 코드 블록 (```groovy ... ``` 등)
+    let codeBlockIdx = 0;
     html = html.replace(/```([a-zA-Z]*)\n([\s\S]*?)```/g, (match, lang, code) => {
-      return `<div class="code-block-wrapper"><div class="code-lang">${lang || 'CODE'}</div><pre><code class="language-${lang}">${code}</code></pre></div>`;
+      const cId = `code-block-${Date.now()}-${codeBlockIdx++}`;
+      return `<div class="code-block-wrapper">
+        <div class="code-block-header">
+          <span class="code-lang">${lang || 'CODE'}</span>
+          <button type="button" class="code-copy-btn" onclick="window.SapSuiteView.copyCode('${cId}', this)">📋 복사</button>
+        </div>
+        <pre><code id="${cId}" class="language-${lang}">${code}</code></pre>
+      </div>`;
     });
 
     // 인라인 코드
@@ -447,8 +559,12 @@ window.SapSuiteView = {
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
     // 헤딩
+    html = html.replace(/^#### (.*$)/gim, '<h5 class="md-h5">$1</h5>');
     html = html.replace(/^### (.*$)/gim, '<h4 class="md-h4">$1</h4>');
     html = html.replace(/^## (.*$)/gim, '<h3 class="md-h3">$1</h3>');
+
+    // 리스트 (* item 또는 - item)
+    html = html.replace(/^\s*[\*\-]\s+(.*$)/gim, '<li class="md-li">$1</li>');
 
     // 줄바꿈
     html = html.replace(/\n/g, '<br/>');
