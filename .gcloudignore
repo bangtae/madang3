@@ -16,4 +16,5 @@
 *.pem
 scratch/
 backups/
+*.bak
 node_modules/

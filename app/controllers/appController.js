@@ -1,4 +1,4 @@
-// app/controllers/appController.js - 애플리케이션 통합 컨트롤러
+﻿// app/controllers/appController.js - 애플리케이션 통합 컨트롤러
 
 window.AppController = {
   currentTopView: 'main',
@@ -347,6 +347,26 @@ window.AppController = {
         this.closeMobileSidebar();
       });
     });
+
+        // 몬스터웨이브 툴바 이벤트 (리셋, 전체화면)
+    const btnWaveReset = document.getElementById('btn-monsterwave-reset');
+    if (btnWaveReset) {
+      btnWaveReset.addEventListener('click', () => {
+        const frame = document.getElementById('monster-wave-frame');
+        if (frame) frame.src = frame.src;
+      });
+    }
+    const btnWaveFullscreen = document.getElementById('btn-monsterwave-fullscreen');
+    if (btnWaveFullscreen) {
+      btnWaveFullscreen.addEventListener('click', () => {
+        const viewport = document.getElementById('monster-wave-viewport');
+        if (!document.fullscreenElement) {
+          if (viewport && viewport.requestFullscreen) viewport.requestFullscreen();
+        } else {
+          if (document.exitFullscreen) document.exitFullscreen();
+        }
+      });
+    }
 
     // 3. 메뉴 권한 설정 저장 / 초기화 버튼 이벤트
     const btnSaveMenuConfig = document.getElementById('btn-save-menu-config');
@@ -1307,7 +1327,7 @@ window.AppController = {
       if (sideInvest) sideInvest.classList.add('hidden');
       if (sideLife) sideLife.classList.remove('hidden');
       if (sideAdmin) sideAdmin.classList.add('hidden');
-      this.switchSideNav('monster-defense');
+      this.switchSideNav('monster-wave');
     } else if (view === 'admin') {
       if (sideMain) sideMain.classList.add('hidden');
       if (sideApi) sideApi.classList.add('hidden');
@@ -1348,6 +1368,7 @@ window.AppController = {
     const viewStockTemp = document.getElementById('view-stock-temp');
     const viewThreadsAgent = document.getElementById('view-threads-agent');
     const viewMonsterDefense = document.getElementById('view-monster-defense');
+    const viewMonsterWave = document.getElementById('view-monster-wave');
 
     const hideAllViews = () => {
       if (viewDashboard) viewDashboard.classList.add('hidden');
@@ -1367,6 +1388,7 @@ window.AppController = {
       if (viewStockTemp) viewStockTemp.classList.add('hidden');
       if (viewThreadsAgent) viewThreadsAgent.classList.add('hidden');
       if (viewMonsterDefense) viewMonsterDefense.classList.add('hidden');
+      if (viewMonsterWave) viewMonsterWave.classList.add('hidden');
     };
 
     // 다른 뷰로 이동 시 게임 루프 일시정지 (리소스 절약)
@@ -1376,7 +1398,9 @@ window.AppController = {
 
     hideAllViews();
 
-    if (sideView === 'monster-defense') {
+    if (sideView === 'monster-wave') {
+      if (viewMonsterWave) viewMonsterWave.classList.remove('hidden');
+    } else if (sideView === 'monster-defense') {
       if (viewMonsterDefense) viewMonsterDefense.classList.remove('hidden');
       if (window.MonsterDefenseView) {
         setTimeout(() => {

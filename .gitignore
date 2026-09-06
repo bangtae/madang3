@@ -20,6 +20,7 @@ data/blocked_ips.json
 *.log
 scratch/
 backups/
+*.bak
 portal_bang_deploy.zip
 
 # System & OS Files (시스템 임시 파일 차단)
