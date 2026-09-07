@@ -1388,6 +1388,8 @@ window.AppController = {
       if (viewStockTemp) viewStockTemp.classList.add('hidden');
       const viewStockCouncil = document.getElementById('view-stock-council');
       if (viewStockCouncil) viewStockCouncil.classList.add('hidden');
+      const viewStockDebate = document.getElementById('view-stock-debate');
+      if (viewStockDebate) viewStockDebate.classList.add('hidden');
       if (viewThreadsAgent) viewThreadsAgent.classList.add('hidden');
       if (viewMonsterDefense) viewMonsterDefense.classList.add('hidden');
       if (viewMonsterWave) viewMonsterWave.classList.add('hidden');
@@ -1424,6 +1426,14 @@ window.AppController = {
       if (viewStockCouncil) viewStockCouncil.classList.remove('hidden');
       if (window.StockCouncilView) {
         window.StockCouncilView.render();
+      }
+    } else if (sideView === 'stock-debate') {
+      const viewStockDebate = document.getElementById('view-stock-debate');
+      if (viewStockDebate) viewStockDebate.classList.remove('hidden');
+      if (window.StockDebateModel && window.StockDebateView) {
+        window.StockDebateModel.loadDebates().then(() => {
+          window.StockDebateView.render();
+        });
       }
     } else if (sideView === 'dashboard') {
       if (viewDashboard) viewDashboard.classList.remove('hidden');
@@ -1501,6 +1511,11 @@ window.AppController = {
 
   async refreshThreadsAgentView() {
     if (!window.ThreadsAgentModel) return;
+    if (window.StockDebateModel && window.StockDebateModel.loadDebates) {
+      try {
+        await window.StockDebateModel.loadDebates();
+      } catch (e) {}
+    }
     await window.ThreadsAgentModel.loadTokenConfig();
     await window.ThreadsAgentModel.loadSapConfig();
     await window.ThreadsAgentModel.fetchStatus();

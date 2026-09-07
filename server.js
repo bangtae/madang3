@@ -208,6 +208,96 @@ app.post('/api/stock-council-reports', (req, res) => {
   }
 });
 
+// ==========================================
+// 🔥 AI 끝장 토론실 (Debate Arena) API
+// ==========================================
+app.get('/api/stock-debates', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'stockDebateLogs.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const fallbackPath = path.join(__dirname, 'data', 'initialStockDebateLogs.js');
+  if (fs.existsSync(fallbackPath)) {
+    try {
+      const code = fs.readFileSync(fallbackPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_STOCK_DEBATES\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to parse initialStockDebateLogs.js' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/stock-debates', (req, res) => {
+  const dataDir = path.join(__dirname, 'data');
+  const filePath = path.join(dataDir, 'stockDebateLogs.json');
+  const jsFilePath = path.join(dataDir, 'initialStockDebateLogs.js');
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    let existing = [];
+    if (fs.existsSync(filePath)) {
+      try { existing = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
+    }
+    const incoming = req.body;
+    if (Array.isArray(incoming)) {
+      existing = incoming;
+    } else if (incoming && incoming.id) {
+      const idx = existing.findIndex(r => r.id === incoming.id);
+      if (idx >= 0) existing[idx] = incoming;
+      else existing.unshift(incoming);
+    }
+    fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), 'utf8');
+    fs.writeFileSync(jsFilePath, `// data/initialStockDebateLogs.js\nwindow.PORTAL_DATA_STOCK_DEBATES = ${JSON.stringify(existing, null, 2)};\n`, 'utf8');
+    res.json({ success: true, count: existing.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/stock-debates/trigger', async (req, res) => {
+  const stock = (req.body?.stock || '005930').trim();
+  const topic = (req.body?.topic || '').trim();
+  const pythonPath = 'C:\\Users\\bangt\\Downloads\\madang6\\newsfilter_threads_agent\\.venv\\Scripts\\python.exe';
+  const scriptPath = 'C:\\Users\\bangt\\Downloads\\madang6\\debate_arena.py';
+
+  if (fs.existsSync(pythonPath) && fs.existsSync(scriptPath)) {
+    try {
+      const cp = require('child_process');
+      const args = [scriptPath, '--stock', stock, '--sync'];
+      if (topic) args.push('--topic', topic);
+      
+      cp.execFile(pythonPath, args, { cwd: path.dirname(scriptPath), encoding: 'utf8' }, (err, stdout, stderr) => {
+        if (err) {
+          console.error('[Debate Trigger Error]', err, stderr);
+          return res.status(500).json({ success: false, error: err.message, stderr });
+        }
+        try {
+          const lines = stdout.trim().split('\n');
+          let resultJson = null;
+          for (let i = lines.length - 1; i >= 0; i--) {
+            try {
+              resultJson = JSON.parse(lines[i]);
+              if (resultJson && resultJson.turns) break;
+            } catch (e) {}
+          }
+          return res.json({ 
+            success: true, 
+            debate: resultJson, 
+            message: `'${stock}' 끝장 토론이 성공적으로 완료 및 기록되었습니다!` 
+          });
+        } catch (parseErr) {
+          return res.json({ success: true, message: `'${stock}' 끝장 토론이 생성되었습니다.` });
+        }
+      });
+    } catch (e) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  } else {
+    res.status(500).json({ success: false, error: 'Python 환경 또는 debate_arena.py를 찾을 수 없습니다.' });
+  }
+});
+
 function getGeminiApiKey() {
   if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here') {
     return process.env.GEMINI_API_KEY;
@@ -777,7 +867,7 @@ app.get('/api/sap-agent/status', (req, res) => {
     } catch(e) {}
   }
   let baseUrl = 'http://127.0.0.1:8080';
-  let intervalMinutes = 60;
+  let intervalMinutes = 720;
   if (fs.existsSync(sapAgentConfigFile)) {
     try {
       const cfg = JSON.parse(fs.readFileSync(sapAgentConfigFile, 'utf8'));
@@ -837,7 +927,7 @@ app.post('/api/sap-agent/stop', (req, res) => {
 app.post('/api/sap-agent/trigger', (req, res) => {
   const { exec } = require('child_process');
   const agentScript = 'C:\\Users\\bangt\\Downloads\\madang6\\sap-integration-agent\\sap_collector.ps1';
-  exec(`powershell -ExecutionPolicy Bypass -File "${agentScript}"`, { timeout: 20000 }, (err) => {
+  exec(`powershell -ExecutionPolicy Bypass -File "${agentScript}" -Once`, { timeout: 20000 }, (err) => {
     let newsCount = 0;
     const sapNewsFile = path.join(dataDir, 'sapNews.json');
     if (fs.existsSync(sapNewsFile)) {
@@ -861,7 +951,7 @@ app.get('/api/sap-agent/config', (req, res) => {
       return;
     } catch(e) {}
   }
-  res.json({ agentBaseUrl: 'http://127.0.0.1:8080', intervalMinutes: 60, taskName: 'SAPIntegrationSuiteAgent' });
+  res.json({ agentBaseUrl: 'http://127.0.0.1:8080', intervalMinutes: 720, taskName: 'SAPIntegrationSuiteAgent' });
 });
 
 app.post('/api/sap-agent/config', (req, res) => {

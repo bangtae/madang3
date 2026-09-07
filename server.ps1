@@ -24,6 +24,8 @@ $stockTempDataFile = Join-Path $dataDir "stockTemp.json"
 $stockTempJsFile = Join-Path $dataDir "initialStockTemp.js"
 $stockCouncilDataFile = Join-Path $dataDir "stockCouncilReports.json"
 $stockCouncilJsFile = Join-Path $dataDir "initialStockCouncilReports.js"
+$stockDebateDataFile = Join-Path $dataDir "stockDebateLogs.json"
+$stockDebateJsFile = Join-Path $dataDir "initialStockDebateLogs.js"
 $sapNewsDataFile = Join-Path $dataDir "sapNews.json"
 $sapNewsJsFile = Join-Path $dataDir "initialSapNews.js"
 $sapKnowledgeDataFile = Join-Path $dataDir "sapKnowledge.json"
@@ -501,7 +503,29 @@ while ($true) {
             continue
         }
 
+        $ms = New-Object System.IO.MemoryStream
+        $ms.Write($buffer, 0, $bytesRead)
         $requestText = [System.Text.Encoding]::UTF8.GetString($buffer, 0, $bytesRead)
+        if ($requestText -match 'Content-Length:\s*(\d+)') {
+            $contentLength = [int]$Matches[1]
+            $headerEndIdx = $requestText.IndexOf("`r`n`r`n")
+            if ($headerEndIdx -ge 0) {
+                $headerByteCount = [System.Text.Encoding]::UTF8.GetByteCount($requestText.Substring(0, $headerEndIdx + 4))
+                $totalExpected = $headerByteCount + $contentLength
+                $readSw = [System.Diagnostics.Stopwatch]::StartNew()
+                while ($ms.Length -lt $totalExpected -and $readSw.ElapsedMilliseconds -lt 3000) {
+                    if ($stream.DataAvailable) {
+                        $extraRead = $stream.Read($buffer, 0, $buffer.Length)
+                        if ($extraRead -gt 0) {
+                            $ms.Write($buffer, 0, $extraRead)
+                        }
+                    } else {
+                        Start-Sleep -Milliseconds 10
+                    }
+                }
+            }
+        }
+        $requestText = [System.Text.Encoding]::UTF8.GetString($ms.ToArray())
         $lines = $requestText -split "\r?\n"
         if ($lines.Length -eq 0 -or [string]::IsNullOrWhiteSpace($lines[0])) {
             $client.Close()
@@ -689,6 +713,87 @@ while ($true) {
                 Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"분석이 시작되었습니다."}'
             } else {
                 Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"분석 실행 환경을 찾을 수 없습니다."}'
+            }
+        }
+        elseif ($urlPath -eq "/api/stock-debates") {
+            if ($method -eq "GET") {
+                if (Test-Path $stockDebateDataFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($stockDebateDataFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                } elseif (Test-Path $stockDebateJsFile) {
+                    $rawText = [System.IO.File]::ReadAllText($stockDebateJsFile, [System.Text.Encoding]::UTF8)
+                    $cleanJson = $rawText -replace '^window\.PORTAL_DATA_STOCK_DEBATES\s*=\s*', '' -replace ';\s*$', ''
+                    Send-JsonResponse $stream $corsHeaders $cleanJson
+                } else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        try {
+                            $incomingObj = $postData | ConvertFrom-Json
+                            $existingList = @()
+                            if (Test-Path $stockDebateDataFile) {
+                                try {
+                                    $rawExisting = [System.IO.File]::ReadAllText($stockDebateDataFile, [System.Text.Encoding]::UTF8)
+                                    $parsed = $rawExisting | ConvertFrom-Json
+                                    if ($parsed -is [System.Array]) { $existingList = [System.Collections.ArrayList]@($parsed) }
+                                    elseif ($parsed) { $existingList = [System.Collections.ArrayList]@($parsed) }
+                                } catch {}
+                            }
+                            if ($incomingObj -is [System.Array]) {
+                                $existingList = [System.Collections.ArrayList]@($incomingObj)
+                            } elseif ($incomingObj -and $incomingObj.id) {
+                                $filtered = @($existingList | Where-Object { $_.id -ne $incomingObj.id })
+                                $existingList = [System.Collections.ArrayList]@($filtered)
+                                $existingList.Insert(0, $incomingObj)
+                            }
+                            $finalJson = $existingList | ConvertTo-Json -Depth 10
+                            [System.IO.File]::WriteAllText($stockDebateDataFile, $finalJson, $Utf8NoBom)
+                            $jsContent = "// data/initialStockDebateLogs.js`nwindow.PORTAL_DATA_STOCK_DEBATES = $finalJson;`n"
+                            [System.IO.File]::WriteAllText($stockDebateJsFile, $jsContent, $Utf8NoBom)
+                        } catch {
+                            [System.IO.File]::WriteAllText($stockDebateDataFile, $postData, $Utf8NoBom)
+                        }
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/stock-debates/trigger") {
+            $stockQuery = "005930"
+            if ($requestLine -match '[?&]stock=([^&\s]+)') {
+                $stockQuery = [System.Uri]::UnescapeDataString($Matches[1]).Trim()
+            } elseif ($requestText -match '"stock"\s*:\s*"([^"]+)"') {
+                $stockQuery = $Matches[1].Trim()
+            }
+            if ($stockQuery -notmatch '^\d{6}$') {
+                $krxMapPath = Join-Path $PSScriptRoot "data\krx_stock_map.json"
+                if (Test-Path $krxMapPath) {
+                    try {
+                        $krxMapJson = [System.IO.File]::ReadAllText($krxMapPath, [System.Text.Encoding]::UTF8)
+                        $krxMap = $krxMapJson | ConvertFrom-Json
+                        if ($krxMap -and $krxMap.$stockQuery) {
+                            $stockQuery = $krxMap.$stockQuery
+                        } else {
+                            $cleanQ = $stockQuery.Replace(" ", "")
+                            if ($krxMap -and $krxMap.$cleanQ) {
+                                $stockQuery = $krxMap.$cleanQ
+                            }
+                        }
+                    } catch {}
+                }
+            }
+            $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
+            $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
+            if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
+                Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--stock", $stockQuery, "--sync") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"끝장 토론이 성공적으로 소집되었습니다. 잠시 후 피드가 갱신됩니다."}'
+            } else {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"토론 실행 환경을 찾을 수 없습니다."}'
             }
         }
         elseif ($urlPath -eq "/api/analyze-ai-url") {
@@ -920,7 +1025,7 @@ while ($true) {
             # 4. 설정 파일 조회
             $sapCfgFile = Join-Path $dataDir "sapAgentConfig.json"
             $sapBaseUrl = "http://127.0.0.1:8080"
-            $intervalMin = 60
+            $intervalMin = 720
             if (Test-Path $sapCfgFile) {
                 try {
                     $cRaw = [System.IO.File]::ReadAllText($sapCfgFile, [System.Text.Encoding]::UTF8)
@@ -975,7 +1080,7 @@ while ($true) {
                 try {
                     $pinfo = New-Object System.Diagnostics.ProcessStartInfo
                     $pinfo.FileName = "powershell.exe"
-                    $pinfo.Arguments = "-ExecutionPolicy Bypass -File `"$agentScript`""
+                    $pinfo.Arguments = "-ExecutionPolicy Bypass -File `"$agentScript`" -Once"
                     $pinfo.WorkingDirectory = "C:\Users\bangt\Downloads\madang6\sap-integration-agent"
                     $pinfo.UseShellExecute = $false
                     $pinfo.CreateNoWindow = $true
@@ -1004,7 +1109,7 @@ while ($true) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($sapCfgFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
                 } else {
-                    $defaultSapCfg = '{"agentBaseUrl":"http://127.0.0.1:8080","intervalMinutes":60,"taskName":"SAPIntegrationSuiteAgent"}'
+                    $defaultSapCfg = '{"agentBaseUrl":"http://127.0.0.1:8080","intervalMinutes":720,"taskName":"SAPIntegrationSuiteAgent"}'
                     Send-JsonResponse $stream $corsHeaders $defaultSapCfg
                 }
             }

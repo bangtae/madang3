@@ -25,7 +25,7 @@ window.ThreadsAgentModel = {
   runtimeConfig: {},
   sapAgentConfig: {
     agentBaseUrl: "http://127.0.0.1:8080",
-    intervalMinutes: 60,
+    intervalMinutes: 720,
     taskName: "SAPIntegrationSuiteAgent"
   },
   sapAgentStatus: {

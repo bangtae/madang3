@@ -122,6 +122,9 @@
               <button class="nav-side-btn" data-side="stock-council">
                 <span class="icon">🏛️</span> AI 주식 심의실
               </button>
+              <button class="nav-side-btn" data-side="stock-debate">
+                <span class="icon">🔥</span> AI 끝장 토론실
+              </button>
             </li>
             <li class="menu-item hidden" id="side-menu-life">
               <button class="nav-side-btn active" data-side="monster-wave">
@@ -133,7 +136,7 @@
             </li>
             <li class="menu-item hidden" id="side-menu-admin">
               <button class="nav-side-btn active" data-side="threads-agent">
-                <span class="icon">🤖</span> 에이전트 목록
+                <span class="icon">🤖</span> 에이전트 정보
               </button>
               <button class="nav-side-btn" data-side="ip-whitelist">
                 <span class="icon">🛡️</span> IP 화이트리스트
@@ -1180,6 +1183,48 @@
           </div>
         </section>
 
+        <!-- 뷰 10-3: 5대 서브에이전트 AI 끝장 토론실 (Debate Arena) -->
+        <section id="view-stock-debate" class="content-view hidden">
+          <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px;">
+            <div>
+              <h2 style="display: flex; align-items: center; gap: 10px; color: #f8fafc; margin: 0 0 6px 0;">
+                🔥 AI 끝장 토론실 (Debate Arena)
+                <span class="pulse-live-tag">LIVE ARENA</span>
+              </h2>
+              <p style="color: #94a3b8; font-size: 0.9rem; margin: 0;">
+                성장론자, 신중론자, 기술적분석가, 주린이 4인의 맹렬한 상호 반박 난타전과 심의위원장(단가/총괄)의 최종 팩트 판정을 1시간마다 자동 기록합니다.
+              </p>
+            </div>
+            
+            <!-- 1시간 자동 기록 주기 뱃지 -->
+            <div class="debate-header-badges" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <div class="debate-status-pill">
+                <span class="status-dot"></span>
+                <span>⏱️ 1시간 주기 자동 기록</span>
+                <span id="debate-countdown-timer" class="countdown-highlight">--:--</span>
+              </div>
+              <button type="button" id="btn-refresh-debates" class="btn btn-secondary btn-sm" title="새로고침">
+                🔄 새로고침
+              </button>
+            </div>
+          </div>
+
+          <!-- 필터 및 검색 바 -->
+          <div class="debate-filter-toolbar">
+            <div id="debate-stock-tabs" class="debate-stock-tabs-wrap">
+              <!-- 종목별 탭 동적 렌더링 -->
+            </div>
+            <div class="debate-search-wrap">
+              <input type="text" id="debate-search-input" class="form-input form-input-sm" placeholder="🔍 종목명, 이슈 주제, 에이전트 발언 검색..." />
+            </div>
+          </div>
+
+          <!-- 끝장 토론 메인 피드 컨테이너 -->
+          <div id="stock-debate-feed" class="stock-debate-feed-container">
+            <!-- 토론 카드 동적 렌더링 -->
+          </div>
+        </section>
+
         <section id="view-monster-wave" class="content-view hidden">
           <div class="monster-wave-wrapper" style="width: 100%; height: 100%; min-height: 650px; display: flex; flex-direction: column; background: #070a14; border-radius: 12px; overflow: hidden; border: 1px solid rgba(99, 102, 241, 0.25);">
             <!-- 상단 게임 툴바 -->
@@ -1686,6 +1731,8 @@
   <script src="data/initialSapTerms.js?v=2.2"></script>
   <script src="data/initialStockTemp.js?v=2.2"></script>
   <script src="data/initialStockCouncilReports.js?v=2.2"></script>
+  <script src="data/initialKrxStockMap.js?v=2.2"></script>
+  <script src="data/initialStockDebateLogs.js?v=2.2"></script>
   <script src="data/initialSapNews.js?v=2.2"></script>
   <script src="data/initialSapKnowledge.js?v=2.2"></script>
   <!-- Supabase JS Client SDK CDN (무료 클라우드 DB 연동) -->
@@ -1699,6 +1746,7 @@
   <script src="app/models/ipModel.js?v=2.2"></script>
   <script src="app/models/stockTempModel.js?v=2.2"></script>
   <script src="app/models/stockCouncilModel.js?v=2.2"></script>
+  <script src="app/models/stockDebateModel.js?v=2.2"></script>
   <script src="app/models/threadsAgentModel.js?v=2.2"></script>
   <script src="app/utils/xlsx.full.min.js?v=2.2"></script>
   <script src="app/utils/excelHelper.js?v=2.2"></script>
@@ -1708,6 +1756,7 @@
   <script src="app/views/techStackView.js?v=2.2"></script>
   <script src="app/views/stockTempView.js?v=2.2"></script>
   <script src="app/views/stockCouncilView.js?v=2.2"></script>
+  <script src="app/views/stockDebateView.js?v=2.2"></script>
   <script src="app/views/threadsAgentView.js?v=2.2"></script>
   <script src="app/views/sapSuiteView.js?v=2.2"></script>
   <script src="app/views/monsterDefenseView.js?v=2.2"></script>
