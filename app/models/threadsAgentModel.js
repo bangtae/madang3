@@ -351,5 +351,87 @@ window.ThreadsAgentModel = {
     } catch (e) {
       return { success: false, message: `연결 테스트 실패: ${e.message}` };
     }
+  },
+
+  // ===== madang6 전체 시스템 에이전트 (9종) OS 프로세스 관리 =====
+  systemAgents: [],
+  systemAgentsSummary: { totalCount: 0, runningCount: 0 },
+
+  async fetchSystemAgents() {
+    try {
+      const res = await fetch('/api/system/agents');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.agents)) {
+          this.systemAgents = data.agents;
+          this.systemAgentsSummary = {
+            totalCount: data.totalCount || data.agents.length,
+            runningCount: data.runningCount || data.agents.filter(a => a.is_running).length
+          };
+          return this.systemAgents;
+        }
+      }
+    } catch (e) {
+      console.warn('[ThreadsAgentModel] Fetch system agents error:', e);
+    }
+    return this.systemAgents;
+  },
+
+  async startSystemAgent(agentId) {
+    try {
+      const res = await fetch(`/api/system/agents/${encodeURIComponent(agentId)}/start`, { method: 'POST' });
+      const data = await res.json();
+      await this.fetchSystemAgents();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  },
+
+  async stopSystemAgent(agentId) {
+    try {
+      const res = await fetch(`/api/system/agents/${encodeURIComponent(agentId)}/stop`, { method: 'POST' });
+      const data = await res.json();
+      await this.fetchSystemAgents();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  },
+
+  async startSubCouncilAll() {
+    try {
+      const res = await fetch('/api/system/agents/sub_council_all/start', { method: 'POST' });
+      const data = await res.json();
+      await this.fetchSystemAgents();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  },
+
+  async stopSubCouncilAll() {
+    try {
+      const res = await fetch('/api/system/agents/sub_council_all/stop', { method: 'POST' });
+      const data = await res.json();
+      await this.fetchSystemAgents();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  },
+
+  async triggerDemandAnalysis(stockCode) {
+    try {
+      const stock = (stockCode || '005930').trim();
+      const res = await fetch('/api/stock-council-analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock })
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
   }
 };

@@ -6,7 +6,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 [System.Net.WebRequest]::DefaultWebProxy = $null
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
 
-$root = $PSScriptRoot
+$root = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 $dataDir = Join-Path $root "data"
 $dataFile = Join-Path $dataDir "apis.json"
 $aiDataFile = Join-Path $dataDir "aiModels.json"
@@ -22,6 +22,8 @@ $blockedIpsFile = Join-Path $dataDir "blocked_ips.json"
 $accessLogsFile = Join-Path $dataDir "access_logs.json"
 $stockTempDataFile = Join-Path $dataDir "stockTemp.json"
 $stockTempJsFile = Join-Path $dataDir "initialStockTemp.js"
+$stockCouncilDataFile = Join-Path $dataDir "stockCouncilReports.json"
+$stockCouncilJsFile = Join-Path $dataDir "initialStockCouncilReports.js"
 $sapNewsDataFile = Join-Path $dataDir "sapNews.json"
 $sapNewsJsFile = Join-Path $dataDir "initialSapNews.js"
 $sapKnowledgeDataFile = Join-Path $dataDir "sapKnowledge.json"
@@ -94,7 +96,8 @@ function Get-TelegramConfig {
 }
 
 function Get-NormalizedIpList([string]$filePath) {
-    if (-not (Test-Path $filePath)) { return @() }
+    if ([string]::IsNullOrWhiteSpace($filePath)) { return @() }
+    if (-not (Test-Path -LiteralPath $filePath -ErrorAction SilentlyContinue)) { return @() }
     try {
         $raw = Get-Content -Encoding utf8 -Raw $filePath
         if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
@@ -424,7 +427,7 @@ try {
 while ($true) {
     try {
         if (-not $listener.Pending()) {
-            if ($telegramPollSw.ElapsedMilliseconds -gt 2500) {
+            if ($telegramPollSw.ElapsedMilliseconds -gt 30000) {
                 $telegramPollSw.Restart()
                 Check-TelegramCallbackUpdates
             }
@@ -434,6 +437,7 @@ while ($true) {
 
         $client = $listener.AcceptTcpClient()
         $clientIp = $client.Client.RemoteEndPoint.Address.ToString()
+        Write-Host " [Conn] Connected from $clientIp" -ForegroundColor DarkCyan
 
         # 1. IP Blacklist Check
         $blockedIps = Get-NormalizedIpList $blockedIpsFile
@@ -645,6 +649,46 @@ while ($true) {
                     }
                 }
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/stock-council-reports") {
+            if ($method -eq "GET") {
+                if (Test-Path $stockCouncilDataFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($stockCouncilDataFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                } elseif (Test-Path $stockCouncilJsFile) {
+                    $rawText = [System.IO.File]::ReadAllText($stockCouncilJsFile, [System.Text.Encoding]::UTF8)
+                    $cleanJson = $rawText -replace '^window\.PORTAL_DATA_STOCK_COUNCIL\s*=\s*', '' -replace ';\s*$', ''
+                    Send-JsonResponse $stream $corsHeaders $cleanJson
+                } else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($stockCouncilDataFile, $postData, $Utf8NoBom)
+                        $jsContent = "// data/initialStockCouncilReports.js`nwindow.PORTAL_DATA_STOCK_COUNCIL = $postData;`n"
+                        [System.IO.File]::WriteAllText($stockCouncilJsFile, $jsContent, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/stock-council-analyze") {
+            $stockQuery = "005930"
+            if ($requestText -match '"stock"\s*:\s*"([^"]+)"') {
+                $stockQuery = $Matches[1]
+            }
+            $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
+            $dankaScript = "C:\Users\bangt\Downloads\madang6\서브주식에이전트_단가\main.py"
+            if ((Test-Path $pyPath) -and (Test-Path $dankaScript)) {
+                Start-Process -FilePath $pyPath -ArgumentList "`"$dankaScript`" --stock `"$stockQuery`" --ondemand-only" -WorkingDirectory "C:\Users\bangt\Downloads\madang6\서브주식에이전트_단가" -WindowStyle Hidden
+                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"분석이 시작되었습니다."}'
+            } else {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"분석 실행 환경을 찾을 수 없습니다."}'
             }
         }
         elseif ($urlPath -eq "/api/analyze-ai-url") {
@@ -1562,6 +1606,105 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
             Send-TelegramNewIpAlert $testIp "/test" "테스트 유입 시뮬레이션"
             Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"텔레그램 알림 발송 완료"}'
         }
+        elseif ($urlPath -match "^/api/system/agents") {
+            $madang6Dir = "C:\Users\bangt\Downloads\madang6"
+            $pyExe = Join-Path $madang6Dir "newsfilter_threads_agent\.venv\Scripts\python.exe"
+            if (-not (Test-Path $pyExe)) { $pyExe = "python" }
+
+            $agentDefs = @(
+                @{ id = "threads"; name = "Threads AI 뉴스 에이전트"; category = "main"; icon = "📰"; cwd = (Join-Path $madang6Dir "newsfilter_threads_agent"); script = "main.py"; args = @(); pattern = "newsfilter_threads_agent" },
+                @{ id = "sap"; name = "SAP Integration Suite 에이전트"; category = "main"; icon = "⚙️"; cwd = (Join-Path $madang6Dir "sap-integration-agent"); script = "main.py"; args = @(); pattern = "sap-integration-agent" },
+                @{ id = "supervisor"; name = "AI 통합 감독관 (Supervisor)"; category = "main"; icon = "🛡️"; cwd = (Join-Path $madang6Dir "agent_supervisor"); script = "main.py"; args = @(); pattern = "agent_supervisor" },
+                @{ id = "lead_orchestrator"; name = "메인 주식 총괄 에이전트 (Lead)"; category = "stock_lead"; icon = "📈"; cwd = (Join-Path $madang6Dir "메인주식총괄에이전트"); script = "main.py"; args = @("--interval", "60"); pattern = "메인주식총괄에이전트" },
+                @{ id = "sub_danka"; name = "단가 분석 에이전트"; category = "sub_council"; icon = "⚖️"; cwd = (Join-Path $madang6Dir "서브주식에이전트_단가"); script = "main.py"; args = @("--stock", "005930"); pattern = "서브주식에이전트_단가" },
+                @{ id = "sub_growth"; name = "성장론자 에이전트"; category = "sub_council"; icon = "🚀"; cwd = (Join-Path $madang6Dir "서브주식에이전트_성장론자"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_성장론자" },
+                @{ id = "sub_cautious"; name = "신중론자 에이전트"; category = "sub_council"; icon = "🛡️"; cwd = (Join-Path $madang6Dir "서브주식에이전트_신중론자"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_신중론자" },
+                @{ id = "sub_technical"; name = "기술적분석가 에이전트"; category = "sub_council"; icon = "📊"; cwd = (Join-Path $madang6Dir "서브주식에이전트_기술적분석가"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_기술적분석가" },
+                @{ id = "sub_jurini"; name = "주린이 에이전트"; category = "sub_council"; icon = "🌱"; cwd = (Join-Path $madang6Dir "서브주식에이전트_주린이"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_주린이" }
+            )
+
+            $procs = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "python*" } | Select-Object ProcessId, CommandLine)
+
+            if ($urlPath -eq "/api/system/agents" -and $method -eq "GET") {
+                $agentList = @()
+                foreach ($def in $agentDefs) {
+                    $matchProc = $procs | Where-Object { $_.CommandLine -like "*$($def.pattern)*" } | Select-Object -First 1
+                    $agentList += [PSCustomObject]@{
+                        id = $def.id
+                        name = $def.name
+                        category = $def.category
+                        icon = $def.icon
+                        is_running = [bool]($null -ne $matchProc)
+                        pid = if ($matchProc) { [int]$matchProc.ProcessId } else { $null }
+                    }
+                }
+                $runningCnt = @($agentList | Where-Object { $_.is_running }).Count
+                $resObj = [PSCustomObject]@{
+                    success = $true
+                    agents = $agentList
+                    totalCount = $agentList.Count
+                    runningCount = $runningCnt
+                }
+                $jsonOut = $resObj | ConvertTo-Json -Depth 4
+                Send-JsonResponse $stream $corsHeaders $jsonOut
+            }
+            elseif ($urlPath -match "^/api/system/agents/([^/]+)/(start|stop)$" -and $method -eq "POST") {
+                $targetId = $Matches[1]
+                $targetAction = $Matches[2]
+
+                if ($targetId -eq "sub_council_all") {
+                    $subDefs = $agentDefs | Where-Object { $_.category -eq "sub_council" }
+                    $actCount = 0
+                    foreach ($sub in $subDefs) {
+                        $match = $procs | Where-Object { $_.CommandLine -like "*$($sub.pattern)*" } | Select-Object -First 1
+                        if ($targetAction -eq "start") {
+                            if (-not $match) {
+                                $scriptPath = Join-Path $sub.cwd $sub.script
+                                $fullArgs = if ($sub.args.Length -gt 0) { "`"$scriptPath`" $($sub.args -join ' ')" } else { "`"$scriptPath`"" }
+                                Start-Process -FilePath $pyExe -ArgumentList $fullArgs -WorkingDirectory $sub.cwd -WindowStyle Hidden
+                                $actCount++
+                            }
+                        } else {
+                            if ($match) {
+                                Stop-Process -Id $match.ProcessId -Force -ErrorAction SilentlyContinue
+                                $actCount++
+                            }
+                        }
+                    }
+                    $msg = if ($targetAction -eq "start") { "5대 주식 서브에이전트 일괄 기동 ($actCount 개 신규 시작)" } else { "5대 주식 서브에이전트 일괄 중지 ($actCount 개 종료)" }
+                    Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = $msg } | ConvertTo-Json)
+                }
+                else {
+                    $foundDef = $agentDefs | Where-Object { $_.id -eq $targetId } | Select-Object -First 1
+                    if (-not $foundDef) {
+                        Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"에이전트를 찾을 수 없습니다."}'
+                    } else {
+                        $match = $procs | Where-Object { $_.CommandLine -like "*$($foundDef.pattern)*" } | Select-Object -First 1
+                        if ($targetAction -eq "start") {
+                            if ($match) {
+                                Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "이미 가동 중입니다. (PID: $($match.ProcessId))"; pid = $match.ProcessId } | ConvertTo-Json)
+                            } else {
+                                $scriptPath = Join-Path $foundDef.cwd $foundDef.script
+                                $fullArgs = if ($foundDef.args.Length -gt 0) { "`"$scriptPath`" $($foundDef.args -join ' ')" } else { "`"$scriptPath`"" }
+                                $p = Start-Process -FilePath $pyExe -ArgumentList $fullArgs -WorkingDirectory $foundDef.cwd -WindowStyle Hidden -PassThru
+                                Start-Sleep -Milliseconds 600
+                                Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "[$($foundDef.name)] 기동 완료"; pid = $p.Id } | ConvertTo-Json)
+                            }
+                        } else {
+                            if (-not $match) {
+                                Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "이미 정지된 상태입니다." } | ConvertTo-Json)
+                            } else {
+                                Stop-Process -Id $match.ProcessId -Force -ErrorAction SilentlyContinue
+                                Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "[$($foundDef.name)] 정지 완료 (PID: $($match.ProcessId))" } | ConvertTo-Json)
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"Not Found"}'
+            }
+        }
         else {
             # Static File Handling
             $filePath = Join-Path $root ($urlPath.TrimStart('/'))
@@ -1594,6 +1737,9 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
         }
         $client.Close()
     } catch {
+        Write-Host " [Server Error] $_" -ForegroundColor Red
+        Write-Host " [Position] $($_.InvocationInfo.PositionMessage)" -ForegroundColor Magenta
+        Write-Host " [Trace] $($_.ScriptStackTrace)" -ForegroundColor Yellow
         Start-Sleep -Milliseconds 20
     }
 }

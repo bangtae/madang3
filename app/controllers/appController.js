@@ -1,4 +1,4 @@
-﻿// app/controllers/appController.js - 애플리케이션 통합 컨트롤러
+// app/controllers/appController.js - 애플리케이션 통합 컨트롤러
 
 window.AppController = {
   currentTopView: 'main',
@@ -1386,6 +1386,8 @@ window.AppController = {
       if (viewMenuConfig) viewMenuConfig.classList.add('hidden');
       if (viewTechStack) viewTechStack.classList.add('hidden');
       if (viewStockTemp) viewStockTemp.classList.add('hidden');
+      const viewStockCouncil = document.getElementById('view-stock-council');
+      if (viewStockCouncil) viewStockCouncil.classList.add('hidden');
       if (viewThreadsAgent) viewThreadsAgent.classList.add('hidden');
       if (viewMonsterDefense) viewMonsterDefense.classList.add('hidden');
       if (viewMonsterWave) viewMonsterWave.classList.add('hidden');
@@ -1416,6 +1418,12 @@ window.AppController = {
         window.StockTempModel.loadStockTempData().then(() => {
           window.StockTempView.renderView();
         });
+      }
+    } else if (sideView === 'stock-council') {
+      const viewStockCouncil = document.getElementById('view-stock-council');
+      if (viewStockCouncil) viewStockCouncil.classList.remove('hidden');
+      if (window.StockCouncilView) {
+        window.StockCouncilView.render();
       }
     } else if (sideView === 'dashboard') {
       if (viewDashboard) viewDashboard.classList.remove('hidden');
@@ -1481,6 +1489,7 @@ window.AppController = {
     if (!window.ThreadsAgentModel) return;
     const status = await window.ThreadsAgentModel.fetchStatus();
     await window.ThreadsAgentModel.fetchSapStatus();
+    await window.ThreadsAgentModel.fetchSystemAgents();
     const dDayInfo = window.ThreadsAgentModel.getTokenDDay();
     if (window.ThreadsAgentView) {
       window.ThreadsAgentView.renderHeaderQuickBar(status, dDayInfo);
@@ -1496,6 +1505,7 @@ window.AppController = {
     await window.ThreadsAgentModel.loadSapConfig();
     await window.ThreadsAgentModel.fetchStatus();
     await window.ThreadsAgentModel.fetchSapStatus();
+    await window.ThreadsAgentModel.fetchSystemAgents();
     await window.ThreadsAgentModel.fetchSources();
     await window.ThreadsAgentModel.fetchPosts();
     await window.ThreadsAgentModel.fetchRuntimeConfig();

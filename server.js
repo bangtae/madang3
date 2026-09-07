@@ -164,6 +164,73 @@ app.post('/api/stock-temp', (req, res) => {
   }
 });
 
+app.get('/api/stock-council-reports', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'stockCouncilReports.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const fallbackPath = path.join(__dirname, 'data', 'initialStockCouncilReports.js');
+  if (fs.existsSync(fallbackPath)) {
+    try {
+      const code = fs.readFileSync(fallbackPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_STOCK_COUNCIL\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to parse initialStockCouncilReports.js' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/stock-council-reports', (req, res) => {
+  const dataDir = path.join(__dirname, 'data');
+  const filePath = path.join(dataDir, 'stockCouncilReports.json');
+  const jsFilePath = path.join(dataDir, 'initialStockCouncilReports.js');
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    let existing = [];
+    if (fs.existsSync(filePath)) {
+      try { existing = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
+    }
+    const incoming = req.body;
+    if (Array.isArray(incoming)) {
+      existing = incoming;
+    } else if (incoming && incoming.id) {
+      const idx = existing.findIndex(r => r.id === incoming.id);
+      if (idx >= 0) existing[idx] = incoming;
+      else existing.unshift(incoming);
+    }
+    fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), 'utf8');
+    fs.writeFileSync(jsFilePath, `// data/initialStockCouncilReports.js\nwindow.PORTAL_DATA_STOCK_COUNCIL = ${JSON.stringify(existing, null, 2)};\n`, 'utf8');
+    res.json({ success: true, count: existing.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/stock-council-analyze', (req, res) => {
+  const stock = req.body?.stock || '005930';
+  const pythonPath = 'C:\\Users\\bangt\\Downloads\\madang6\\newsfilter_threads_agent\\.venv\\Scripts\\python.exe';
+  const scriptPath = 'C:\\Users\\bangt\\Downloads\\madang6\\서브주식에이전트_단칼\\main.py';
+  
+  if (fs.existsSync(pythonPath) && fs.existsSync(scriptPath)) {
+    try {
+      const cp = require('child_process');
+      const child = cp.spawn(pythonPath, [scriptPath, '--stock', stock, '--ondemand-only'], {
+        cwd: 'C:\\Users\\bangt\\Downloads\\madang6\\서브주식에이전트_단칼',
+        detached: true,
+        stdio: 'ignore'
+      });
+      child.unref();
+      return res.json({ success: true, message: `'${stock}' 5대 에이전트 온디맨드 분석이 시작되었습니다. 잠시 후 새로고침 됩니다.` });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  } else {
+    return res.json({ success: false, message: '로컬 분석 데몬 환경을 찾을 수 없습니다.' });
+  }
+});
+
 app.post('/api/analyze-ai-url', async (req, res) => {
   const targetUrl = req.body?.url || '';
   if (!targetUrl) return res.json({ success: false, message: 'URL Missing' });
@@ -638,6 +705,271 @@ app.post('/api/agent/ping', async (req, res) => {
       message: '연결 실패: 에이전트 서버가 응답하지 않습니다.'
     });
   }
+});
+
+// =========================================================
+// madang6 시스템 에이전트 프로세스 라이프사이클 관리 API
+// =========================================================
+const MADANG6_BASE = process.env.MADANG6_BASE || 'C:\\Users\\bangt\\Downloads\\madang6';
+const PYTHON_PATH = path.join(MADANG6_BASE, 'newsfilter_threads_agent', '.venv', 'Scripts', 'python.exe');
+
+const SYSTEM_AGENTS = [
+  {
+    id: 'threads',
+    name: 'Threads AI 뉴스 에이전트',
+    category: 'threads',
+    icon: '🤖',
+    cwd: path.join(MADANG6_BASE, 'newsfilter_threads_agent'),
+    script: 'main.py',
+    args: [],
+    matchPattern: /newsfilter_threads_agent[\\\/]+main\.py|newsfilter_threads_agent.*main/i,
+    description: '공시 및 실시간 증시 뉴스 수집 / Threads 자동 포스팅 데몬'
+  },
+  {
+    id: 'sap',
+    name: 'SAP Integration Suite 에이전트',
+    category: 'sap',
+    icon: '⚡',
+    cwd: path.join(MADANG6_BASE, 'sap-integration-agent'),
+    script: 'main.py',
+    args: [],
+    matchPattern: /sap-integration-agent[\\\/]+main\.py|sap-integration-agent.*main/i,
+    description: 'SCN 및 SAP 커뮤니티 뉴스 수집 & 포털 동기화 데몬'
+  },
+  {
+    id: 'supervisor',
+    name: 'AI 통합 감독관 (Supervisor)',
+    category: 'core',
+    icon: '🛡️',
+    cwd: path.join(MADANG6_BASE, 'agent_supervisor'),
+    script: 'main.py',
+    args: [],
+    matchPattern: /agent_supervisor[\\\/]+main\.py|agent_supervisor.*main/i,
+    description: '전체 에이전트 리소스 감시, 크래시 자동 복구 및 텔레그램 알림'
+  },
+  {
+    id: 'lead_orchestrator',
+    name: '메인 주식 총괄 에이전트 (Lead Orchestrator)',
+    category: 'stock_lead',
+    icon: '🎯',
+    cwd: path.join(MADANG6_BASE, '메인주식총괄에이전트'),
+    script: 'main.py',
+    args: ['--interval', '60'],
+    matchPattern: /메인주식총괄에이전트[\\\/]+main\.py/i,
+    description: '5대 서브에이전트 조율, 1차 원천 팩트체크 및 최종 의결'
+  },
+  {
+    id: 'sub_danka',
+    name: '단가 (총괄심의)',
+    category: 'sub_council',
+    icon: '⚖️',
+    cwd: path.join(MADANG6_BASE, '서브주식에이전트_단가'),
+    script: 'main.py',
+    args: ['--stock', '005930'],
+    matchPattern: /서브주식에이전트_단가[\\\/]+main\.py/i,
+    description: 'daankal.com 화수분 투자철학 기반 5인 심의 및 보물찾기'
+  },
+  {
+    id: 'sub_growth',
+    name: '성장론자',
+    category: 'sub_council',
+    icon: '🚀',
+    cwd: path.join(MADANG6_BASE, '서브주식에이전트_성장론자'),
+    script: 'main.py',
+    args: ['--interval', '60'],
+    matchPattern: /서브주식에이전트_성장론자[\\\/]+main\.py/i,
+    description: '파괴적 혁신 및 전방 산업 고성장 테크주 발굴'
+  },
+  {
+    id: 'sub_cautious',
+    name: '신중론자',
+    category: 'sub_council',
+    icon: '🛡️',
+    cwd: path.join(MADANG6_BASE, '서브주식에이전트_신중론자'),
+    script: 'main.py',
+    args: ['--interval', '60'],
+    matchPattern: /서브주식에이전트_신중론자[\\\/]+main\.py/i,
+    description: '단가식 안전마진 및 저평가 화수분 배당주 감사'
+  },
+  {
+    id: 'sub_technical',
+    name: '기술적분석가',
+    category: 'sub_council',
+    icon: '📊',
+    cwd: path.join(MADANG6_BASE, '서브주식에이전트_기술적분석가'),
+    script: 'main.py',
+    args: ['--interval', '60'],
+    matchPattern: /서브주식에이전트_기술적분석가[\\\/]+main\.py/i,
+    description: '외인/기관 스마트머니 수급 집중 및 거래량 급증 추적'
+  },
+  {
+    id: 'sub_jurini',
+    name: '주린이 코칭',
+    category: 'sub_council',
+    icon: '🐣',
+    cwd: path.join(MADANG6_BASE, '서브주식에이전트_주린이'),
+    script: 'main.py',
+    args: ['--interval', '60'],
+    matchPattern: /서브주식에이전트_주린이[\\\/]+main\.py/i,
+    description: '초보 투자자 눈높이의 쉬운 해설 및 안심 가이드'
+  }
+];
+
+// OS 상의 python 프로세스 목록 조회 헬퍼
+function getRunningPythonProcesses() {
+  return new Promise((resolve) => {
+    const { exec } = require('child_process');
+    const psCmd = 'powershell -NoProfile -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-CimInstance Win32_Process -Filter \\"Name = \'python.exe\'\\" | Select-Object ProcessId, CommandLine | ConvertTo-Json"';
+    exec(psCmd, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+      if (err || !stdout || !stdout.trim()) return resolve([]);
+      try {
+        const parsed = JSON.parse(stdout);
+        const list = Array.isArray(parsed) ? parsed : [parsed];
+        resolve(list.filter(p => p && p.ProcessId));
+      } catch (e) {
+        resolve([]);
+      }
+    });
+  });
+}
+
+// 전체 에이전트 실시간 상태 조회 API
+app.get('/api/system/agents', async (req, res) => {
+  try {
+    const procs = await getRunningPythonProcesses();
+    const result = SYSTEM_AGENTS.map(agent => {
+      // Find matching process
+      const match = procs.find(p => {
+        const cmd = p.CommandLine || '';
+        return agent.matchPattern.test(cmd);
+      });
+
+      return {
+        id: agent.id,
+        name: agent.name,
+        category: agent.category,
+        icon: agent.icon,
+        description: agent.description,
+        is_running: !!match,
+        pid: match ? match.ProcessId : null,
+        command: match ? match.CommandLine : null
+      };
+    });
+
+    res.json({
+      success: true,
+      agents: result,
+      totalCount: result.length,
+      runningCount: result.filter(a => a.is_running).length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 단일 에이전트 시작 API
+app.post('/api/system/agents/:id/start', async (req, res) => {
+  const agentId = req.params.id;
+  const agent = SYSTEM_AGENTS.find(a => a.id === agentId);
+  if (!agent) {
+    return res.status(404).json({ success: false, message: `존재하지 않는 에이전트: ${agentId}` });
+  }
+
+  const procs = await getRunningPythonProcesses();
+  const existing = procs.find(p => agent.matchPattern.test(p.CommandLine || ''));
+  if (existing) {
+    return res.json({ success: true, message: `이미 가동 중입니다. (PID: ${existing.ProcessId})`, pid: existing.ProcessId });
+  }
+
+  const { exec } = require('child_process');
+  const pyExe = fs.existsSync(PYTHON_PATH) ? PYTHON_PATH : 'python';
+  const argsStr = agent.args.length > 0 ? ` ${agent.args.join(' ')}` : '';
+  const fullArgs = `${agent.script}${argsStr}`;
+  const startCmd = `powershell -NoProfile -Command "Start-Process -FilePath '${pyExe}' -ArgumentList '${fullArgs}' -WorkingDirectory '${agent.cwd}' -WindowStyle Hidden"`;
+
+  exec(startCmd, async (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: `기동 실패: ${err.message}` });
+    }
+    // 잠시 대기 후 PID 재조회
+    setTimeout(async () => {
+      const refreshed = await getRunningPythonProcesses();
+      const match = refreshed.find(p => agent.matchPattern.test(p.CommandLine || ''));
+      res.json({
+        success: true,
+        message: `[${agent.name}] 기동 완료 (PID: ${match ? match.ProcessId : '확인 중'})`,
+        pid: match ? match.ProcessId : null
+      });
+    }, 1500);
+  });
+});
+
+// 단일 에이전트 중지 API
+app.post('/api/system/agents/:id/stop', async (req, res) => {
+  const agentId = req.params.id;
+  const agent = SYSTEM_AGENTS.find(a => a.id === agentId);
+  if (!agent) {
+    return res.status(404).json({ success: false, message: `존재하지 않는 에이전트: ${agentId}` });
+  }
+
+  const procs = await getRunningPythonProcesses();
+  const match = procs.find(p => agent.matchPattern.test(p.CommandLine || ''));
+  if (!match) {
+    return res.json({ success: true, message: `이미 정지된 상태입니다.` });
+  }
+
+  const { exec } = require('child_process');
+  exec(`taskkill /PID ${match.ProcessId} /F`, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: `프로세스 중지 실패: ${err.message}` });
+    }
+    res.json({ success: true, message: `[${agent.name}] 정지 완료 (PID: ${match.ProcessId})` });
+  });
+});
+
+// 5대 주식 서브에이전트 일괄 제어 API
+app.post('/api/system/agents/sub_council_all/start', async (req, res) => {
+  const subAgents = SYSTEM_AGENTS.filter(a => a.category === 'sub_council');
+  const procs = await getRunningPythonProcesses();
+  const { exec } = require('child_process');
+  const pyExe = fs.existsSync(PYTHON_PATH) ? PYTHON_PATH : 'python';
+
+  let startedCount = 0;
+  for (const agent of subAgents) {
+    const existing = procs.find(p => agent.matchPattern.test(p.CommandLine || ''));
+    if (!existing) {
+      const argsStr = agent.args.length > 0 ? ` ${agent.args.join(' ')}` : '';
+      const fullArgs = `${agent.script}${argsStr}`;
+      const startCmd = `powershell -NoProfile -Command "Start-Process -FilePath '${pyExe}' -ArgumentList '${fullArgs}' -WorkingDirectory '${agent.cwd}' -WindowStyle Hidden"`;
+      exec(startCmd);
+      startedCount++;
+    }
+  }
+
+  res.json({
+    success: true,
+    message: `5대 주식 서브에이전트 일괄 기동 완료 (${startedCount}개 신규 기동)`
+  });
+});
+
+app.post('/api/system/agents/sub_council_all/stop', async (req, res) => {
+  const subAgents = SYSTEM_AGENTS.filter(a => a.category === 'sub_council');
+  const procs = await getRunningPythonProcesses();
+  const { exec } = require('child_process');
+
+  let stoppedCount = 0;
+  for (const agent of subAgents) {
+    const match = procs.find(p => agent.matchPattern.test(p.CommandLine || ''));
+    if (match) {
+      exec(`taskkill /PID ${match.ProcessId} /F`);
+      stoppedCount++;
+    }
+  }
+
+  res.json({
+    success: true,
+    message: `5대 주식 서브에이전트 일괄 정지 완료 (${stoppedCount}개 프로세스 종료)`
+  });
 });
 
 // Health check endpoint for GCP Cloud Engine/Run

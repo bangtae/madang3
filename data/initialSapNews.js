@@ -1,6 +1,33 @@
 // data/initialSapNews.js - Auto-updated by SAP Agent
 window.PORTAL_DATA_SAP_NEWS = [
     {
+        "id":  "sap_news_924bce17",
+        "title":  "Principal Propagation from BTP to S/4HANA Public Cloud: Configuration Notes and Open Questions",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/principal-propagation-from-btp-to-s-4hana-public-cloud-configuration-notes/ba-p/14480435",
+        "category":  "Blog",
+        "summary":  "Principal Propagation from BTP to S/4HANA Public Cloud: Configuration Notes and Open Questions Upfront disclaimer: I have not yet run this end-to-end in a live landscape. What follows is the configu...",
+        "published_at":  "2026-09-07T05:16:49Z"
+    },
+    {
+        "id":  "sap_news_c1c102b5",
+        "title":  "Integration Suite Subscription Failed - Trial Account",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/integration-suite-subscription-failed-trial-account/qaq-p/14480073",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "Any one please these how to process them?",
+        "published_at":  "2026-09-05T16:22:53Z"
+    },
+    {
+        "id":  "sap_news_2e6b5c1a",
+        "title":  "Integration Cell artifact stuck in Starting/Deploying and endpoint never becomes available-btp trial",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/integration-cell-artifact-stuck-in-starting-deploying-and-endpoint-never/qaq-p/14480372",
+        "category":  "Migration",
+        "summary":  "Hi SAP Community, I am encountering an issue with API Management artifacts deployed to the Integration Cell runtime in a newly created SAP BTP Trial subaccount. Environment: • SAP BTP T...",
+        "published_at":  "2026-09-06T22:53:05Z"
+    },
+    {
         "id":  "sap_news_design_guidelines_2026",
         "title":  "SAP Integration Suite 공식 디자인 가이드라인 (Design Guidelines) 및 규칙 검증 체계",
         "source":  "SAP Help Portal",

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -118,6 +118,9 @@
             <li class="menu-item hidden" id="side-menu-invest">
               <button class="nav-side-btn active" data-side="stock-temp">
                 <span class="icon">☀️</span> K증시 온도
+              </button>
+              <button class="nav-side-btn" data-side="stock-council">
+                <span class="icon">🏛️</span> AI 주식 심의실
               </button>
             </li>
             <li class="menu-item hidden" id="side-menu-life">
@@ -1114,6 +1117,69 @@
         </section>
 
                 <!-- 뷰: 몬스터웨이브 (2D 탑다운 액션 서바이벌) -->
+        
+        <!-- 뷰 10-2: 5대 AI 주식 심의실 대시보드 -->
+        <section id="view-stock-council" class="content-view hidden">
+          <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 style="display: flex; align-items: center; gap: 8px; color: #f8fafc;">
+                🏛️ AI 주식 심의실 (5대 서브에이전트)
+              </h2>
+              <p>5대 전문 에이전트(단가·성장론자·신중론자·기술적분석가·주린이)가 1시간마다 발굴한 경제·투자 분석 리포트와 교차 토론 결과를 확인하세요.</p>
+            </div>
+            <div id="council-latest-briefing" class="council-briefing-badge">
+              🔥 최근 발굴: 데이터 로딩 중...
+            </div>
+          </div>
+
+          <!-- 🏛️ 종목별 5인 심의 종합 합의 매트릭스 섹션 -->
+          <div id="council-consensus-section" class="council-consensus-section">
+            <div class="consensus-section-header">
+              <div class="header-title-wrap">
+                <span class="section-badge">5-AGENT CONSENSUS MATRIX</span>
+                <h3 class="consensus-section-title">🏛️ 종목별 5인 심의 종합 합의 매트릭스</h3>
+                <p class="consensus-section-desc">5대 서브에이전트(단가·성장·신중·기술·주린이)의 관점을 5각 레이더로 다각도 분석하고 종합 점수를 산출합니다. 카드를 클릭하면 5인 종합 비교 모달이 열립니다.</p>
+              </div>
+              <div class="consensus-summary-stats" id="consensus-summary-stats"></div>
+            </div>
+            <div id="council-consensus-grid" class="council-consensus-grid">
+              <!-- 종목별 5인 합의 카드 및 SVG 5각 레이더 동적 렌더링 -->
+            </div>
+          </div>
+
+          <!-- 5대 에이전트 탭 필터 바 & 리포트 검색 -->
+          <div class="council-tab-toolbar">
+            <div class="council-tabs-container">
+              <button type="button" class="council-tab-btn active" data-agent="all">
+                🌐 전체 리포트 <span class="tab-count" id="badge-count-council-all">0</span>
+              </button>
+              <button type="button" class="council-tab-btn theme-dankal" data-agent="sub_stock_dankal">
+                ⚖️ 단가 (총괄심의) <span class="tab-count" id="badge-count-council-dankal">0</span>
+              </button>
+              <button type="button" class="council-tab-btn theme-growth" data-agent="sub_stock_growth">
+                🚀 성장론자 <span class="tab-count" id="badge-count-council-growth">0</span>
+              </button>
+              <button type="button" class="council-tab-btn theme-cautious" data-agent="sub_stock_cautious">
+                🛡️ 신중론자 <span class="tab-count" id="badge-count-council-cautious">0</span>
+              </button>
+              <button type="button" class="council-tab-btn theme-technical" data-agent="sub_stock_technical">
+                📊 기술적분석가 <span class="tab-count" id="badge-count-council-technical">0</span>
+              </button>
+              <button type="button" class="council-tab-btn theme-jurini" data-agent="sub_stock_jurini">
+                🐣 주린이 코칭 <span class="tab-count" id="badge-count-council-jurini">0</span>
+              </button>
+            </div>
+            <div class="council-search-box">
+              <input type="text" id="input-council-search" placeholder="종목, 키워드 검색..." />
+            </div>
+          </div>
+
+          <!-- 리포트 카드 그리드 컨테이너 -->
+          <div id="council-reports-container" class="council-cards-grid">
+            <!-- Dynamic Cards -->
+          </div>
+        </section>
+
         <section id="view-monster-wave" class="content-view hidden">
           <div class="monster-wave-wrapper" style="width: 100%; height: 100%; min-height: 650px; display: flex; flex-direction: column; background: #070a14; border-radius: 12px; overflow: hidden; border: 1px solid rgba(99, 102, 241, 0.25);">
             <!-- 상단 게임 툴바 -->
@@ -1579,12 +1645,46 @@
   <div id="sidebar-overlay" class="sidebar-overlay"></div>
   <div id="toast-container" class="toast-container"></div>
 
+  <!-- 🏛️ AI 주식 심의실 상세 리포트 전문 모달 -->
+  <div id="stock-council-modal" class="modal-overlay hidden">
+    <div class="modal-card council-modal-card" style="max-width: 780px; width: 92%;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <h3 id="council-modal-stock-title" style="margin: 0; font-size: 1.25rem;">리포트 전문</h3>
+          <div id="council-modal-agent-badge" class="agent-tag"></div>
+        </div>
+        <button type="button" id="stock-council-modal-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" id="council-modal-body" style="max-height: 75vh; overflow-y: auto; padding: 20px;">
+        <!-- Markdown Body -->
+      </div>
+  </div>
+
+  <!-- 🏛️ 종목별 5인 심의 종합 비교 대형 모달 -->
+  <div id="stock-council-comparison-modal" class="modal-overlay hidden">
+    <div class="modal-card council-comparison-modal-card" style="max-width: 1120px; width: 95%;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <h3 id="council-compare-title" style="margin: 0; font-size: 1.3rem; display: flex; align-items: center; gap: 8px;">
+            종목 5인 심의 종합 비교
+          </h3>
+          <div id="council-compare-badge"></div>
+        </div>
+        <button type="button" id="stock-council-compare-modal-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" id="council-compare-body" style="max-height: 82vh; overflow-y: auto; padding: 24px;">
+        <!-- 5각 레이더 차트 + 5개 에이전트 교차 비교 그리드 -->
+      </div>
+    </div>
+  </div>
+
   <!-- 순서대로 스크립트 로드 (file:// 로컬 파일 모드 100% 지원) -->
   <script src="data/initialApis.js?v=2.2"></script>
   <script src="data/initialAiModels.js?v=2.2"></script>
   <script src="data/initialAiTerms.js?v=2.2"></script>
   <script src="data/initialSapTerms.js?v=2.2"></script>
   <script src="data/initialStockTemp.js?v=2.2"></script>
+  <script src="data/initialStockCouncilReports.js?v=2.2"></script>
   <script src="data/initialSapNews.js?v=2.2"></script>
   <script src="data/initialSapKnowledge.js?v=2.2"></script>
   <!-- Supabase JS Client SDK CDN (무료 클라우드 DB 연동) -->
@@ -1597,6 +1697,7 @@
   <script src="app/models/sapSuiteModel.js?v=2.2"></script>
   <script src="app/models/ipModel.js?v=2.2"></script>
   <script src="app/models/stockTempModel.js?v=2.2"></script>
+  <script src="app/models/stockCouncilModel.js?v=2.2"></script>
   <script src="app/models/threadsAgentModel.js?v=2.2"></script>
   <script src="app/utils/xlsx.full.min.js?v=2.2"></script>
   <script src="app/utils/excelHelper.js?v=2.2"></script>
@@ -1605,6 +1706,7 @@
   <script src="app/views/agentBuilderView.js?v=2.2"></script>
   <script src="app/views/techStackView.js?v=2.2"></script>
   <script src="app/views/stockTempView.js?v=2.2"></script>
+  <script src="app/views/stockCouncilView.js?v=2.2"></script>
   <script src="app/views/threadsAgentView.js?v=2.2"></script>
   <script src="app/views/sapSuiteView.js?v=2.2"></script>
   <script src="app/views/monsterDefenseView.js?v=2.2"></script>
