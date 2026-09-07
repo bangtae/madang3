@@ -1,5 +1,23 @@
 [
     {
+        "id":  "sap_news_b19c38d5",
+        "title":  "SAP BTP - IS - Beyond the Tool: Frankenstein Landscapes, Art. Sprawl and Integration Storytelling",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/sap-btp-is-beyond-the-tool-frankenstein-landscapes-art-sprawl-and/ba-p/14480788",
+        "category":  "Blog",
+        "summary":  "Knowledge becomes easier to retain when the problem becomes a story. Teach the problem first. The tool comes later. Before teaching the tool, make the problem visible. In less than ...",
+        "published_at":  "2026-09-07T10:18:17Z"
+    },
+    {
+        "id":  "sap_news_1099851d",
+        "title":  "There Is No \u0027Delivery\u0027 in SAP Cloud Integration",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/there-is-no-delivery-in-sap-cloud-integration/ba-p/14480822",
+        "category":  "Migration",
+        "summary":  "\u0027Delivery\u0027 does not exist in the SAP Cloud Integration ecosystem. The ecosystem has export (Content Agent Service). It has transport (Cloud Transport Management). It has deploy (Cloud Integration). ...",
+        "published_at":  "2026-09-07T09:59:37Z"
+    },
+    {
         "id":  "sap_news_924bce17",
         "title":  "Principal Propagation from BTP to S/4HANA Public Cloud: Configuration Notes and Open Questions",
         "source":  "SAP Community",

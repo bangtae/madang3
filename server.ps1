@@ -1628,7 +1628,13 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
             if ($urlPath -eq "/api/system/agents" -and $method -eq "GET") {
                 $agentList = @()
                 foreach ($def in $agentDefs) {
-                    $matchProc = $procs | Where-Object { $_.CommandLine -like "*$($def.pattern)*" } | Select-Object -First 1
+                    $matchProc = $procs | Where-Object {
+                        $cmd = $_.CommandLine
+                        if (-not $cmd) { return $false }
+                        if ($cmd -like "*$($def.pattern)*") { return $true }
+                        if ($def.cwd -and ($cmd -like "*$($def.cwd)*")) { return $true }
+                        return $false
+                    } | Select-Object -First 1
                     $agentList += [PSCustomObject]@{
                         id = $def.id
                         name = $def.name

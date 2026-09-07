@@ -202,6 +202,28 @@ class TelegramBotHelper {
     return true;
   }
 
+  async sendGeneralMessage(text, parseMode = 'HTML') {
+    if (!this.config.enabled || !this.config.botToken) return false;
+    const chatIds = this.config.allowedChatIds.split(',').map(s => s.trim()).filter(Boolean);
+    for (const chatId of chatIds) {
+      try {
+        const url = `https://api.telegram.org/bot${this.config.botToken}/sendMessage`;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: text,
+            parse_mode: parseMode
+          })
+        });
+      } catch (err) {
+        console.error('[TelegramBot] sendGeneralMessage error:', err.message);
+      }
+    }
+    return true;
+  }
+
   async handleCallbackQuery(cq) {
     if (!cq || !cq.data) return;
     const [action, targetIp] = cq.data.split(':');

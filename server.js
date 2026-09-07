@@ -208,26 +208,222 @@ app.post('/api/stock-council-reports', (req, res) => {
   }
 });
 
-app.post('/api/stock-council-analyze', (req, res) => {
-  const stock = req.body?.stock || '005930';
+function getGeminiApiKey() {
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here') {
+    return process.env.GEMINI_API_KEY;
+  }
+  const envCandidates = [
+    path.join(__dirname, '.env'),
+    'C:\\Users\\bangt\\Downloads\\madang3\\.env',
+    'C:\\Users\\bangt\\Downloads\\madang6\\agent_supervisor\\.env',
+    'C:\\Users\\bangt\\Downloads\\madang6\\newsfilter_threads_agent\\.env'
+  ];
+  for (const envPath of envCandidates) {
+    if (fs.existsSync(envPath)) {
+      try {
+        const content = fs.readFileSync(envPath, 'utf8');
+        for (const line of content.split('\n')) {
+          const match = line.match(/^\s*GEMINI_API_KEY\s*=\s*(.+)$/);
+          if (match) {
+            const val = match[1].trim().replace(/^["']|["']$/g, '');
+            if (val && val !== 'your_gemini_api_key_here') return val;
+          }
+        }
+      } catch (e) {}
+    }
+  }
+  return null;
+}
+
+app.post('/api/stock-council-analyze', async (req, res) => {
+  const stock = (req.body?.stock || '005930').trim();
   const pythonPath = 'C:\\Users\\bangt\\Downloads\\madang6\\newsfilter_threads_agent\\.venv\\Scripts\\python.exe';
-  const scriptPath = 'C:\\Users\\bangt\\Downloads\\madang6\\서브주식에이전트_단칼\\main.py';
+  const scriptPath = 'C:\\Users\\bangt\\Downloads\\madang6\\서브주식에이전트_단가\\main.py';
   
+  // 1. 로컬 개발 환경: 파이썬 스크립트 실행 환경이 있으면 로컬 데몬 프로세스 스폰
   if (fs.existsSync(pythonPath) && fs.existsSync(scriptPath)) {
     try {
       const cp = require('child_process');
       const child = cp.spawn(pythonPath, [scriptPath, '--stock', stock, '--ondemand-only'], {
-        cwd: 'C:\\Users\\bangt\\Downloads\\madang6\\서브주식에이전트_단칼',
+        cwd: path.dirname(scriptPath),
         detached: true,
         stdio: 'ignore'
       });
       child.unref();
-      return res.json({ success: true, message: `'${stock}' 5대 에이전트 온디맨드 분석이 시작되었습니다. 잠시 후 새로고침 됩니다.` });
+      return res.json({ 
+        success: true, 
+        message: `'${stock}' 5대 에이전트 온디맨드 분석이 시작되었습니다. 잠시 후 새로고침 됩니다.` 
+      });
     } catch (err) {
-      return res.status(500).json({ success: false, error: err.message });
+      console.warn('[StockCouncil] Local spawn error, falling back to Gemini Cloud Engine:', err.message);
     }
-  } else {
-    return res.json({ success: false, message: '로컬 분석 데몬 환경을 찾을 수 없습니다.' });
+  }
+
+  // 2. GCP Cloud Run 및 클라우드 환경: Gemini 2.5 기반 실시간 클라우드 심의 엔진 가동
+  const geminiKey = getGeminiApiKey();
+  if (!geminiKey) {
+    return res.json({ 
+      success: false, 
+      message: 'GEMINI_API_KEY가 설정되지 않아 클라우드 분석을 수행할 수 없습니다. .env 환경변수를 확인해주세요.' 
+    });
+  }
+
+  try {
+    const systemPrompt = `당신은 Antigravity AI 주식 투자심의위원회의 메인 총괄 에이전트(Lead Orchestrator)이자 5대 서브에이전트단(단가 분석, 성장론자, 신중론자, 기술적분석가, 주린이 코칭)을 통합 지휘하는 최고 투자책임자(CIO)입니다.
+Google 검색을 통해 대상 종목의 가장 최신 현재가, 목표주가, PER, PBR, 부채비율, 거래량 및 최근 실적/수급 동향을 조사한 후, 5대 서브에이전트의 관점별 심층 심의와 메인 총괄의 최종 의결을 도출하세요.
+
+반드시 마크다운 블록(\`\`\`json)이나 인사말 없이 오직 순수한 JSON 문자열 하나만 출력하세요.
+
+반환할 JSON 스키마 규격:
+{
+  "stockName": "정확한 종목 한글명 (예: 루닛, 삼성전자 등)",
+  "itemCode": "6자리 종목코드 (예: 328130, 005930 등)",
+  "grade": "적극매수 | 매수 | 중립 | 관망 | 매도 중 택1",
+  "summary": "- 판정: ... - 리스크: N/10 - 진입: ...원 ~ ...원 구간 분할 매수 전략",
+  "factData": {
+    "closePrice": "현재가 (예: 52,300원)",
+    "targetPrice": "목표주가 또는 컨센서스 (예: 75,000원)",
+    "per": "PER (예: 15.4배 또는 N/A)",
+    "pbr": "PBR (예: 2.1배)",
+    "debtRatio": "부채비율 (예: 45.2% (최근 결산))",
+    "avg20dVolume": "20일 평균거래량 (예: 350,000주)"
+  },
+  "subagentReports": {
+    "growth": "성장론자 관점: 미래 성장 모멘텀, 전방 산업 확장성, 신제품/신시장 매출 기여도 분석 (2~3문장)",
+    "cautious": "신중론자 관점: 밸류에이션 부담, 안전마진, 재무 안정성, 다운사이드 리스크 점검 (2~3문장)",
+    "technical": "기술적분석가 관점: 차트 추세, 이평선 정배열/역배열, 외인/기관 수급 집중도, 거래량 분석 (2~3문장)",
+    "jurini": "주린이 관점: 초보 투자자 눈높이의 쉬운 해설, 추격 매수 주의점 및 안심 가이드 (1~2문장)"
+  }
+}`;
+
+    const payload = {
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: 'user', parts: [{ text: `종목 '${stock}'에 대해 최신 시장 데이터를 검색하고 5대 심의위원 교차 분석 및 메인 총괄 최종 의결 JSON을 생성하세요.` }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 4096
+      }
+    };
+
+    let rawText = '';
+    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+    for (const m of models) {
+      try {
+        const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${geminiKey}`;
+        const gRes = await fetch(gUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const gData = await gRes.json();
+        const candidateText = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidateText) {
+          rawText = candidateText;
+          break;
+        }
+      } catch (err) {
+        console.warn(`[StockCouncil] Gemini model ${m} error:`, err.message);
+      }
+    }
+
+    if (!rawText) {
+      return res.status(500).json({ success: false, message: 'Gemini 모델로부터 분석 결과를 수신하지 못했습니다. 잠시 후 다시 시도해주세요.' });
+    }
+
+    // JSON 파싱 (코드블록 감싸기 제거)
+    let cleaned = rawText.trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (e) {
+      const match = cleaned.match(/\{[\s\S]*\}/);
+      if (match) parsed = JSON.parse(match[0]);
+      else throw new Error('AI 분석 결과 JSON 파싱에 실패했습니다.');
+    }
+
+    const now = new Date();
+    const kstStr = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).format(now);
+    const [datePart, timePart] = kstStr.split(' ');
+    const cleanDate = datePart.replace(/-/g, '');
+    const cleanTime = timePart.replace(/:/g, '');
+    const reportId = `scr-${cleanDate}_${cleanTime}-${parsed.stockName || stock}-council`;
+
+    const reportItem = {
+      id: reportId,
+      agentId: "lead_stock_orchestrator",
+      persona: "AI 투자심의위원회 (메인총괄)",
+      icon: "⚖️",
+      role: "메인 주식 총괄 에이전트 / 팩트체크 감시자",
+      isCouncilDebate: true,
+      stockName: parsed.stockName || stock,
+      itemCode: parsed.itemCode || (stock.length === 6 && /^\d+$/.test(stock) ? stock : '000000'),
+      title: `[투자심의위원회 최종의결] ${parsed.stockName || stock} (${parsed.itemCode || stock})`,
+      grade: parsed.grade || "중립",
+      summary: parsed.summary || `- 판정: ${parsed.grade || '중립'} - 5대 에이전트 교차 검증 완료`,
+      kStockTemp: {
+        temp: 50,
+        status: "미지근/중립 (50°C)",
+        datetime: ""
+      },
+      factData: parsed.factData || {
+        closePrice: "-", targetPrice: "-", per: "-", pbr: "-", debtRatio: "-", avg20dVolume: "-"
+      },
+      subagentReports: parsed.subagentReports || {},
+      date: datePart,
+      time: timePart,
+      createdAt: now.toISOString()
+    };
+
+    // 3. stockCouncilReports.json 에 영구 저장 (최대 100개 보관)
+    const reportsPath = path.join(dataDir, 'stockCouncilReports.json');
+    let reportList = [];
+    if (fs.existsSync(reportsPath)) {
+      try { reportList = JSON.parse(fs.readFileSync(reportsPath, 'utf8')); } catch (e) { reportList = []; }
+    }
+    reportList.unshift(reportItem);
+    if (reportList.length > 100) reportList = reportList.slice(0, 100);
+    fs.writeFileSync(reportsPath, JSON.stringify(reportList, null, 2), 'utf8');
+
+    // 4. initialStockCouncilReports.js 동기화
+    const jsPath = path.join(dataDir, 'initialStockCouncilReports.js');
+    try {
+      fs.writeFileSync(jsPath, `// data/initialStockCouncilReports.js\nwindow.PORTAL_DATA_STOCK_COUNCIL_REPORTS = ${JSON.stringify(reportList, null, 2)};\n`, 'utf8');
+    } catch (e) {}
+
+    // 5. 텔레그램 리포트 브리핑 발송
+    try {
+      const tgMsg = `🏛️ <b>[AI 투자심의위원회 - 온디맨드 심의 의결]</b>
+
+• <b>대상 종목:</b> ${reportItem.stockName} (${reportItem.itemCode})
+• <b>최종 판정:</b> <b>${reportItem.grade}</b>
+• <b>핵심 요약:</b> ${reportItem.summary}
+• <b>현재가/목표가:</b> ${reportItem.factData?.closePrice || '-'} / ${reportItem.factData?.targetPrice || '-'}
+
+🚀 <b>성장론자:</b> ${reportItem.subagentReports?.growth || '-'}
+🛡️ <b>신중론자:</b> ${reportItem.subagentReports?.cautious || '-'}
+📊 <b>기술적분석:</b> ${reportItem.subagentReports?.technical || '-'}
+🐣 <b>주린이:</b> ${reportItem.subagentReports?.jurini || '-'}
+
+👉 <a href="https://madang3-264643074286.asia-northeast3.run.app/">심의실 리포트 바로가기</a>`;
+
+      await telegramBot.sendGeneralMessage(tgMsg, 'HTML');
+    } catch (tgErr) {
+      console.warn('[StockCouncil] Telegram alert error:', tgErr.message);
+    }
+
+    return res.json({
+      success: true,
+      message: `'${reportItem.stockName}' 5대 에이전트 온디맨드 심의 분석이 완료되어 리포트에 등록되었습니다!`,
+      report: reportItem
+    });
+  } catch (err) {
+    console.error('[StockCouncil] Cloud analyze error:', err);
+    return res.status(500).json({ success: false, message: `클라우드 분석 중 오류가 발생했습니다: ${err.message}` });
   }
 });
 
@@ -310,8 +506,8 @@ app.post('/api/sap-knowledge', (req, res) => {
 
 app.post('/api/sap-consulting', async (req, res) => {
   const { question, topic } = req.body || {};
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey || geminiKey === 'your_gemini_api_key_here') {
+  const geminiKey = getGeminiApiKey();
+  if (!geminiKey) {
     return res.json({ 
       success: false, 
       message: 'GEMINI_API_KEY가 설정되지 않았습니다. .env 파일에 유효한 Google Gemini API 키를 입력해주세요.' 
@@ -841,7 +1037,9 @@ app.get('/api/system/agents', async (req, res) => {
       // Find matching process
       const match = procs.find(p => {
         const cmd = p.CommandLine || '';
-        return agent.matchPattern.test(cmd);
+        if (agent.matchPattern.test(cmd)) return true;
+        if (agent.cwd && cmd.includes(agent.cwd)) return true;
+        return false;
       });
 
       return {

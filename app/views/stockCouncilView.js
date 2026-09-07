@@ -175,7 +175,7 @@ window.StockCouncilView = {
 
           <div class="consensus-card-footer">
             <span class="consensus-reports-count">📄 발행 리포트: <b>${stock.reportCount}</b>건</span>
-            <button type="button" class="btn-open-compare">
+            <button type="button" class="btn-open-compare" data-stock="${this.escapeHtml(stock.stockName)}">
               🔍 5인 종합 비교 &rarr;
             </button>
           </div>
@@ -183,11 +183,20 @@ window.StockCouncilView = {
       `;
     }).join('');
 
-    // Attach click listeners to cards
+    // Attach click listeners to cards and comparison buttons
     grid.querySelectorAll('.consensus-stock-card').forEach(card => {
       card.addEventListener('click', (e) => {
+        // 전문 리포트 등의 다른 인터랙션이 있으면 무시
         const stockName = card.getAttribute('data-stock');
-        this.openComparisonModal(stockName);
+        if (stockName) this.openComparisonModal(stockName);
+      });
+    });
+
+    grid.querySelectorAll('.btn-open-compare').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const stockName = btn.getAttribute('data-stock') || btn.closest('.consensus-stock-card')?.getAttribute('data-stock');
+        if (stockName) this.openComparisonModal(stockName);
       });
     });
   },
@@ -377,19 +386,19 @@ window.StockCouncilView = {
             <div class="compare-facts-grid">
               <div class="compare-fact-item">
                 <div class="compare-fact-label">💵 기준 주가</div>
-                <div class="compare-fact-val">${stock.factData.closePrice || '집계 중'}</div>
+                <div class="compare-fact-val">${stock.factData?.closePrice || '집계 중'}</div>
               </div>
               <div class="compare-fact-item">
                 <div class="compare-fact-label">📊 PER</div>
-                <div class="compare-fact-val">${stock.factData.per || '-'}</div>
+                <div class="compare-fact-val">${stock.factData?.per || '-'}</div>
               </div>
               <div class="compare-fact-item">
                 <div class="compare-fact-label">📈 PBR</div>
-                <div class="compare-fact-val">${stock.factData.pbr || '-'}</div>
+                <div class="compare-fact-val">${stock.factData?.pbr || '-'}</div>
               </div>
               <div class="compare-fact-item">
                 <div class="compare-fact-label">🏦 기관 순매수</div>
-                <div class="compare-fact-val">${stock.factData.organBuy || '-'}</div>
+                <div class="compare-fact-val">${stock.factData?.organBuy || '-'}</div>
               </div>
             </div>
           </div>
