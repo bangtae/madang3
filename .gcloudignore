@@ -18,3 +18,4 @@ scratch/
 backups/
 *.bak
 node_modules/
+*.exe
