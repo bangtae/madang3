@@ -158,12 +158,12 @@ function Send-TelegramNewIpAlert([string]$clientIp, [string]$requestPath, [strin
 
     $isAllowed = $false
     foreach ($p in $aList) {
-        if ($clientIp -eq $p -or $clientIp -like $p) { $isAllowed = $true; break }
+        if (-not $isAllowed -and ($clientIp -eq $p -or $clientIp -like $p)) { $isAllowed = $true }
     }
 
     $isBlocked = $false
     foreach ($p in $bList) {
-        if ($clientIp -eq $p -or $clientIp -like $p) { $isBlocked = $true; break }
+        if (-not $isBlocked -and ($clientIp -eq $p -or $clientIp -like $p)) { $isBlocked = $true }
     }
 
     $buttons = @()
@@ -326,74 +326,108 @@ function Send-RawBytesResponse($stream, $corsHeaders, $contentType, [byte[]]$bod
     if ($null -eq $bodyBytes) { $bodyBytes = [byte[]]@() }
     $responseHeader = "HTTP/1.1 200 OK`r`nContent-Type: ${contentType}`r`nCache-Control: no-cache, no-store, must-revalidate`r`nPragma: no-cache`r`nContent-Length: $($bodyBytes.Length)`r`n${corsHeaders}Connection: close`r`n`r`n"
     $headerBytes = [System.Text.Encoding]::UTF8.GetBytes($responseHeader)
-    $stream.Write($headerBytes, 0, $headerBytes.Length)
-    if ($bodyBytes.Length -gt 0) {
-        $stream.Write($bodyBytes, 0, $bodyBytes.Length)
+    try {
+        $stream.Write($headerBytes, 0, $headerBytes.Length)
+        if ($bodyBytes.Length -gt 0) {
+            $stream.Write($bodyBytes, 0, $bodyBytes.Length)
+        }
+        $stream.Flush()
+    } catch {
+        # Client aborted connection before write completed
     }
-    try { $stream.Flush() } catch {}
 }
 
 function Log-Access([string]$clientIp, [string]$status, [string]$requestPath) {
-    if ($requestPath -match '\.(css|js|png|jpg|svg|ico)$') {
+    if ([string]::IsNullOrWhiteSpace($clientIp)) { return }
+    if ($requestPath -match '\.(css|js|png|jpg|jpeg|gif|svg|ico|woff2?|map|ttf)$') {
         return
     }
 
+    $cleanIp = $clientIp.Trim().Replace("::ffff:", "")
+    $targetFile = if ($script:accessLogsFile) { $script:accessLogsFile } else { Join-Path (Get-Location) "data\access_logs.json" }
+
     try {
-        $logs = @()
-        if (Test-Path $accessLogsFile) {
-            $raw = [System.IO.File]::ReadAllText($accessLogsFile, [System.Text.Encoding]::UTF8)
-            if ($raw.StartsWith([char]0xFEFF)) { $raw = $raw.Substring(1) }
-            if (-not [string]::IsNullOrWhiteSpace($raw)) {
-                $parsed = $raw | ConvertFrom-Json
-                if ($null -ne $parsed) { $logs = @($parsed) }
+        $logs = [System.Collections.Generic.List[PSCustomObject]]::new()
+        if (Test-Path $targetFile) {
+            try {
+                $raw = [System.IO.File]::ReadAllText($targetFile, [System.Text.Encoding]::UTF8)
+                if ($raw.StartsWith([char]0xFEFF)) { $raw = $raw.Substring(1) }
+                $raw = $raw.Trim()
+                if (-not [string]::IsNullOrWhiteSpace($raw) -and $raw.StartsWith("[")) {
+                    $parsed = ConvertFrom-Json -InputObject $raw
+                    if ($null -ne $parsed) {
+                        foreach ($item in @($parsed)) {
+                            if ($item -and $item.ip) {
+                                $logs.Add($item)
+                            }
+                        }
+                    }
+                }
+            } catch {
+                Write-Host " [Log-Access Corrupt JSON Recovered: $($_.Exception.Message)]" -ForegroundColor Yellow
+                $logs.Clear()
             }
         }
 
         $nowStr = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-        $existing = $logs | Where-Object { $_.ip -eq $clientIp }
+        $foundIdx = -1
+        for ($i = 0; $i -lt $logs.Count; $i++) {
+            if ($logs[$i].ip -eq $cleanIp) {
+                $foundIdx = $i
+                break
+            }
+        }
 
-        if ($null -ne $existing) {
+        if ($foundIdx -ge 0) {
+            $existing = $logs[$foundIdx]
             $existing.lastAccess = $nowStr
             $existing.count = [int]$existing.count + 1
             $existing.status = $status
-            $existing.lastPath = $requestPath
+            $existing.lastPath = if ($requestPath) { $requestPath } else { "/" }
+            # 최근 접속 항목을 맨 앞으로 이동
+            $logs.RemoveAt($foundIdx)
+            $logs.Insert(0, $existing)
         } else {
             $newLog = [PSCustomObject]@{
-                ip = $clientIp
+                ip = $cleanIp
                 firstAccess = $nowStr
                 lastAccess = $nowStr
                 count = 1
                 status = $status
-                lastPath = $requestPath
+                lastPath = if ($requestPath) { $requestPath } else { "/" }
             }
-            $logs = @($newLog) + $logs
+            $logs.Insert(0, $newLog)
         }
 
-        if ($logs.Count -gt 200) {
-            $logs = $logs[0..199]
+        # 최대 300건 유지
+        while ($logs.Count -gt 300) {
+            $logs.RemoveAt($logs.Count - 1)
         }
 
+        $outEncoder = if ($script:Utf8NoBom) { $script:Utf8NoBom } else { [System.Text.UTF8Encoding]::new($false) }
         $jsonStr = $logs | ConvertTo-Json -Depth 3
-        [System.IO.File]::WriteAllText($accessLogsFile, $jsonStr, $Utf8NoBom)
+        [System.IO.File]::WriteAllText($targetFile, $jsonStr, $outEncoder)
 
         # 미분류 신규 외부 IP인 경우 텔레그램 알림 발송
-        if ($status -eq "ALLOWED" -or $status -eq "MISC") {
-            $aList = Get-NormalizedIpList $allowedIpsFile
-            $bList = Get-NormalizedIpList $blockedIpsFile
+        if ($status -eq "ALLOWED" -or $status -eq "MISC" -or $status -eq "BLOCKED_UNAUTHORIZED") {
+            $aList = Get-NormalizedIpList $script:allowedIpsFile
+            $bList = Get-NormalizedIpList $script:blockedIpsFile
             $isKnown = $false
             foreach ($p in $aList) {
-                if ($clientIp -eq $p -or $clientIp -like $p) { $isKnown = $true; break }
+                if (-not $isKnown -and ($cleanIp -eq $p -or $cleanIp -like $p)) { $isKnown = $true }
             }
             if (-not $isKnown) {
                 foreach ($p in $bList) {
-                    if ($clientIp -eq $p -or $clientIp -like $p) { $isKnown = $true; break }
+                    if (-not $isKnown -and ($cleanIp -eq $p -or $cleanIp -like $p)) { $isKnown = $true }
                 }
             }
-            if (-not $isKnown -and -not (Is-PrivateOrLocalIp $clientIp)) {
-                Send-TelegramNewIpAlert $clientIp $requestPath "신규 미분류 접속"
+            if (-not $isKnown -and -not (Is-PrivateOrLocalIp $cleanIp)) {
+                Send-TelegramNewIpAlert $cleanIp $requestPath "신규 미분류 접속"
             }
         }
-    } catch {}
+    } catch {
+        Write-Host " [Log-Access Error] $($_.Exception.Message)" -ForegroundColor Red
+    }
 }
 
 # 8080 ?ы듃瑜??먯쑀 以묒씤 湲곗〈 ?꾨줈?몄뒪 ?먮룞 ?뺣━ (Port Conflict Auto-Recovery)
@@ -446,11 +480,11 @@ while ($true) {
 
         $isBlocked = $false
         foreach ($bPattern in $blockedIps) {
-            if ($null -eq $bPattern) { continue }
-            $strB = $bPattern.ToString().Trim()
-            if ($clientIp -eq $strB -or $clientIp -like $strB) {
-                $isBlocked = $true
-                break
+            if ($null -ne $bPattern -and -not $isBlocked) {
+                $strB = $bPattern.ToString().Trim()
+                if ($clientIp -eq $strB -or $clientIp -like $strB) {
+                    $isBlocked = $true
+                }
             }
         }
 
@@ -473,11 +507,11 @@ while ($true) {
 
         $isAllowed = $false
         foreach ($ipPattern in $allowedIps) {
-            if ($null -eq $ipPattern) { continue }
-            $strPattern = $ipPattern.ToString().Trim()
-            if ($clientIp -eq $strPattern -or $clientIp -like $strPattern) {
-                $isAllowed = $true
-                break
+            if ($null -ne $ipPattern -and -not $isAllowed) {
+                $strPattern = $ipPattern.ToString().Trim()
+                if ($clientIp -eq $strPattern -or $clientIp -like $strPattern) {
+                    $isAllowed = $true
+                }
             }
         }
 
@@ -1842,8 +1876,11 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                 $notFoundBytes = [System.Text.Encoding]::UTF8.GetBytes($notFoundBody)
                 $responseHeader = "HTTP/1.1 404 Not Found`r`nContent-Type: text/html; charset=utf-8`r`nContent-Length: $($notFoundBytes.Length)`r`n${corsHeaders}Connection: close`r`n`r`n"
                 $headerBytes = [System.Text.Encoding]::UTF8.GetBytes($responseHeader)
-                $stream.Write($headerBytes, 0, $headerBytes.Length)
-                $stream.Write($notFoundBytes, 0, $notFoundBytes.Length)
+                try {
+                    $stream.Write($headerBytes, 0, $headerBytes.Length)
+                    $stream.Write($notFoundBytes, 0, $notFoundBytes.Length)
+                    $stream.Flush()
+                } catch {}
             }
         }
         $client.Close()

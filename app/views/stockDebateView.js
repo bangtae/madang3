@@ -304,6 +304,11 @@ window.StockDebateView = {
               <span class="topic-label">🎯 토론 격돌 주제:</span>
               <strong class="topic-text">${d.topic || '핵심 모멘텀 및 밸류에이션 공방'}</strong>
             </div>
+            ${d.news_headline ? `
+            <div class="debate-news-row" style="margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #38bdf8; background: rgba(56, 189, 248, 0.08); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.25);">
+              <span style="font-weight: 700; flex-shrink: 0; color: #0284c7;">📰 실시간 뉴스 팩트:</span>
+              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #0369a1; font-weight: 500;">${d.news_headline}</span>
+            </div>` : ''}
           </div>
           <div class="header-right">
             ${heatBadge}

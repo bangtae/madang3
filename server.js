@@ -13,30 +13,124 @@ const telegramBot = require('./app/utils/telegramBotHelper');
 const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const dataDir = path.join(__dirname, 'data');
+const allowedIpsFile = path.join(dataDir, 'allowed_ips.json');
+const blockedIpsFile = path.join(dataDir, 'blocked_ips.json');
+const accessLogsFile = path.join(dataDir, 'access_logs.json');
+
+// Ensure data directory and default files exist
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+if (!fs.existsSync(allowedIpsFile)) {
+  fs.writeFileSync(allowedIpsFile, JSON.stringify(["127.0.0.1", "::1", "192.168.219.115", "192.168.219.*"], null, 2), 'utf8');
+}
+if (!fs.existsSync(blockedIpsFile)) {
+  fs.writeFileSync(blockedIpsFile, "[]", 'utf8');
+}
+if (!fs.existsSync(accessLogsFile)) {
+  fs.writeFileSync(accessLogsFile, "[]", 'utf8');
+}
+
+/**
+ * 외부 유입 IP 접속 로그 기록 함수
+ */
+function logAccess(clientIp, status, requestPath) {
+  if (!clientIp) return;
+  if (requestPath && requestPath.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff2?|map|ttf)$/i)) {
+    return;
+  }
+
+  try {
+    let logs = [];
+    if (fs.existsSync(accessLogsFile)) {
+      try {
+        const raw = fs.readFileSync(accessLogsFile, 'utf8').replace(/^\uFEFF/, '').trim();
+        if (raw) logs = JSON.parse(raw);
+        if (!Array.isArray(logs)) logs = [];
+      } catch (e) {
+        logs = [];
+      }
+    }
+
+    const now = new Date();
+    const kstNow = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).format(now);
+
+    const existingIdx = logs.findIndex(l => l && l.ip === clientIp);
+    if (existingIdx >= 0) {
+      logs[existingIdx].lastAccess = kstNow;
+      logs[existingIdx].count = (parseInt(logs[existingIdx].count, 10) || 0) + 1;
+      logs[existingIdx].status = status;
+      logs[existingIdx].lastPath = requestPath || '/';
+      // 최근 접속 항목을 상단으로 이동
+      const updatedItem = logs.splice(existingIdx, 1)[0];
+      logs.unshift(updatedItem);
+    } else {
+      logs.unshift({
+        ip: clientIp,
+        firstAccess: kstNow,
+        lastAccess: kstNow,
+        count: 1,
+        status: status,
+        lastPath: requestPath || '/'
+      });
+    }
+
+    if (logs.length > 300) {
+      logs = logs.slice(0, 300);
+    }
+
+    fs.writeFileSync(accessLogsFile, JSON.stringify(logs, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[Access Log Error]', err.message);
+  }
+}
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// 외부 유입 IP 실시간 감지 및 텔레그램 승인/차단 알림 미들웨어
+// 외부 유입 IP 실시간 감지, 로깅 및 텔레그램 승인/차단 알림 미들웨어
 app.use((req, res, next) => {
-  const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
   const cleanIp = rawIp.split(',')[0].trim().replace(/^.*:/, '');
+
   if (cleanIp && !req.path.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff2?|map|ttf)$/i)) {
     try {
       let allowed = [];
       let blocked = [];
-      const aPath = path.join(dataDir, 'allowed_ips.json');
-      const bPath = path.join(dataDir, 'blocked_ips.json');
-      if (fs.existsSync(aPath)) allowed = JSON.parse(fs.readFileSync(aPath, 'utf8'));
-      if (fs.existsSync(bPath)) blocked = JSON.parse(fs.readFileSync(bPath, 'utf8'));
-
-      const isAllowed = allowed.some(p => telegramBot.isIpMatch(cleanIp, p));
-      const isBlocked = blocked.some(p => telegramBot.isIpMatch(cleanIp, p));
-
-      if (!isAllowed && !isBlocked && !telegramBot.isPrivateOrLocalIp(cleanIp)) {
-        telegramBot.sendNewIpAlert(cleanIp, req.path, '미분류 외부 접속');
+      if (fs.existsSync(allowedIpsFile)) {
+        try { allowed = JSON.parse(fs.readFileSync(allowedIpsFile, 'utf8')); } catch (e) {}
       }
-    } catch (e) {}
+      if (fs.existsSync(blockedIpsFile)) {
+        try { blocked = JSON.parse(fs.readFileSync(blockedIpsFile, 'utf8')); } catch (e) {}
+      }
+
+      const isBlocked = Array.isArray(blocked) && blocked.some(p => telegramBot.isIpMatch(cleanIp, p));
+      if (isBlocked) {
+        logAccess(cleanIp, 'BLOCKED_BLACKLIST', req.path);
+        return res.status(403).send(`<html><body><h1>403 Forbidden</h1><p>Access Denied: Your IP (${cleanIp}) is blacklisted.</p></body></html>`);
+      }
+
+      const isAllowed = Array.isArray(allowed) && allowed.some(p => telegramBot.isIpMatch(cleanIp, p));
+      const isLocal = telegramBot.isPrivateOrLocalIp(cleanIp);
+
+      let status = 'ALLOWED';
+      if (!isAllowed) {
+        if (isLocal) {
+          status = 'ALLOWED_LOCAL';
+        } else {
+          status = 'MISC';
+          telegramBot.sendNewIpAlert(cleanIp, req.path, '미분류 외부 접속');
+        }
+      }
+
+      logAccess(cleanIp, status, req.path);
+    } catch (e) {
+      logAccess(cleanIp, 'MISC', req.path);
+    }
   }
   next();
 });
@@ -57,11 +151,64 @@ app.get('/main', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// REST API Endpoints for Data Persistence
+// REST API Endpoints for Data Persistence & Security
 app.get('/api/my-ip', (req, res) => {
   const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-  const cleanIp = rawIp.replace(/^.*:/, '');
+  const cleanIp = rawIp.split(',')[0].trim().replace(/^.*:/, '');
   res.json({ ip: cleanIp || rawIp });
+});
+
+// IP 화이트리스트 조회/저장
+app.get('/api/allowed-ips', (req, res) => {
+  if (fs.existsSync(allowedIpsFile)) {
+    return res.sendFile(allowedIpsFile);
+  }
+  res.json(["127.0.0.1", "::1", "192.168.219.115", "192.168.219.*"]);
+});
+
+app.post('/api/allowed-ips', (req, res) => {
+  try {
+    const data = req.body;
+    fs.writeFileSync(allowedIpsFile, JSON.stringify(data, null, 2), 'utf8');
+    res.json({ success: true, count: Array.isArray(data) ? data.length : 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// IP 블랙리스트 조회/저장
+app.get('/api/blocked-ips', (req, res) => {
+  if (fs.existsSync(blockedIpsFile)) {
+    return res.sendFile(blockedIpsFile);
+  }
+  res.json([]);
+});
+
+app.post('/api/blocked-ips', (req, res) => {
+  try {
+    const data = req.body;
+    fs.writeFileSync(blockedIpsFile, JSON.stringify(data, null, 2), 'utf8');
+    res.json({ success: true, count: Array.isArray(data) ? data.length : 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 외부 유입 IP 접속 로그 조회/삭제
+app.get('/api/access-logs', (req, res) => {
+  if (fs.existsSync(accessLogsFile)) {
+    return res.sendFile(accessLogsFile);
+  }
+  res.json([]);
+});
+
+app.delete('/api/access-logs', (req, res) => {
+  try {
+    fs.writeFileSync(accessLogsFile, '[]', 'utf8');
+    res.json({ success: true, status: 'ok' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/apis', (req, res) => {

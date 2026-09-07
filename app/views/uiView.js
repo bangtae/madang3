@@ -342,28 +342,35 @@ window.UiView = {
     }
 
     container.innerHTML = logs.map(log => {
-      let statusBadge = '<span class="status-badge allowed">✅ 허용됨</span>';
-      if (log.status === 'BLOCKED_BLACKLIST') {
-        statusBadge = '<span class="status-badge blocked">⛔ 블랙리스트 차단</span>';
+      let statusBadge = '<span class="status-badge allowed" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3);">🟢 화이트리스트 허용</span>';
+      if (log.status === 'ALLOWED_LOCAL') {
+        statusBadge = '<span class="status-badge allowed" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">🏠 로컬 접속 (내부망)</span>';
+      } else if (log.status === 'BLOCKED_BLACKLIST') {
+        statusBadge = '<span class="status-badge blocked" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">⛔ 블랙리스트 차단</span>';
       } else if (log.status === 'BLOCKED_UNAUTHORIZED') {
-        statusBadge = '<span class="status-badge blocked">🛡️ 미승인 IP 차단</span>';
+        statusBadge = '<span class="status-badge blocked" style="background: rgba(249, 115, 22, 0.15); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.3);">🛡️ 미승인 IP 차단</span>';
+      } else if (log.status === 'MISC' || !log.status) {
+        statusBadge = '<span class="status-badge misc" style="background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.3);">⚪ 신규 외부 유입 (미분류)</span>';
       }
+
+      const pathStr = log.lastPath ? `<span class="ip-path-badge" style="font-size: 0.75rem; background: var(--bg-hover, rgba(255,255,255,0.06)); padding: 2px 6px; border-radius: 4px; font-family: monospace;">${this.escapeHtml(log.lastPath)}</span>` : '';
 
       return `
         <div class="ip-log-item-card">
           <div class="ip-log-main-info">
             <div class="ip-log-header">
-              <span class="ip-address-text">🌐 ${this.escapeHtml(log.ip)}</span>
+              <span class="ip-address-text">🌐 <strong>${this.escapeHtml(log.ip)}</strong></span>
               ${statusBadge}
+              ${pathStr}
             </div>
             <div class="ip-log-meta">
-              <span>최근 접속: ${this.escapeHtml(log.lastAccess || log.firstAccess)}</span>
+              <span>최근 접속: <strong>${this.escapeHtml(log.lastAccess || log.firstAccess)}</strong></span>
               <span>누적 시도: <strong>${log.count || 1}</strong>회</span>
             </div>
           </div>
           <div class="ip-log-actions">
-            <button type="button" class="btn-allow-ip" data-ip="${this.escapeHtml(log.ip)}">✅ 허용</button>
-            <button type="button" class="btn-block-ip" data-ip="${this.escapeHtml(log.ip)}">⛔ 차단</button>
+            <button type="button" class="btn btn-sm btn-success btn-allow-ip" data-ip="${this.escapeHtml(log.ip)}" title="화이트리스트에 추가하여 접속 허용">✅ 허용</button>
+            <button type="button" class="btn btn-sm btn-danger btn-block-ip" data-ip="${this.escapeHtml(log.ip)}" title="블랙리스트에 추가하여 접속 즉시 차단">⛔ 차단</button>
           </div>
         </div>
       `;
