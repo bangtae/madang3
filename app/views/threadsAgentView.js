@@ -97,7 +97,7 @@ window.ThreadsAgentView = {
     const todayIso = new Date().toISOString().slice(0, 10);
     const todayDebatesCount = allDebates.filter(d => (d.timestamp || '').includes(todayIso)).length;
     const todayDebates = todayDebatesCount > 0 ? todayDebatesCount : totalDebates;
-    const existingDebateQuery = document.getElementById('input-debate-stock')?.value || '루넷';
+    const existingDebateQuery = document.getElementById('input-debate-stock')?.value || '';
 
     // 입력창 포커스 중일 때는 전체 재렌더링 대신 상태 배지와 통계만 스마트 업데이트
     const activeEl = document.activeElement;
@@ -622,7 +622,12 @@ window.ThreadsAgentView = {
     const debateStatusBox = document.getElementById('debate-summon-status');
 
     const handleDebateSummon = async (overrideStock) => {
-      const stockQuery = (overrideStock || (inputDebateStock ? inputDebateStock.value : '005930')).trim() || '005930';
+      const stockQuery = (overrideStock || (inputDebateStock ? inputDebateStock.value : '')).trim();
+      if (!stockQuery) {
+        alert('토론을 소집할 주식 종목명이나 종목코드를 입력해주세요.');
+        if (inputDebateStock) inputDebateStock.focus();
+        return;
+      }
 
       if (btnTriggerDebate) {
         btnTriggerDebate.disabled = true;

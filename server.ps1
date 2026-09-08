@@ -769,17 +769,21 @@ while ($true) {
             }
         }
         elseif ($urlPath -eq "/api/stock-council-analyze") {
-            $stockQuery = "005930"
+            $stockQuery = ""
             if ($requestText -match '"stock"\s*:\s*"([^"]+)"') {
-                $stockQuery = $Matches[1]
+                $stockQuery = $Matches[1].Trim()
             }
-            $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
-            $dankaScript = "C:\Users\bangt\Downloads\madang6\서브주식에이전트_단가\main.py"
-            if ((Test-Path $pyPath) -and (Test-Path $dankaScript)) {
-                Start-Process -FilePath $pyPath -ArgumentList "`"$dankaScript`" --stock `"$stockQuery`" --ondemand-only" -WorkingDirectory "C:\Users\bangt\Downloads\madang6\서브주식에이전트_단가" -WindowStyle Hidden
-                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"분석이 시작되었습니다."}'
+            if (-not $stockQuery) {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"분석할 종목코드를 입력해주세요."}'
             } else {
-                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"분석 실행 환경을 찾을 수 없습니다."}'
+                $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
+                $dankaScript = "C:\Users\bangt\Downloads\madang6\서브주식에이전트_단가\main.py"
+                if ((Test-Path $pyPath) -and (Test-Path $dankaScript)) {
+                    Start-Process -FilePath $pyPath -ArgumentList "`"$dankaScript`" --stock `"$stockQuery`" --ondemand-only" -WorkingDirectory "C:\Users\bangt\Downloads\madang6\서브주식에이전트_단가" -WindowStyle Hidden
+                    Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"분석이 시작되었습니다."}'
+                } else {
+                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"분석 실행 환경을 찾을 수 없습니다."}'
+                }
             }
         }
         elseif ($urlPath -eq "/api/stock-debates") {
@@ -870,7 +874,7 @@ while ($true) {
             }
         }
         elseif ($urlPath -eq "/api/stock-debates/trigger") {
-            $stockQuery = "005930"
+            $stockQuery = ""
             $stockName = ""
             if ($requestLine -match '[?&]stock=([^&\s]+)') {
                 $stockQuery = [System.Uri]::UnescapeDataString($Matches[1]).Trim()
@@ -882,52 +886,56 @@ while ($true) {
             } elseif ($requestText -match '"originalQuery"\s*:\s*"([^"]+)"') {
                 $stockName = $Matches[1].Trim()
             }
-            
-            # 6자리 코드가 아닌 한글 종목명이 들어왔을 때 코드 변환
-            if ($stockQuery -notmatch '^\d{6}$') {
-                if (-not $stockName) { $stockName = $stockQuery }
-                $krxMapPath = Join-Path $PSScriptRoot "data\krx_stock_map.json"
-                if (Test-Path $krxMapPath) {
-                    try {
-                        $krxMapJson = [System.IO.File]::ReadAllText($krxMapPath, [System.Text.Encoding]::UTF8)
-                        $krxMap = $krxMapJson | ConvertFrom-Json
-                        if ($krxMap -and $krxMap.$stockQuery) {
-                            $stockQuery = $krxMap.$stockQuery
-                        } else {
-                            $cleanQ = $stockQuery.Replace(" ", "")
-                            if ($krxMap -and $krxMap.$cleanQ) {
-                                $stockQuery = $krxMap.$cleanQ
-                            }
-                        }
-                    } catch {}
-                }
-            }
 
-            # 대표 종목 역방향 매핑
-            if (-not $stockName) {
-                $revMap = @{
-                    "005930" = "삼성전자"; "000660" = "SK하이닉스"; "005380" = "현대차"; "196170" = "알테오젠";
-                    "034020" = "두산에너빌리티"; "035420" = "NAVER"; "035720" = "카카오"; "028300" = "HLB";
-                    "086520" = "에코프로"; "247540" = "에코프로비엠"; "000250" = "삼천당제약"; "058470" = "리노공업";
-                    "352820" = "하이브"; "328130" = "루닛"; "042700" = "한미반도체"; "068270" = "셀트리온";
-                    "000270" = "기아"; "005490" = "POSCO홀딩스"
-                }
-                if ($revMap.ContainsKey($stockQuery)) {
-                    $stockName = $revMap[$stockQuery]
-                }
-            }
-
-            $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
-            $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
-            if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
-                $pyArgs = @($debateScript, "--stock", $stockQuery, "--sync")
-                if ($stockName) {
-                    $pyArgs += @("--stock-name", $stockName)
-                }
-                Start-Process -FilePath $pyPath -ArgumentList $pyArgs -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
-                Send-JsonResponse $stream $corsHeaders "{\`"success\`":true,\`"message\`":\`"'$($stockName)' 5대 에이전트 끝장 토론이 성공적으로 소집되었습니다. 잠시 후 피드가 갱신됩니다.\`"}"
+            if (-not $stockQuery -and -not $stockName) {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"분석할 주식 종목명이나 종목코드를 입력해주세요."}'
             } else {
-                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"토론 실행 환경을 찾을 수 없습니다."}'
+                # 6자리 코드가 아닌 한글 종목명이 들어왔을 때 코드 변환
+                if ($stockQuery -notmatch '^\d{6}$') {
+                    if (-not $stockName) { $stockName = $stockQuery }
+                    $krxMapPath = Join-Path $PSScriptRoot "data\krx_stock_map.json"
+                    if (Test-Path $krxMapPath) {
+                        try {
+                            $krxMapJson = [System.IO.File]::ReadAllText($krxMapPath, [System.Text.Encoding]::UTF8)
+                            $krxMap = $krxMapJson | ConvertFrom-Json
+                            if ($krxMap -and $krxMap.$stockQuery) {
+                                $stockQuery = $krxMap.$stockQuery
+                            } else {
+                                $cleanQ = $stockQuery.Replace(" ", "")
+                                if ($krxMap -and $krxMap.$cleanQ) {
+                                    $stockQuery = $krxMap.$cleanQ
+                                }
+                            }
+                        } catch {}
+                    }
+                }
+
+                # 대표 종목 역방향 매핑
+                if (-not $stockName) {
+                    $revMap = @{
+                        "005930" = "삼성전자"; "000660" = "SK하이닉스"; "005380" = "현대차"; "196170" = "알테오젠";
+                        "034020" = "두산에너빌리티"; "035420" = "NAVER"; "035720" = "카카오"; "028300" = "HLB";
+                        "086520" = "에코프로"; "247540" = "에코프로비엠"; "000250" = "삼천당제약"; "058470" = "리노공업";
+                        "352820" = "하이브"; "328130" = "루닛"; "042700" = "한미반도체"; "068270" = "셀트리온";
+                        "000270" = "기아"; "005490" = "POSCO홀딩스"
+                    }
+                    if ($revMap.ContainsKey($stockQuery)) {
+                        $stockName = $revMap[$stockQuery]
+                    }
+                }
+
+                $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
+                $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
+                if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
+                    $pyArgs = @($debateScript, "--stock", $stockQuery, "--sync")
+                    if ($stockName) {
+                        $pyArgs += @("--stock-name", $stockName)
+                    }
+                    Start-Process -FilePath $pyPath -ArgumentList $pyArgs -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                    Send-JsonResponse $stream $corsHeaders "{\`"success\`":true,\`"message\`":\`"'$($stockName)' 5대 에이전트 끝장 토론이 성공적으로 소집되었습니다. 잠시 후 피드가 갱신됩니다.\`"}"
+                } else {
+                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"토론 실행 환경을 찾을 수 없습니다."}'
+                }
             }
         }
         elseif ($urlPath -eq "/api/stock-debates/auto-theme-debate") {
@@ -946,8 +954,21 @@ while ($true) {
                 if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
                     $script:lastAutoDebateTime = $nowMs
                     $script:isAutoDebateRunning = $true
-                    Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--sync") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
-                    Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"1시간 주기 핵심 테마 검증 토론이 백그라운드에서 발주되었습니다."}'
+                    $autoThemeCandidates = @(
+                        @{ code = "000660"; name = "SK하이닉스" },
+                        @{ code = "005380"; name = "현대차" },
+                        @{ code = "196170"; name = "알테오젠" },
+                        @{ code = "034020"; name = "두산에너빌리티" },
+                        @{ code = "042700"; name = "한미반도체" },
+                        @{ code = "068270"; name = "셀트리온" },
+                        @{ code = "328130"; name = "루닛" },
+                        @{ code = "058470"; name = "리노공업" },
+                        @{ code = "000270"; name = "기아" },
+                        @{ code = "086520"; name = "에코프로" }
+                    )
+                    $chosenCand = $autoThemeCandidates | Get-Random
+                    Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--stock", $chosenCand.code, "--stock-name", $chosenCand.name, "--sync") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                    Send-JsonResponse $stream $corsHeaders "{\`"success\`":true,\`"message\`":\`"1시간 주기 [$($chosenCand.name)] 핵심 테마 검증 토론이 백그라운드에서 발주되었습니다.\`"}"
                 } else {
                     Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"Node.js 또는 GCP Cloud Run 환경에서 자동 테마 검증이 처리됩니다."}'
                 }

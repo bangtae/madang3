@@ -6,7 +6,7 @@ window.StockDebateModel = {
   isTriggering: false,
 
   resolveStockCode(query) {
-    if (!query) return '005930';
+    if (!query || !query.trim()) return '';
     const q = query.trim();
     if (/^\d{6}$/.test(q)) return q;
     
@@ -32,7 +32,7 @@ window.StockDebateModel = {
   },
 
   resolveStockName(query) {
-    if (!query) return '삼성전자';
+    if (!query || !query.trim()) return '';
     const q = query.trim();
     const reverseMap = {
       '005930': '삼성전자', '000660': 'SK하이닉스', '005380': '현대차', '196170': '알테오젠',
@@ -177,9 +177,13 @@ window.StockDebateModel = {
   },
 
   async triggerDebate(stockQuery, customTopic = '') {
+    const rawQ = String(stockQuery || '').trim();
+    if (!rawQ) {
+      return { success: false, message: '분석할 주식 종목명이나 종목코드를 입력해주세요.' };
+    }
     this.isTriggering = true;
-    const resolvedCode = this.resolveStockCode(stockQuery);
-    const resolvedName = this.resolveStockName(stockQuery) || stockQuery;
+    const resolvedCode = this.resolveStockCode(rawQ);
+    const resolvedName = this.resolveStockName(rawQ) || rawQ;
     try {
       const endpoints = ['/api/stock-debates/trigger', 'http://localhost:8080/api/stock-debates/trigger'];
       let res = null;

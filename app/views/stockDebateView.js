@@ -63,7 +63,12 @@ window.StockDebateView = {
 
     if (btnTrigger) {
       btnTrigger.addEventListener('click', async () => {
-        const query = (inputStock ? inputStock.value : '005930').trim() || '005930';
+        const query = (inputStock ? inputStock.value : '').trim();
+        if (!query) {
+          alert('토론을 소집할 주식 종목명이나 종목코드를 입력해주세요.');
+          if (inputStock) inputStock.focus();
+          return;
+        }
         await this.handleTriggerDebate(query);
       });
     }
@@ -72,7 +77,12 @@ window.StockDebateView = {
       inputStock.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
-          const query = inputStock.value.trim() || '005930';
+          const query = inputStock.value.trim();
+          if (!query) {
+            alert('토론을 소집할 주식 종목명이나 종목코드를 입력해주세요.');
+            inputStock.focus();
+            return;
+          }
           await this.handleTriggerDebate(query);
         }
       });

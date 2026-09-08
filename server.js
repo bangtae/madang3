@@ -473,7 +473,30 @@ function saveDebateLog(debateItem) {
 let lastAutoDebateTime = 0;
 let isAutoDebateRunning = false;
 
-async function generateCloudDebate({ stock = '005930', stockName = '', customTopic = '', isAutoTheme = false } = {}) {
+const AUTO_THEME_CANDIDATES = [
+  { code: '000660', name: 'SK하이닉스', topic: 'HBM4 패키징 및 엔비디아 차세대 GPU 공급' },
+  { code: '005380', name: '현대차', topic: '보스턴다이내믹스 로보틱스 협력 및 자율주행 SDV' },
+  { code: '196170', name: '알테오젠', topic: '키트루다 SC 독점 로열티 및 피하주사 플랫폼 가치' },
+  { code: '034020', name: '두산에너빌리티', topic: 'AI 데이터센터 전력 급증에 따른 SMR 원전 수혜' },
+  { code: '042700', name: '한미반도체', topic: '글로벌 OSAT 공급망 및 차세대 듀얼 TC본더 독점력' },
+  { code: '068270', name: '셀트리온', topic: '짐펜트라 미국 PBM 등재 및 신약 파이프라인 확장' },
+  { code: '328130', name: '루닛', topic: '글로벌 빅파마 AI 바이오마커 설루션 상용화' },
+  { code: '058470', name: '리노공업', topic: '온디바이스 AI 반도체 테스트 핀 및 소켓 수요 폭증' },
+  { code: '000270', name: '기아', topic: '글로벌 PBV 시장 선점 및 전기차 수익성 방어' },
+  { code: '086520', name: '에코프로', topic: '차세대 2차전지 전구체 내재화 및 수직계열화' }
+];
+
+let krxStockMap = {};
+try {
+  const krxPath = path.join(__dirname, 'data', 'krx_stock_map.json');
+  if (fs.existsSync(krxPath)) {
+    krxStockMap = JSON.parse(fs.readFileSync(krxPath, 'utf8'));
+  }
+} catch (e) {
+  console.warn('[KRX Map Load Error]', e.message);
+}
+
+async function generateCloudDebate({ stock = '', stockName = '', customTopic = '', isAutoTheme = false } = {}) {
   const geminiKey = getGeminiApiKey();
   if (!geminiKey) {
     throw new Error('GEMINI_API_KEY가 설정되지 않아 클라우드 토론을 생성할 수 없습니다.');
@@ -495,19 +518,42 @@ async function generateCloudDebate({ stock = '005930', stockName = '', customTop
     '000270': '기아', '005490': 'POSCO홀딩스'
   };
 
-  let resolvedCode = '005930';
+  let resolvedCode = '';
   let resolvedName = stockName || '';
-  const rawStock = String(stock || '').trim();
+  let rawStock = String(stock || '').trim();
 
-  if (/^\d{6}$/.test(rawStock)) {
-    resolvedCode = rawStock;
-    if (!resolvedName) resolvedName = reverseMap[rawStock] || '';
+  // 자동 테마 발굴 모드이거나 종목 미지정 시 핫 테마 대장주 동적 선정
+  if (isAutoTheme || (!rawStock && !resolvedName)) {
+    if (isAutoTheme) {
+      const candidate = AUTO_THEME_CANDIDATES[Math.floor(Math.random() * AUTO_THEME_CANDIDATES.length)];
+      resolvedCode = candidate.code;
+      resolvedName = candidate.name;
+      if (!customTopic) customTopic = candidate.topic;
+    } else {
+      throw new Error('분석할 주식 종목명이나 종목코드를 입력해주세요.');
+    }
   } else {
-    resolvedCode = defaultMap[rawStock] || defaultMap[rawStock.replace(/\s+/g, '')] || '005930';
-    resolvedName = rawStock;
-  }
-  if (!resolvedName && reverseMap[resolvedCode]) {
-    resolvedName = reverseMap[resolvedCode];
+    if (/^\d{6}$/.test(rawStock)) {
+      resolvedCode = rawStock;
+      if (!resolvedName) resolvedName = reverseMap[rawStock] || '';
+    } else {
+      resolvedCode = defaultMap[rawStock] || defaultMap[rawStock.replace(/\s+/g, '')] || krxStockMap[rawStock] || krxStockMap[rawStock.replace(/\s+/g, '')] || '';
+      resolvedName = rawStock;
+    }
+    if (resolvedCode && !resolvedName) {
+      resolvedName = reverseMap[resolvedCode] || '';
+      if (!resolvedName) {
+        for (const [name, code] of Object.entries(krxStockMap)) {
+          if (code === resolvedCode) {
+            resolvedName = name;
+            break;
+          }
+        }
+      }
+    }
+    if (!resolvedCode && !resolvedName) {
+      throw new Error('분석할 주식 종목명이나 종목코드를 올바르게 입력해주세요.');
+    }
   }
 
   // 2. 네이버 증권 실시간 시세 API 선행 호출
@@ -751,7 +797,7 @@ async function generateCloudDebate({ stock = '005930', stockName = '', customTop
 
   const debateItem = {
     id: `debate_${Date.now()}`,
-    item_code: finalItemCode || '005930',
+    item_code: finalItemCode || resolvedCode || '000000',
     stock_name: finalStockName,
     market: finalMarket || 'KOSPI',
     status: 'COMPLETED',
@@ -882,9 +928,16 @@ app.get('/api/stock-debates/last-auto-status', (req, res) => {
 
 // 엔드포인트 3: 즉시 토론 소집 (Debate Summon) - 로컬 파이썬 우선, 부재 시 Gemini Cloud 엔진 즉시 폴백!
 app.post('/api/stock-debates/trigger', async (req, res) => {
-  const stock = (req.body?.stock || '005930').trim();
+  const stock = (req.body?.stock || '').trim();
   const stockName = (req.body?.stock_name || req.body?.originalQuery || '').trim();
   const topic = (req.body?.topic || '').trim();
+
+  if (!stock && !stockName) {
+    return res.status(400).json({
+      success: false,
+      message: '분석할 주식 종목명이나 종목코드를 입력해주세요.'
+    });
+  }
   const pythonPath = 'C:\\Users\\bangt\\Downloads\\madang6\\newsfilter_threads_agent\\.venv\\Scripts\\python.exe';
   const scriptPath = 'C:\\Users\\bangt\\Downloads\\madang6\\debate_arena.py';
 
@@ -981,7 +1034,10 @@ function getGeminiApiKey() {
 }
 
 app.post('/api/stock-council-analyze', async (req, res) => {
-  const stock = (req.body?.stock || '005930').trim();
+  const stock = (req.body?.stock || '').trim();
+  if (!stock) {
+    return res.status(400).json({ success: false, message: '분석할 종목코드를 입력해주세요.' });
+  }
   const pythonPath = 'C:\\Users\\bangt\\Downloads\\madang6\\newsfilter_threads_agent\\.venv\\Scripts\\python.exe';
   const scriptPath = 'C:\\Users\\bangt\\Downloads\\madang6\\서브주식에이전트_단가\\main.py';
   
