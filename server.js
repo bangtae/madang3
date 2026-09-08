@@ -614,21 +614,43 @@ JSON 출력 규격:
     }
   };
 
-  const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
+  const models = [
+    'gemini-flash-lite-latest',
+    'gemini-flash-latest',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-2.5-pro'
+  ];
   let rawText = '';
   for (const m of models) {
     try {
       const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${geminiKey}`;
-      const gRes = await fetch(gUrl, {
+      let gRes = await fetch(gUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const gData = await gRes.json();
-      const candidateText = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+      let gData = await gRes.json();
+      let candidateText = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!candidateText && payload.tools) {
+        // tools 제거 후 순수 프롬프트로 재시도
+        const noToolPayload = { ...payload };
+        delete noToolPayload.tools;
+        gRes = await fetch(gUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(noToolPayload)
+        });
+        gData = await gRes.json();
+        candidateText = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+      }
       if (candidateText) {
         rawText = candidateText;
+        console.log(`[Debate Cloud Engine] Successfully generated via model: ${m}`);
         break;
+      } else {
+        console.warn(`[Debate Cloud Engine] Model ${m} returned no text. Error:`, gData.error?.message || JSON.stringify(gData));
       }
     } catch (err) {
       console.warn(`[Debate Cloud Engine] Model ${m} error:`, err.message);
