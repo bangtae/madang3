@@ -28,7 +28,7 @@ window.StockDebateModel = {
     if (defaultMap[q]) return defaultMap[q];
     if (defaultMap[cleanQ]) return defaultMap[cleanQ];
 
-    return q;
+    return '';
   },
 
   resolveStockName(query) {
@@ -103,12 +103,13 @@ window.StockDebateModel = {
       } catch (e) {}
     }
 
+    // 1111 등 비정상 유령 데이터 영구 제거
+    this.items = (this.items || []).filter(d => d.item_code !== '1111' && d.stock_name !== '1111');
+
     // Cache locally
-    if (this.items.length > 0) {
-      try {
-        localStorage.setItem('portal_stock_debate_logs', JSON.stringify(this.items));
-      } catch (e) {}
-    }
+    try {
+      localStorage.setItem('portal_stock_debate_logs', JSON.stringify(this.items));
+    } catch (e) {}
 
     // 4. 1시간 주기 핵심 테마 검증 2.1 자동 갱신 백그라운드 체크
     this.checkAutoThemeDebate();
@@ -181,9 +182,15 @@ window.StockDebateModel = {
     if (!rawQ) {
       return { success: false, message: '분석할 주식 종목명이나 종목코드를 입력해주세요.' };
     }
-    this.isTriggering = true;
     const resolvedCode = this.resolveStockCode(rawQ);
-    const resolvedName = this.resolveStockName(rawQ) || rawQ;
+    const resolvedName = this.resolveStockName(rawQ) || (resolvedCode ? rawQ : '');
+    if (!resolvedCode && !resolvedName) {
+      return { 
+        success: false, 
+        message: `'${rawQ}'은(는) 한국거래소(KRX) 상장 종목 목록에서 찾을 수 없습니다. 올바른 종목명(예: 현대차, 알테오젠) 또는 6자리 종목코드를 입력해주세요.` 
+      };
+    }
+    this.isTriggering = true;
     try {
       const endpoints = ['/api/stock-debates/trigger', 'http://localhost:8080/api/stock-debates/trigger'];
       let res = null;

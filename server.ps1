@@ -924,17 +924,21 @@ while ($true) {
                     }
                 }
 
-                $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
-                $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
-                if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
-                    $pyArgs = @($debateScript, "--stock", $stockQuery, "--sync")
-                    if ($stockName) {
-                        $pyArgs += @("--stock-name", $stockName)
-                    }
-                    Start-Process -FilePath $pyPath -ArgumentList $pyArgs -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
-                    Send-JsonResponse $stream $corsHeaders "{\`"success\`":true,\`"message\`":\`"'$($stockName)' 5대 에이전트 끝장 토론이 성공적으로 소집되었습니다. 잠시 후 피드가 갱신됩니다.\`"}"
+                if ($stockQuery -notmatch '^\d{6}$') {
+                    Send-JsonResponse $stream $corsHeaders "{\`"success\`":false,\`"message\`":\`"입력하신 '[$stockQuery]'은(는) 한국거래소(KRX)에 등록된 유효한 상장 종목이 아닙니다. 정확한 종목명(예: 현대차, 알테오젠) 또는 6자리 종목코드를 입력해주세요.\`"}"
                 } else {
-                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"토론 실행 환경을 찾을 수 없습니다."}'
+                    $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
+                    $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
+                    if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
+                        $pyArgs = @($debateScript, "--stock", $stockQuery, "--sync")
+                        if ($stockName) {
+                            $pyArgs += @("--stock-name", $stockName)
+                        }
+                        Start-Process -FilePath $pyPath -ArgumentList $pyArgs -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                        Send-JsonResponse $stream $corsHeaders "{\`"success\`":true,\`"message\`":\`"'$($stockName)' 5대 에이전트 끝장 토론이 성공적으로 소집되었습니다. 잠시 후 피드가 갱신됩니다.\`"}"
+                    } else {
+                        Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"토론 실행 환경을 찾을 수 없습니다."}'
+                    }
                 }
             }
         }
