@@ -390,7 +390,7 @@ app.post('/api/stock-debates', (req, res) => {
     if (Array.isArray(incoming)) {
       existing = incoming;
     } else if (incoming && incoming.id) {
-      const idx = existing.findIndex(r => r.id === incoming.id);
+      const idx = existing.findIndex(r => r.id === incoming.id || (r.item_code && r.item_code === incoming.item_code));
       if (idx >= 0) existing[idx] = incoming;
       else existing.unshift(incoming);
     }
@@ -399,6 +399,40 @@ app.post('/api/stock-debates', (req, res) => {
     res.json({ success: true, count: existing.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// 🔥 끝장 토론 전체 비우기 & 개별 삭제 엔드포인트
+app.delete('/api/stock-debates', (req, res) => {
+  const dataDir = path.join(__dirname, 'data');
+  const filePath = path.join(dataDir, 'stockDebateLogs.json');
+  const jsFilePath = path.join(dataDir, 'initialStockDebateLogs.js');
+  const deleteId = req.query.id || req.body?.id;
+  const deleteAll = req.query.all === 'true' || req.body?.all === true;
+
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    let existing = [];
+    if (fs.existsSync(filePath)) {
+      try { existing = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
+    }
+    if (!Array.isArray(existing)) existing = [];
+
+    if (deleteAll) {
+      existing = [];
+      // 전체 비우기 직후 60분간 자동 테마 발굴이 즉각 재실행되어 화면에 다시 나타나지 않도록 쿨다운 설정
+      lastAutoDebateTime = Date.now();
+      console.log('[Debate Arena] 전체 비우기 완료: 모든 토론 기록 초기화됨.');
+    } else if (deleteId) {
+      existing = existing.filter(r => r.id !== deleteId && r.item_code !== deleteId);
+    }
+
+    fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), 'utf8');
+    fs.writeFileSync(jsFilePath, `// data/initialStockDebateLogs.js\nwindow.PORTAL_DATA_STOCK_DEBATES = ${JSON.stringify(existing, null, 2)};\n`, 'utf8');
+    res.json({ success: true, message: deleteAll ? '모든 토론 기록이 초기화되었습니다.' : '선택한 토론이 삭제되었습니다.', remaining: existing.length });
+  } catch (e) {
+    console.error('[Debate Delete Error]', e);
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
@@ -418,10 +452,12 @@ function saveDebateLog(debateItem) {
     }
     if (!Array.isArray(existing)) existing = [];
     
-    // 중복 제거 또는 최상단 삽입
-    const idx = existing.findIndex(r => r.id === debateItem.id);
-    if (idx >= 0) existing[idx] = debateItem;
-    else existing.unshift(debateItem);
+    // 동일 종목코드(item_code) 또는 id가 이미 존재하면 해당 항목을 최신으로 교체하고 맨 앞으로 이동
+    const idx = existing.findIndex(r => (r.item_code && r.item_code === debateItem.item_code) || r.id === debateItem.id);
+    if (idx >= 0) {
+      existing.splice(idx, 1);
+    }
+    existing.unshift(debateItem);
 
     if (existing.length > 100) existing = existing.slice(0, 100);
 
@@ -619,16 +655,44 @@ JSON 출력 규격:
     month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
   }).format(now);
 
+  // 자동 테마 발굴일 경우 AI가 도출한 대장주 종목코드/명칭을 최우선 적용하고 실시간 시세 재보정
+  let finalItemCode = resolvedCode;
+  let finalStockName = realStockName || resolvedName;
+  let finalMarket = realMarket;
+  let finalPrice = realPrice;
+  let finalChangePct = realChangePct;
+
+  if (isAutoTheme && debateData.item_code) {
+    finalItemCode = String(debateData.item_code).trim();
+    if (debateData.stock_name) finalStockName = String(debateData.stock_name).trim();
+    try {
+      const qUrl = `https://m.stock.naver.com/api/stock/${finalItemCode}/basic`;
+      const qRes = await fetch(qUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (qRes.ok) {
+        const qData = await qRes.json();
+        if (qData.closePrice) finalPrice = qData.closePrice;
+        if (qData.fluctuationsRatio !== undefined) {
+          const ratio = parseFloat(qData.fluctuationsRatio);
+          finalChangePct = (ratio > 0 ? '+' : '') + qData.fluctuationsRatio + '%';
+        }
+        if (qData.sosok === '1') finalMarket = 'KOSDAQ';
+        else if (qData.sosok === '0') finalMarket = 'KOSPI';
+      }
+    } catch (quoteErr) {
+      console.warn('[AutoTheme Quote Refresh Error]', quoteErr.message);
+    }
+  }
+
   const debateItem = {
     id: `debate_${Date.now()}`,
-    item_code: resolvedCode || debateData.item_code || '005930',
-    stock_name: realStockName || debateData.stock_name || '국내 핵심 종목',
-    market: realMarket || debateData.market || 'KOSPI',
+    item_code: finalItemCode || '005930',
+    stock_name: finalStockName || '국내 핵심 종목',
+    market: finalMarket || 'KOSPI',
     status: 'COMPLETED',
     timestamp: kstTime,
     topic: debateData.topic || '핵심 테마 검증 2.1 및 5대 에이전트 공방',
-    current_price: realPrice || debateData.current_price || 'N/A',
-    change_pct: realChangePct || debateData.change_pct || '+0.0%',
+    current_price: finalPrice || debateData.current_price || 'N/A',
+    change_pct: finalChangePct || debateData.change_pct || '+0.0%',
     per: debateData.per || 'N/A',
     pbr: debateData.pbr || 'N/A',
     shares_outstanding: debateData.shares_outstanding || 'N/A',
@@ -655,7 +719,32 @@ JSON 출력 규격:
   };
 
   saveDebateLog(debateItem);
+  sendDebateTelegramAlert(debateItem).catch(e => console.warn('[Telegram Alert Async Error]', e.message));
   return debateItem;
+}
+
+// 🔥 끝장 토론 텔레그램 실시간 알림 브리핑 헬퍼
+async function sendDebateTelegramAlert(debateItem) {
+  try {
+    if (!telegramBot || typeof telegramBot.sendGeneralMessage !== 'function') return;
+    const verdict = debateItem.action_title || debateItem.final_action || '심의 의결 완료';
+    const turnsCount = Array.isArray(debateItem.turns) ? debateItem.turns.length : 0;
+    const tgMsg = `🔥 <b>[AI 5대 에이전트 끝장 토론실 - 의결 선언]</b>
+
+• <b>대상 종목:</b> ${debateItem.stock_name} (${debateItem.item_code}) [${debateItem.market || 'KOSPI'}]
+• <b>현재 주가:</b> ${debateItem.current_price || '-'} (${debateItem.change_pct || '+0.0%'})
+• <b>의결 판정:</b> <b>${verdict}</b>
+• <b>격돌 화두:</b> ${debateItem.topic || '-'}
+• <b>토론 공방:</b> 총 ${turnsCount}턴 치열한 5대 에이전트 공방 완료
+
+⚖️ <b>심의위원장 최종 총평:</b>
+${debateItem.verdict_summary || '-'}
+
+👉 <a href="https://madang3-264643074286.asia-northeast3.run.app/">AI 끝장 토론실 바로가기</a>`;
+    await telegramBot.sendGeneralMessage(tgMsg, 'HTML');
+  } catch (err) {
+    console.warn('[Debate Telegram Alert Error]', err.message);
+  }
 }
 
 async function triggerAutoThemeDebate(force = false) {
@@ -764,6 +853,9 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
               resultJson = JSON.parse(lines[i]);
               if (resultJson && resultJson.turns) break;
             } catch (e) {}
+          }
+          if (resultJson) {
+            sendDebateTelegramAlert(resultJson).catch(() => {});
           }
           return res.json({ 
             success: true, 

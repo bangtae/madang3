@@ -1,4 +1,4 @@
-# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
+﻿# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
 param([int]$Port = 8080)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -811,8 +811,8 @@ while ($true) {
                             }
                             if ($incomingObj -is [System.Array]) {
                                 $existingList = [System.Collections.ArrayList]@($incomingObj)
-                            } elseif ($incomingObj -and $incomingObj.id) {
-                                $filtered = @($existingList | Where-Object { $_.id -ne $incomingObj.id })
+                            } elseif ($incomingObj -and ($incomingObj.id -or $incomingObj.item_code)) {
+                                $filtered = @($existingList | Where-Object { $_.id -ne $incomingObj.id -and $_.item_code -ne $incomingObj.item_code })
                                 $existingList = [System.Collections.ArrayList]@($filtered)
                                 $existingList.Insert(0, $incomingObj)
                             }
@@ -850,8 +850,9 @@ while ($true) {
 
                     if ($deleteAll) {
                         $existingList = @()
+                        $script:lastAutoDebateTime = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
                     } elseif (-not [string]::IsNullOrWhiteSpace($deleteId)) {
-                        $filtered = @($existingList | Where-Object { $_.id -ne $deleteId })
+                        $filtered = @($existingList | Where-Object { $_.id -ne $deleteId -and $_.item_code -ne $deleteId })
                         $existingList = [System.Collections.ArrayList]@($filtered)
                     }
 
