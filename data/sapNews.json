@@ -1,5 +1,41 @@
 [
     {
+        "id":  "sap_news_c06d112d",
+        "title":  "SAP S/4HANA Cloud Public Edition: Handling Missing Public APIs as a Partner — A Practical Guide",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/enterprise-resource-planning-blog-posts-by-sap/sap-s-4hana-cloud-public-edition-handling-missing-public-apis-as-a-partner/ba-p/14480965",
+        "category":  "Migration",
+        "summary":  "SAP S/4HANA Cloud Public Edition: Handling Missing Public APIs as a Partner — A Practical Guide Introduction During SAP S/4HANA Cloud Public Edition implementations, partners occasionally encounter...",
+        "published_at":  "2026-09-07T14:17:00Z"
+    },
+    {
+        "id":  "sap_news_9b065b8c",
+        "title":  "How to Generate a WSDL / SOAP API in SAP PO 7.5 Single Stack",
+        "source":  "SAP Community (Migration)",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/how-to-generate-a-wsdl-soap-api-in-sap-po-7-5-single-stack/ba-p/14478814",
+        "category":  "Migration",
+        "summary":  "Introduction: In this blog, I will explain how to generate and expose a WSDL/SOAP API in SAP Process Orchestration (SAP PO) 7.5 Single Stack and how it can be consumed as part of an integration ...",
+        "published_at":  "2026-09-08T08:50:55Z"
+    },
+    {
+        "id":  "sap_news_c53feecd",
+        "title":  "Guide to CI/CD for SAP Integration Suite (Part 2): Dropping the GitOps Engine into Your Landscape",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/guide-to-ci-cd-for-sap-integration-suite-part-2-dropping-the-gitops-engine/ba-p/14477794",
+        "category":  "Migration",
+        "summary":  "Hey everyone, welcome back. In Part 1, I talked about the massive headaches my team ran into when we moved to SAP Integration Suite. I\u0027m talking about those impossible-to-read, noisy Git commits...",
+        "published_at":  "2026-09-08T06:22:39Z"
+    },
+    {
+        "id":  "sap_news_a7560529",
+        "title":  "SAP Ariba Sourcing Integration with Third-Party System - SAP Integration Suite Community Content",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/spend-management-blog-posts-by-sap/sap-ariba-sourcing-integration-with-third-party-system-sap-integration/ba-p/14481195",
+        "category":  "Migration",
+        "summary":  "We can extend the SAP Ariba Sourcing UI for custom requirements using APIs. Consider this business case: your organization has a custom bid analysis process that runs before awarding items in the Sou...",
+        "published_at":  "2026-09-08T03:14:06Z"
+    },
+    {
         "id":  "sap_news_b19c38d5",
         "title":  "SAP BTP - IS - Beyond the Tool: Frankenstein Landscapes, Art. Sprawl and Integration Storytelling",
         "source":  "SAP Community",
