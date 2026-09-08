@@ -443,39 +443,81 @@ async function generateCloudDebate({ stock = '005930', customTopic = '', isAutoT
     throw new Error('GEMINI_API_KEY가 설정되지 않아 클라우드 토론을 생성할 수 없습니다.');
   }
 
+  // 1. 종목코드 및 명칭 해석
+  let resolvedCode = '005930';
+  let resolvedName = '';
+  const rawStock = String(stock || '').trim();
+  if (/^\d{6}$/.test(rawStock)) {
+    resolvedCode = rawStock;
+  } else {
+    const defaultMap = {
+      '루닛': '328130', '삼성전자': '005930', 'SK하이닉스': '000660', '현대차': '005380',
+      '알테오젠': '196170', '두산에너빌리티': '034020', 'NAVER': '035420', '네이버': '035420',
+      '카카오': '035720', 'HLB': '028300', '에코프로': '086520', '에코프로비엠': '247540',
+      '삼천당제약': '000250', '리노공업': '058470', '하이브': '352820', '한미반도체': '042700'
+    };
+    resolvedCode = defaultMap[rawStock] || defaultMap[rawStock.replace(/\s+/g, '')] || '005930';
+    resolvedName = rawStock;
+  }
+
+  // 2. 네이버 증권 / 토스증권 실시간 시세 API 선행 호출 (실제 주가 100% 실측 확보)
+  let realPrice = null;
+  let realChangePct = null;
+  let realMarket = 'KOSPI';
+  let realStockName = resolvedName;
+  try {
+    const qUrl = `https://m.stock.naver.com/api/stock/${resolvedCode}/basic`;
+    const qRes = await fetch(qUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (qRes.ok) {
+      const qData = await qRes.json();
+      if (qData.stockName) realStockName = qData.stockName;
+      if (qData.closePrice) realPrice = qData.closePrice;
+      if (qData.fluctuationsRatio !== undefined) {
+        const ratio = parseFloat(qData.fluctuationsRatio);
+        realChangePct = (ratio > 0 ? '+' : '') + qData.fluctuationsRatio + '%';
+      }
+      if (qData.sosok === '1') realMarket = 'KOSDAQ';
+      else if (qData.sosok === '0') realMarket = 'KOSPI';
+    }
+  } catch (quoteErr) {
+    console.warn('[RealtimeQuote Error]', quoteErr.message);
+  }
+
   const systemPrompt = `[역할: 전문 시장 테마 내비게이터 & 주식 끝장토론 심의위원회]
 당신은 개인 투자자의 눈높이에서 복잡한 시장의 흐름을 짚어주는 ‘전문 시장 테마 내비게이터’이자, 5대 주식 에이전트 끝장 토론실(Debate Arena)의 심의위원장(단가 분석)입니다.
-당신의 임무는 방대한 최신 뉴스 데이터 속에서 '가짜 뉴스'와 '단순 노이즈'를 걸러내고(사이버 정수기 필터링), 실질적인 투자 가치가 있는 핵심 테마와 종목의 연결 고리를 분석하여 5대 서브에이전트의 12턴 격돌 토론 및 최종 판정을 도출하는 것입니다.
+당신의 임무는 방대한 최신 뉴스·공시 데이터 속에서 '가짜 뉴스'와 '단순 노이즈'를 걸러내고(사이버 정수기 필터링), 실질적인 투자 가치가 있는 핵심 테마와 종목의 연결 고리를 분석하여 5대 서브에이전트의 유동적 턴(8턴~20턴) 격돌 토론 및 최종 판정을 도출하는 것입니다.
 
-[수행 목표 및 단계: 핵심 테마 검증 2.1]
-1. 뉴스 분석 및 필터링: 제공된 최신 뉴스 자료의 진실성을 먼저 검증하세요. 허위 사실이나 악의적인 조작 정보가 포함되었는지 확인하고, 공신력 있는 근거가 있는 내용만을 분석 대상으로 삼습니다.
-2. 테마 추출 및 구조화: 뉴스 키워드가 어떤 산업 섹터로 연결되는지, 그 흐름을 '초보자도 한눈에 보이게' 입체적으로 구조화합니다.
-3. 심층 평가: 6가지 검증 기준(주체, 시점, 실적 연결성, 반복성, 시장 반응, 근거)을 바탕으로 테마의 강도를 냉철하게 분석합니다.
-4. 종목 매핑: 관련 종목을 [대장주 / 2차 수혜주 / 연관 테마주]의 3단계로 명확히 구분하여 제시합니다.
-5. 5대 에이전트 12턴 난타전:
-   - 단가 (danka, ⚖️, #eab308): 메인총괄/심의위원장, 팩트체크 기준 제시 및 의결
-   - 주린이 (jurin, 🐣, #10b981): 초보 투자자 관점의 솔직한 질문 및 의문 제기
-   - 차티스트 (chartist, 📈, #38bdf8): 기술분석, 이평선, 지지/저항, 수급 공방
-   - 신중론자 (bear, 🛡️, #f43f5e): 하방 리스크, 밸류에이션 부담, 매크로 경고
-   - 성장론자 (bull, 🚀, #8b5cf6): 성장 모멘텀, 신시장 개척, 업사이드 주장
-   ※ 턴 1부터 11까지는 5명의 에이전트가 좌우 치열하게 공방(티키타카)을 벌이고, 마지막 12턴은 심의위원장 '단가'가 최종 의결 판정을 내립니다.
+[5대 서브에이전트 역할 및 전담 분석 체계]
+1. 단가 (danka, ⚖️, #eab308): 메인총괄/심의위원장
+   - Open DART 전자공시 팩트, 재무상태표 및 현금흐름 4대 유형(우량/성장/재기/몰락형) 판정, 부채비율 200% 초과 여부 및 유증/CB 위험 감시.
+2. 주린이 (jurin, 🐣, #10b981): 현실적 질문 및 초보 투자자 코칭
+   - 네이버 증권 연간/분기 실적 추이의 일상 비유 해설, 초보자가 궁금해할 직관적인 질문 제기.
+3. 차티스트 (chartist, 📈, #38bdf8): 토스증권 기술분석 전문가
+   - 일봉/주봉 추세, 지지/저항 구조적 마디가(1차 매수가, 목표 청산가, 최종 손절가), 속임수(Fakeout) 방어.
+4. 신중론자 (bear, 🛡️, #f43f5e): 자본시장 심리 및 작전주 탐지 아키텍처
+   - 세력의 3단계 운전 모델(1단계 매집, 2단계 상승/개미털기, 3단계 설거지/엑시트), 작전 리스크 점수(X/5점) 평가.
+5. 성장론자 (bull, 🚀, #8b5cf6): 유목민 Ver 4.0 전문 트레이더 페르소나
+   - 메가트렌드 및 증시 사계론, CAN SLIM 실적 폭발성, 20일선 눌림목/45일선 낙주 타점 및 기계적 손절 전략.
+
+[토론 진행 및 턴 수 규칙 (8턴 ~ 20턴 유동적 결정)]
+- 종목의 공시 건수, CB 물량, 작전 의혹, 차트 이평선 등 쟁점의 복잡성에 따라 8턴에서 최대 20턴 사이에서 유동적으로 턴 수를 결정하세요.
+- 턴 1부터 N-1까지는 5명의 에이전트가 치열하게 공방(티키타카)을 벌이며, 마지막 N번째 턴은 항상 심의위원장 '단가'가 최종 의결 판정을 선언하며 마칩니다.
 
 [가이드라인 및 문체 제약]
-- 인간다운 문체(Humanize KR v1.5): "결론적으로", "시사하는 바가 크다"와 같은 상투적인 AI 관용구를 삭제하세요. "~되어진다" 같은 피동 표현 대신 "~합니다", "~입니다"와 같은 능동적이고 간결한 종결 어미를 사용하세요.
-- 리듬감 있는 설명: 문장의 길이를 다양하게 조절하여 읽는 재미를 주되, 불필요한 수식어(매우, 정말 등)는 지양합니다.
-- 법적 리스크 관리: 투자 권유가 아닌 '정보 제공'과 '분석'에 집중하세요. 특히 단정적 표현은 피하고, 반드시 사실 근거를 기반으로 답변합니다.
+- 인간다운 문체(Humanize KR v1.5): 상투적인 AI 관용구를 배제하고 "~합니다", "~입니다"와 같이 능동적이고 간결한 종결 어미를 사용하세요.
+- 법적 리스크 관리: 사실 근거를 기반으로 답변합니다.
 
 반드시 마크다운 블록(\`\`\`json)이나 기타 서두 없이 오직 순수한 JSON 객체 하나만 출력하세요.
 
 JSON 출력 규격:
 {
-  "stock_name": "종목명 (예: 루닛, 삼성전자 등)",
-  "item_code": "6자리 종목코드 (예: 328130, 005930 등)",
-  "market": "KOSPI 또는 KOSDAQ",
-  "current_price": "최신 주가 (예: 52,300)",
-  "change_pct": "등락률 (예: +3.2%)",
-  "per": "15.4배",
-  "pbr": "2.1배",
+  "stock_name": "${realStockName || '종목명'}",
+  "item_code": "${resolvedCode}",
+  "market": "${realMarket}",
+  "current_price": "${realPrice || 'N/A'}",
+  "change_pct": "${realChangePct || '+0.0%'}",
+  "per": "최신 PER (예: 15.2배 또는 N/A)",
+  "pbr": "최신 PBR (예: 1.8배 또는 N/A)",
   "shares_outstanding": "발행주식수 또는 N/A",
   "topic": "1️⃣ 테마명: 핵심을 찌르는 직관적인 이름 및 격돌 화두",
   "news_headline": "공식 뉴스/공시 팩트 한 줄 요약",
@@ -483,10 +525,10 @@ JSON 출력 규격:
     "theme_name": "핵심 테마명",
     "news_evidence": "핵심 문장을 자연스러운 한국어로 요약",
     "metrics": {
-      "subject": "주체 (예: 정부, 대기업, 기관)",
+      "subject": "주체 (정부, 대기업 등)",
       "timing": "시점 (예: 2024년 4분기 공급 개시)",
-      "earnings_link": "실적 연결성 (예: 영업이익 흑자전환 가시화)",
-      "market_reaction": "시장 반응 (예: 거래대금 급증, 외인 연속 순매수)"
+      "earnings_link": "실적 연결성 (영업이익 흑자전환 등)",
+      "market_reaction": "시장 반응 (외인 수급, 거래량 등)"
     },
     "investment_horizon": "단기 | 중기 | 장기 중 택1",
     "stock_map": {
@@ -494,7 +536,7 @@ JSON 출력 규격:
       "secondary": "2차 수혜 (종목명) - 연결 고리 설명",
       "related": "연관 테마 (종목명) - 확장 가능성"
     },
-    "expert_comment": "💡 전문가의 투자 전략 코멘트 (친절하고 리듬감 있는 옆자리 설명 어조)"
+    "expert_comment": "💡 전문가의 투자 전략 코멘트"
   },
   "final_action": "BUY (분할접근) | HOLD (관망) | CAUTION (리스크관리)",
   "action_title": "⚖️ 심의위원회 최종 의결 판정 요약명",
@@ -510,20 +552,20 @@ JSON 출력 규격:
       "avatar": "⚖️",
       "tag": "토론 개시",
       "badge_color": "#eab308",
-      "message": "이번 토론 안건은 ... 입니다. 팩트 데이터부터 점검해봅시다.",
+      "message": "...",
       "time": "10:00"
-    },
-    ... 총 12개의 턴 (turn 1부터 turn 12까지, 마지막 12턴은 danka의 최종 의결 판정)
+    }
   ]
 }`;
 
   let userPrompt = '';
   if (isAutoTheme) {
     userPrompt = `오늘(최근 24시간 내) 한국 주식 시장(KOSPI/KOSDAQ)에서 가장 뜨겁게 화제가 되고 있거나 실질적 모멘텀이 발생한 핵심 테마와 그 대표 대장주를 Google 실시간 검색으로 발굴하세요.
-그리고 '핵심 테마 검증 2.1' 가이드라인에 따라 철저히 팩트체크 및 필터링을 거쳐 5대 에이전트의 12턴 끝장 토론과 최종 판정이 담긴 완성된 JSON을 생성하세요.`;
+그리고 '핵심 테마 검증 2.1' 가이드라인에 따라 철저히 팩트체크 및 필터링을 거쳐 5대 에이전트의 유동적 턴(8~20턴) 끝장 토론과 최종 판정이 담긴 완성된 JSON을 생성하세요.`;
   } else {
-    userPrompt = `종목 '${stock}' ${customTopic ? `(토론 주제: ${customTopic})` : ''}에 대해 Google 실시간 검색으로 최근 뉴스, 공시, 밸류에이션 팩트를 조사하세요.
-'핵심 테마 검증 2.1' 가이드라인을 바탕으로 테마 분석 지표와 종목맵, 전문가 코멘트를 포함하고 5대 에이전트의 12턴 끝장 토론 JSON을 생성하세요.`;
+    userPrompt = `종목 [${realStockName || stock} (${resolvedCode})] ${customTopic ? `(토론 주제: ${customTopic})` : ''}에 대해 Google 실시간 검색으로 최신 DART 전자공시, 뉴스, 재무상태, 차트 흐름을 조사하세요.
+현재 실측 종가는 ${realPrice ? realPrice + '원' : '실시간 시세'} (${realChangePct || ''}) 입니다.
+'핵심 테마 검증 2.1' 가이드라인과 5대 에이전트 전담 분석 체계(DART 현금흐름/네이버 실적/토스 차트마디가/작전주 탐지/유목민 4.0)를 바탕으로 8턴에서 20턴 사이의 유동적 끝장 토론 JSON을 생성하세요.`;
   }
 
   const payload = {
@@ -579,14 +621,14 @@ JSON 출력 규격:
 
   const debateItem = {
     id: `debate_${Date.now()}`,
-    item_code: debateData.item_code || (typeof stock === 'string' && /^\d{6}$/.test(stock) ? stock : '005930'),
-    stock_name: debateData.stock_name || '국내 핵심 테마주',
-    market: debateData.market || 'KOSPI',
+    item_code: resolvedCode || debateData.item_code || '005930',
+    stock_name: realStockName || debateData.stock_name || '국내 핵심 종목',
+    market: realMarket || debateData.market || 'KOSPI',
     status: 'COMPLETED',
     timestamp: kstTime,
     topic: debateData.topic || '핵심 테마 검증 2.1 및 5대 에이전트 공방',
-    current_price: debateData.current_price || 'N/A',
-    change_pct: debateData.change_pct || '+0.0%',
+    current_price: realPrice || debateData.current_price || 'N/A',
+    change_pct: realChangePct || debateData.change_pct || '+0.0%',
     per: debateData.per || 'N/A',
     pbr: debateData.pbr || 'N/A',
     shares_outstanding: debateData.shares_outstanding || 'N/A',

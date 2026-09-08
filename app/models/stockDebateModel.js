@@ -175,10 +175,20 @@ window.StockDebateModel = {
 
       if (res && res.ok) {
         const result = await res.json();
-        // Wait 2.0s for python process to complete sync
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        await this.loadDebates();
-        return { success: true, result, code: resolvedCode };
+        if (result.debate && result.debate.id) {
+          const existingIdx = this.items.findIndex(d => d.id === result.debate.id);
+          if (existingIdx >= 0) this.items[existingIdx] = result.debate;
+          else this.items.unshift(result.debate);
+
+          try {
+            localStorage.setItem('portal_stock_debate_logs', JSON.stringify(this.items));
+          } catch (e) {}
+
+          if (window.StockDebateView && typeof window.StockDebateView.render === 'function') {
+            window.StockDebateView.render();
+          }
+        }
+        return { success: true, result, debate: result.debate, code: resolvedCode };
       } else {
         return { success: false, message: '서버 연결 실패 또는 에이전트 응답 지연' };
       }

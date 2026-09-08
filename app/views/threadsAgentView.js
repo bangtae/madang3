@@ -649,19 +649,25 @@ window.ThreadsAgentView = {
             debateStatusBox.innerHTML = `
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <div style="color: #10b981; font-size: 0.88rem;">
-                  ✅ <strong>[${stockQuery}]</strong> 끝장 토론이 성공적으로 완료 및 기록되었습니다!
+                  ✅ <strong>[${stockQuery}]</strong> 끝장 토론이 성공적으로 완료 및 기록되었습니다! 잠시 후 토론실 피드로 자동 이동합니다...
                 </div>
                 <button type="button" id="btn-summon-goto-feed" class="btn btn-outline btn-sm" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); font-size: 0.78rem; padding: 3px 10px;">
-                  🔥 끝장 토론실에서 결과 보기 &rarr;
+                  🔥 지금 바로 토론실 보기 &rarr;
                 </button>
               </div>
             `;
             const btnSummonGoto = document.getElementById('btn-summon-goto-feed');
-            if (btnSummonGoto) {
-              btnSummonGoto.addEventListener('click', () => {
-                if (btnGotoDebate) btnGotoDebate.click();
-              });
-            }
+            const navigateToDebate = () => {
+              if (window.AppController && window.AppController.switchTopNav) {
+                window.AppController.switchTopNav('invest');
+                const debateSideBtn = document.querySelector('[data-side="stock-debate"]');
+                if (debateSideBtn) debateSideBtn.click();
+                if (window.StockDebateView) window.StockDebateView.render();
+              }
+            };
+            if (btnSummonGoto) btnSummonGoto.addEventListener('click', navigateToDebate);
+            // 1.5초 후 자동 이동
+            setTimeout(navigateToDebate, 1500);
           }
           this.updateDebateStatsOnly();
         } else {
