@@ -495,7 +495,6 @@ try {
 } catch (e) {
   console.warn('[KRX Map Load Error]', e.message);
 }
-
 let dartCorpCodes = {};
 try {
   const dartPath = path.join(__dirname, 'data', 'dart_corp_codes.json');
@@ -729,15 +728,6 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
 • Turn 11 (단가 / quantitative): PBR/PER 밸류에이션 기반 3단계 분할 매수가 및 안전마진 가이드 제시
 • Turn 12 (메인총괄 / CIO): 심의위원회 최종 의결 및 전문 애널리스트 종합 결론 (목표가, 손절가, 포트폴리오 비중 확정)
 
-[금융감독원 Open DART & 네이버·토스증권 실시간 공식 API 실데이터 (각 에이전트는 반드시 이 수치를 인용해 격돌하세요)]
-• 기본 밸류에이션: 종목 ${realStockName}(${resolvedCode}) [${realMarket}], 현재가 ${realPrice || 'N/A'}원 (${realChangePct || '+0.0%'}), PER: ${realPer}, PBR: ${realPbr}, 시총: ${realMarketCap}, 상장주식수: ${realShares}
-• 금융감독원 Open DART 최신 실제 전자공시 (Turn 1, Turn 2, Turn 7에서 실제 공시명과 접수번호를 필히 인용할 것):
-${dartFactText}
-• 네이버/토스증권 최근 실시간 외인/기관/개인 수급 동향 (Turn 8, Turn 9에서 실제 순매수 수량을 필히 인용할 것):
-${trendFactText}
-• 네이버 증권 기업 연간 실적 추이:
-${annualFinanceText}
-
 [문체 및 JSON 출력 규격]
 반드시 마크다운 블록(\`\`\`json) 없이 순수한 JSON 객체 하나만 출력하세요.
 {
@@ -746,11 +736,11 @@ ${annualFinanceText}
   "market": "${realMarket}",
   "current_price": "${realPrice || 'N/A'}",
   "change_pct": "${realChangePct || '+0.0%'}",
-  "per": "${realPer !== 'N/A' ? realPer : '최신 PER'}",
-  "pbr": "${realPbr !== 'N/A' ? realPbr : '최신 PBR'}",
-  "shares_outstanding": "${realShares !== 'N/A' ? realShares : '발행주식수'}",
+  "per": "최신 PER (예: 12.5배)",
+  "pbr": "최신 PBR (예: 1.8배)",
+  "shares_outstanding": "발행주식수",
   "topic": "${realStockName || resolvedName} 5대 심층 검증: 사업/R&D·재무·테마·실적·세력수급 12턴 끝장 토론",
-  "news_headline": "${verifiedHeadline}",
+  "news_headline": "DART 사업보고서 및 최신 공시/뉴스 핵심 팩트 한 줄 요약",
   "theme_report": {
     "theme_name": "기업 핵심 테마명",
     "news_evidence": "핵심 테마 및 실적 연결 고리 팩트 요약",
@@ -925,10 +915,10 @@ ${annualFinanceText}
     topic: debateData.topic || `${finalStockName} 5대 심층 검증: 사업/R&D·재무·테마·실적·세력수급 12턴 끝장 토론`,
     current_price: finalPrice || debateData.current_price || 'N/A',
     change_pct: finalChangePct || debateData.change_pct || '+0.0%',
-    per: (realPer && realPer !== 'N/A') ? realPer : (debateData.per || 'N/A'),
-    pbr: (realPbr && realPbr !== 'N/A') ? realPbr : (debateData.pbr || 'N/A'),
-    shares_outstanding: (realShares && realShares !== 'N/A') ? realShares : (debateData.shares_outstanding || 'N/A'),
-    news_headline: verifiedHeadline || debateData.news_headline || '',
+    per: debateData.per || 'N/A',
+    pbr: debateData.pbr || 'N/A',
+    shares_outstanding: debateData.shares_outstanding || 'N/A',
+    news_headline: debateData.news_headline || '',
     theme_report: debateData.theme_report || null,
     final_action: debateData.final_action || 'HOLD (관망)',
     action_title: debateData.action_title || '⚖️ 심의위원회 의결',
@@ -1122,7 +1112,7 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
     });
   } catch (cloudErr) {
     console.error('[Debate Trigger Cloud Engine Error]', cloudErr);
-    return res.status(400).json({ success: false, message: cloudErr.message, error: cloudErr.message });
+    return res.status(500).json({ success: false, error: cloudErr.message });
   }
 });
 

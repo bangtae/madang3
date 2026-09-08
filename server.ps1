@@ -55,7 +55,8 @@ function Get-GeminiApiKey {
                         }
                     }
                 }
-            } catch {}
+            }
+            catch {}
         }
     }
     return $null
@@ -65,8 +66,6 @@ $telegramConfigFile = Join-Path $dataDir "telegramConfig.json"
 $script:telegramAlertCooldown = @{}
 $script:telegramLastUpdateId = 0
 $telegramPollSw = [System.Diagnostics.Stopwatch]::StartNew()
-$script:lastAutoDebateTime = 0
-$script:isAutoDebateRunning = $false
 
 function Get-TelegramConfig {
     $botToken = ""
@@ -78,11 +77,13 @@ function Get-TelegramConfig {
             foreach ($line in $lines) {
                 if ($line -match '^\s*TELEGRAM_BOT_TOKEN\s*=\s*(.+)$') {
                     $botToken = $matches[1].Trim(' "''')
-                } elseif ($line -match '^\s*TELEGRAM_ALLOWED_CHAT_IDS\s*=\s*(.+)$') {
+                }
+                elseif ($line -match '^\s*TELEGRAM_ALLOWED_CHAT_IDS\s*=\s*(.+)$') {
                     $chatIds = $matches[1].Trim(' "''')
                 }
             }
-        } catch {}
+        }
+        catch {}
     }
     if ((-not $botToken -or -not $chatIds) -and (Test-Path $telegramConfigFile)) {
         try {
@@ -90,12 +91,13 @@ function Get-TelegramConfig {
             $tObj = $tRaw | ConvertFrom-Json
             if (-not $botToken) { $botToken = $tObj.botToken }
             if (-not $chatIds) { $chatIds = $tObj.allowedChatIds }
-        } catch {}
+        }
+        catch {}
     }
     return [PSCustomObject]@{
-        botToken = $botToken
+        botToken       = $botToken
         allowedChatIds = $chatIds
-        enabled = [bool](-not [string]::IsNullOrWhiteSpace($botToken) -and -not [string]::IsNullOrWhiteSpace($chatIds))
+        enabled        = [bool](-not [string]::IsNullOrWhiteSpace($botToken) -and -not [string]::IsNullOrWhiteSpace($chatIds))
     }
 }
 
@@ -114,15 +116,18 @@ function Get-NormalizedIpList([string]$filePath) {
                 if ($trimmed -and $trimmed -notmatch '^@\{' -and $trimmed -notmatch 'System\.Object') {
                     $result.Add($trimmed)
                 }
-            } elseif ($obj -is [System.Collections.IEnumerable]) {
+            }
+            elseif ($obj -is [System.Collections.IEnumerable]) {
                 foreach ($item in $obj) { Extract-Strings $item }
-            } elseif ($obj.PSObject -and $obj.PSObject.Properties['value']) {
+            }
+            elseif ($obj.PSObject -and $obj.PSObject.Properties['value']) {
                 Extract-Strings $obj.value
             }
         }
         Extract-Strings $data
         return @($result | Select-Object -Unique)
-    } catch {
+    }
+    catch {
         return @()
     }
 }
@@ -175,12 +180,14 @@ function Send-TelegramNewIpAlert([string]$clientIp, [string]$requestPath, [strin
         $buttons = @(
             [PSCustomObject]@{ text = "⛔ 블랙리스트로 차단"; callback_data = "block:$clientIp" }
         )
-    } elseif ($isBlocked) {
+    }
+    elseif ($isBlocked) {
         $stateDesc = "🔴 블랙리스트 등록됨 (접속 차단 중)"
         $buttons = @(
             [PSCustomObject]@{ text = "✅ 화이트리스트로 허용"; callback_data = "allow:$clientIp" }
         )
-    } else {
+    }
+    else {
         $stateDesc = if ($currentStatus) { $currentStatus } else { "⚪ 미분류 (신규 외부 유입)" }
         $buttons = @(
             [PSCustomObject]@{ text = "✅ 화이트리스트 허용"; callback_data = "allow:$clientIp" },
@@ -190,22 +197,22 @@ function Send-TelegramNewIpAlert([string]$clientIp, [string]$requestPath, [strin
 
     $kstTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
     $msgText = "🌐 <b>[외부 IP 유입 모니터링 알림]</b>`n`n" +
-               "• <b>접속 IP:</b> <code>$clientIp</code>`n" +
-               "• <b>접속 일시:</b> $kstTime (KST)`n" +
-               "• <b>요청 경로:</b> <code>$requestPath</code>`n" +
-               "• <b>현재 상태:</b> $stateDesc`n`n" +
-               "아래 버튼을 눌러 권한을 변경할 수 있습니다:"
+    "• <b>접속 IP:</b> <code>$clientIp</code>`n" +
+    "• <b>접속 일시:</b> $kstTime (KST)`n" +
+    "• <b>요청 경로:</b> <code>$requestPath</code>`n" +
+    "• <b>현재 상태:</b> $stateDesc`n`n" +
+    "아래 버튼을 눌러 권한을 변경할 수 있습니다:"
 
     $cIds = $tCfg.allowedChatIds.Split(',')
     foreach ($cId in $cIds) {
         $cleanId = $cId.Trim()
         if (-not $cleanId) { continue }
         $jsonPayload = [PSCustomObject]@{
-            chat_id = $cleanId
-            text = $msgText
-            parse_mode = "HTML"
+            chat_id      = $cleanId
+            text         = $msgText
+            parse_mode   = "HTML"
             reply_markup = [PSCustomObject]@{
-                inline_keyboard = ,$buttons
+                inline_keyboard = , $buttons
             }
         }
         $bodyData = $jsonPayload | ConvertTo-Json -Depth 5 -Compress
@@ -213,7 +220,8 @@ function Send-TelegramNewIpAlert([string]$clientIp, [string]$requestPath, [strin
         try {
             $apiUrl = "https://api.telegram.org/bot$($tCfg.botToken)/sendMessage"
             $r = Invoke-WebRequest -Uri $apiUrl -Method POST -Body ([System.Text.Encoding]::UTF8.GetBytes($bodyData)) -ContentType "application/json; charset=utf-8" -TimeoutSec 4 -UseBasicParsing -ErrorAction SilentlyContinue
-        } catch {}
+        }
+        catch {}
     }
 }
 
@@ -249,7 +257,8 @@ function Check-TelegramCallbackUpdates {
                                 $blocked = @($blocked | Where-Object { $_ -ne $targetIp })
                                 $resTitle = "✅ 화이트리스트 허용 완료"
                                 $toastText = "$targetIp IP가 화이트리스트에 등록되었습니다."
-                            } elseif ($action -eq "block") {
+                            }
+                            elseif ($action -eq "block") {
                                 if ($targetIp -notin $blocked) { $blocked += $targetIp }
                                 $allowed = @($allowed | Where-Object { $_ -ne $targetIp })
                                 $resTitle = "⛔ 블랙리스트 차단 완료"
@@ -262,30 +271,32 @@ function Check-TelegramCallbackUpdates {
                             $fromUser = if ($cq.from.username) { "@$($cq.from.username)" } else { $cq.from.first_name }
                             $kstNow = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
                             $updatedText = "🌐 <b>[외부 IP 유입 처리 완료]</b>`n`n" +
-                                           "• <b>대상 IP:</b> <code>$targetIp</code>`n" +
-                                           "• <b>처리 결과:</b> <b>$resTitle</b>`n" +
-                                           "• <b>처리 일시:</b> $kstNow (KST)`n" +
-                                           "• <b>처리 관리자:</b> $fromUser"
+                            "• <b>대상 IP:</b> <code>$targetIp</code>`n" +
+                            "• <b>처리 결과:</b> <b>$resTitle</b>`n" +
+                            "• <b>처리 일시:</b> $kstNow (KST)`n" +
+                            "• <b>처리 관리자:</b> $fromUser"
 
                             # 1. Edit message
                             $editBody = @{
-                                chat_id = $cq.message.chat.id
+                                chat_id    = $cq.message.chat.id
                                 message_id = $cq.message.message_id
-                                text = $updatedText
+                                text       = $updatedText
                                 parse_mode = "HTML"
                             } | ConvertTo-Json -Compress
                             try {
                                 Invoke-WebRequest -Uri "https://api.telegram.org/bot$($tCfg.botToken)/editMessageText" -Method POST -Body ([System.Text.Encoding]::UTF8.GetBytes($editBody)) -ContentType "application/json; charset=utf-8" -TimeoutSec 3 -UseBasicParsing -ErrorAction SilentlyContinue
-                            } catch {}
+                            }
+                            catch {}
 
                             # 2. Answer callback query
                             $ansBody = @{
                                 callback_query_id = $cq.id
-                                text = $toastText
+                                text              = $toastText
                             } | ConvertTo-Json -Compress
                             try {
                                 Invoke-WebRequest -Uri "https://api.telegram.org/bot$($tCfg.botToken)/answerCallbackQuery" -Method POST -Body ([System.Text.Encoding]::UTF8.GetBytes($ansBody)) -ContentType "application/json; charset=utf-8" -TimeoutSec 3 -UseBasicParsing -ErrorAction SilentlyContinue
-                            } catch {}
+                            }
+                            catch {}
 
                             Write-Host " [Telegram Action] $targetIp -> $resTitle by $fromUser" -ForegroundColor Green
                         }
@@ -293,7 +304,8 @@ function Check-TelegramCallbackUpdates {
                 }
             }
         }
-    } catch {}
+    }
+    catch {}
 }
 
 if (-not (Test-Path $dataDir)) {
@@ -334,7 +346,8 @@ function Send-RawBytesResponse($stream, $corsHeaders, $contentType, [byte[]]$bod
             $stream.Write($bodyBytes, 0, $bodyBytes.Length)
         }
         $stream.Flush()
-    } catch {
+    }
+    catch {
         # Client aborted connection before write completed
     }
 }
@@ -365,7 +378,8 @@ function Log-Access([string]$clientIp, [string]$status, [string]$requestPath) {
                         }
                     }
                 }
-            } catch {
+            }
+            catch {
                 Write-Host " [Log-Access Corrupt JSON Recovered: $($_.Exception.Message)]" -ForegroundColor Yellow
                 $logs.Clear()
             }
@@ -389,14 +403,15 @@ function Log-Access([string]$clientIp, [string]$status, [string]$requestPath) {
             # 최근 접속 항목을 맨 앞으로 이동
             $logs.RemoveAt($foundIdx)
             $logs.Insert(0, $existing)
-        } else {
+        }
+        else {
             $newLog = [PSCustomObject]@{
-                ip = $cleanIp
+                ip          = $cleanIp
                 firstAccess = $nowStr
-                lastAccess = $nowStr
-                count = 1
-                status = $status
-                lastPath = if ($requestPath) { $requestPath } else { "/" }
+                lastAccess  = $nowStr
+                count       = 1
+                status      = $status
+                lastPath    = if ($requestPath) { $requestPath } else { "/" }
             }
             $logs.Insert(0, $newLog)
         }
@@ -427,7 +442,8 @@ function Log-Access([string]$clientIp, [string]$status, [string]$requestPath) {
                 Send-TelegramNewIpAlert $cleanIp $requestPath "신규 미분류 접속"
             }
         }
-    } catch {
+    }
+    catch {
         Write-Host " [Log-Access Error] $($_.Exception.Message)" -ForegroundColor Red
     }
 }
@@ -445,7 +461,8 @@ try {
         }
         Start-Sleep -Milliseconds 300
     }
-} catch {}
+}
+catch {}
 
 try {
     $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, $Port)
@@ -457,7 +474,8 @@ try {
     Write-Host " ?뙋 Local Access:   http://localhost:$Port" -ForegroundColor White
     Write-Host " ?썳截?Access Filter: Active (Allowed IPs & Blacklist Enforced)" -ForegroundColor Yellow
     Write-Host "=================================================================" -ForegroundColor Cyan
-} catch {
+}
+catch {
     Write-Host "??Port $Port is already in use and recovery failed. Error: $_" -ForegroundColor Red
     exit 1
 }
@@ -555,7 +573,8 @@ while ($true) {
                         if ($extraRead -gt 0) {
                             $ms.Write($buffer, 0, $extraRead)
                         }
-                    } else {
+                    }
+                    else {
                         Start-Sleep -Milliseconds 10
                     }
                 }
@@ -598,7 +617,8 @@ while ($true) {
                 if (Test-Path $allowedIpsFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($allowedIpsFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders '["127.0.0.1","::1","192.168.219.115","192.168.219.*"]'
                 }
             }
@@ -618,7 +638,8 @@ while ($true) {
                 if (Test-Path $blockedIpsFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($blockedIpsFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -638,7 +659,8 @@ while ($true) {
                 if (Test-Path $accessLogsFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($accessLogsFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -652,7 +674,8 @@ while ($true) {
                 if (Test-Path $menuConfigFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($menuConfigFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -672,7 +695,8 @@ while ($true) {
                 if (Test-Path $workflowsFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($workflowsFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -692,11 +716,13 @@ while ($true) {
                 if (Test-Path $stockTempDataFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($stockTempDataFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } elseif (Test-Path $stockTempJsFile) {
+                }
+                elseif (Test-Path $stockTempJsFile) {
                     $rawText = [System.IO.File]::ReadAllText($stockTempJsFile, [System.Text.Encoding]::UTF8)
                     $cleanJson = $rawText -replace '^window\.PORTAL_DATA_STOCK_TEMP\s*=\s*', '' -replace ';\s*$', ''
                     Send-JsonResponse $stream $corsHeaders $cleanJson
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -716,11 +742,13 @@ while ($true) {
                 if (Test-Path $stockCouncilDataFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($stockCouncilDataFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } elseif (Test-Path $stockCouncilJsFile) {
+                }
+                elseif (Test-Path $stockCouncilJsFile) {
                     $rawText = [System.IO.File]::ReadAllText($stockCouncilJsFile, [System.Text.Encoding]::UTF8)
                     $cleanJson = $rawText -replace '^window\.PORTAL_DATA_STOCK_COUNCIL\s*=\s*', '' -replace ';\s*$', ''
                     Send-JsonResponse $stream $corsHeaders $cleanJson
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -737,13 +765,15 @@ while ($true) {
                                 $parsedExisting = $rawExisting | ConvertFrom-Json
                                 if ($parsedExisting -is [System.Array]) {
                                     $existingList.AddRange($parsedExisting)
-                                } elseif ($parsedExisting) {
+                                }
+                                elseif ($parsedExisting) {
                                     $existingList.Add($parsedExisting)
                                 }
                             }
                             if ($incoming -is [System.Array]) {
                                 $saveText = $postData
-                            } else {
+                            }
+                            else {
                                 $foundIdx = -1
                                 if ($incoming.id) {
                                     for ($i = 0; $i -lt $existingList.Count; $i++) {
@@ -752,7 +782,8 @@ while ($true) {
                                 }
                                 if ($foundIdx -ge 0) {
                                     $existingList[$foundIdx] = $incoming
-                                } else {
+                                }
+                                else {
                                     $existingList.Insert(0, $incoming)
                                 }
                                 $saveText = $existingList | ConvertTo-Json -Depth 10
@@ -760,7 +791,8 @@ while ($true) {
                             [System.IO.File]::WriteAllText($stockCouncilDataFile, $saveText, $Utf8NoBom)
                             $jsContent = "// data/initialStockCouncilReports.js`nwindow.PORTAL_DATA_STOCK_COUNCIL = $saveText;`n"
                             [System.IO.File]::WriteAllText($stockCouncilJsFile, $jsContent, $Utf8NoBom)
-                        } catch {
+                        }
+                        catch {
                             [System.IO.File]::WriteAllText($stockCouncilDataFile, $postData, $Utf8NoBom)
                         }
                     }
@@ -769,21 +801,18 @@ while ($true) {
             }
         }
         elseif ($urlPath -eq "/api/stock-council-analyze") {
-            $stockQuery = ""
+            $stockQuery = "005930"
             if ($requestText -match '"stock"\s*:\s*"([^"]+)"') {
-                $stockQuery = $Matches[1].Trim()
+                $stockQuery = $Matches[1]
             }
-            if (-not $stockQuery) {
-                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"분석할 종목코드를 입력해주세요."}'
-            } else {
-                $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
-                $dankaScript = "C:\Users\bangt\Downloads\madang6\서브주식에이전트_단가\main.py"
-                if ((Test-Path $pyPath) -and (Test-Path $dankaScript)) {
-                    Start-Process -FilePath $pyPath -ArgumentList "`"$dankaScript`" --stock `"$stockQuery`" --ondemand-only" -WorkingDirectory "C:\Users\bangt\Downloads\madang6\서브주식에이전트_단가" -WindowStyle Hidden
-                    Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"분석이 시작되었습니다."}'
-                } else {
-                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"분석 실행 환경을 찾을 수 없습니다."}'
-                }
+            $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
+            $dankaScript = "C:\Users\bangt\Downloads\madang6\서브주식에이전트_단가\main.py"
+            if ((Test-Path $pyPath) -and (Test-Path $dankaScript)) {
+                Start-Process -FilePath $pyPath -ArgumentList "`"$dankaScript`" --stock `"$stockQuery`" --ondemand-only" -WorkingDirectory "C:\Users\bangt\Downloads\madang6\서브주식에이전트_단가" -WindowStyle Hidden
+                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"분석이 시작되었습니다."}'
+            }
+            else {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"분석 실행 환경을 찾을 수 없습니다."}'
             }
         }
         elseif ($urlPath -eq "/api/stock-debates") {
@@ -791,11 +820,13 @@ while ($true) {
                 if (Test-Path $stockDebateDataFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($stockDebateDataFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } elseif (Test-Path $stockDebateJsFile) {
+                }
+                elseif (Test-Path $stockDebateJsFile) {
                     $rawText = [System.IO.File]::ReadAllText($stockDebateJsFile, [System.Text.Encoding]::UTF8)
                     $cleanJson = $rawText -replace '^window\.PORTAL_DATA_STOCK_DEBATES\s*=\s*', '' -replace ';\s*$', ''
                     Send-JsonResponse $stream $corsHeaders $cleanJson
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -813,11 +844,13 @@ while ($true) {
                                     $parsed = $rawExisting | ConvertFrom-Json
                                     if ($parsed -is [System.Array]) { $existingList = [System.Collections.ArrayList]@($parsed) }
                                     elseif ($parsed) { $existingList = [System.Collections.ArrayList]@($parsed) }
-                                } catch {}
+                                }
+                                catch {}
                             }
                             if ($incomingObj -is [System.Array]) {
                                 $existingList = [System.Collections.ArrayList]@($incomingObj)
-                            } elseif ($incomingObj -and ($incomingObj.id -or $incomingObj.item_code)) {
+                            }
+                            elseif ($incomingObj -and ($incomingObj.id -or $incomingObj.item_code)) {
                                 $filtered = @($existingList | Where-Object { $_.id -ne $incomingObj.id -and $_.item_code -ne $incomingObj.item_code })
                                 $existingList = [System.Collections.ArrayList]@($filtered)
                                 $existingList.Insert(0, $incomingObj)
@@ -826,7 +859,8 @@ while ($true) {
                             [System.IO.File]::WriteAllText($stockDebateDataFile, $finalJson, $Utf8NoBom)
                             $jsContent = "// data/initialStockDebateLogs.js`nwindow.PORTAL_DATA_STOCK_DEBATES = $finalJson;`n"
                             [System.IO.File]::WriteAllText($stockDebateJsFile, $jsContent, $Utf8NoBom)
-                        } catch {
+                        }
+                        catch {
                             [System.IO.File]::WriteAllText($stockDebateDataFile, $postData, $Utf8NoBom)
                         }
                     }
@@ -851,13 +885,15 @@ while ($true) {
                             $parsed = $rawExisting | ConvertFrom-Json
                             if ($parsed -is [System.Array]) { $existingList = [System.Collections.ArrayList]@($parsed) }
                             elseif ($parsed) { $existingList = [System.Collections.ArrayList]@($parsed) }
-                        } catch {}
+                        }
+                        catch {}
                     }
 
                     if ($deleteAll) {
                         $existingList = @()
                         $script:lastAutoDebateTime = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-                    } elseif (-not [string]::IsNullOrWhiteSpace($deleteId)) {
+                    }
+                    elseif (-not [string]::IsNullOrWhiteSpace($deleteId)) {
                         $filtered = @($existingList | Where-Object { $_.id -ne $deleteId -and $_.item_code -ne $deleteId })
                         $existingList = [System.Collections.ArrayList]@($filtered)
                     }
@@ -868,28 +904,39 @@ while ($true) {
                     $jsContent = "// data/initialStockDebateLogs.js`nwindow.PORTAL_DATA_STOCK_DEBATES = $finalJson;`n"
                     [System.IO.File]::WriteAllText($stockDebateJsFile, $jsContent, $Utf8NoBom)
                     Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"삭제 완료되었습니다."}'
-                } catch {
+                }
+                catch {
                     Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"삭제 처리 중 오류가 발생했습니다."}'
                 }
             }
         }
         elseif ($urlPath -eq "/api/stock-debates/trigger") {
+            $stockQuery = "005930"
+            if ($requestLine -match '[?&]stock=([^&\s]+)') {
+                $stockQuery = [System.Uri]::UnescapeDataString($Matches[1]).Trim()
+            }
+            elseif ($requestText -match '"stock"\s*:\s*"([^"]+)"') {
+                $stockQuery = $Matches[1].Trim()
+            }
             $stockQuery = ""
             $stockName = ""
             if ($requestLine -match '[?&]stock=([^&\s]+)') {
                 $stockQuery = [System.Uri]::UnescapeDataString($Matches[1]).Trim()
-            } elseif ($requestText -match '"stock"\s*:\s*"([^"]+)"') {
+            }
+            elseif ($requestText -match '"stock"\s*:\s*"([^"]+)"') {
                 $stockQuery = $Matches[1].Trim()
             }
             if ($requestText -match '"stock_name"\s*:\s*"([^"]+)"') {
                 $stockName = $Matches[1].Trim()
-            } elseif ($requestText -match '"originalQuery"\s*:\s*"([^"]+)"') {
+            }
+            elseif ($requestText -match '"originalQuery"\s*:\s*"([^"]+)"') {
                 $stockName = $Matches[1].Trim()
             }
 
             if (-not $stockQuery -and -not $stockName) {
                 Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"분석할 주식 종목명이나 종목코드를 입력해주세요."}'
-            } else {
+            }
+            else {
                 # 6자리 코드가 아닌 한글 종목명이 들어왔을 때 코드 변환
                 if ($stockQuery -notmatch '^\d{6}$') {
                     if (-not $stockName) { $stockName = $stockQuery }
@@ -900,13 +947,15 @@ while ($true) {
                             $krxMap = $krxMapJson | ConvertFrom-Json
                             if ($krxMap -and $krxMap.$stockQuery) {
                                 $stockQuery = $krxMap.$stockQuery
-                            } else {
+                            }
+                            else {
                                 $cleanQ = $stockQuery.Replace(" ", "")
                                 if ($krxMap -and $krxMap.$cleanQ) {
                                     $stockQuery = $krxMap.$cleanQ
                                 }
                             }
-                        } catch {}
+                        }
+                        catch {}
                     }
                 }
 
@@ -924,90 +973,77 @@ while ($true) {
                     }
                 }
 
-                if ($stockQuery -notmatch '^\d{6}$') {
-                    Send-JsonResponse $stream $corsHeaders "{\`"success\`":false,\`"message\`":\`"입력하신 '[$stockQuery]'은(는) 한국거래소(KRX)에 등록된 유효한 상장 종목이 아닙니다. 정확한 종목명(예: 현대차, 알테오젠) 또는 6자리 종목코드를 입력해주세요.\`"}"
-                } else {
-                    $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
-                    $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
-                    if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
-                        $pyArgs = @($debateScript, "--stock", $stockQuery, "--sync")
-                        if ($stockName) {
-                            $pyArgs += @("--stock-name", $stockName)
-                        }
-                        Start-Process -FilePath $pyPath -ArgumentList $pyArgs -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
-                        Send-JsonResponse $stream $corsHeaders "{\`"success\`":true,\`"message\`":\`"'$($stockName)' 5대 에이전트 끝장 토론이 성공적으로 소집되었습니다. 잠시 후 피드가 갱신됩니다.\`"}"
-                    } else {
-                        Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"토론 실행 환경을 찾을 수 없습니다."}'
-                    }
-                }
-            }
-        }
-        elseif ($urlPath -eq "/api/stock-debates/auto-theme-debate") {
-            $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-            $cooldownMs = 45 * 60 * 1000 # 45분 쿨다운
-
-            # 실제 실행 중인 프로세스 감지
-            $activeProc = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*debate_arena.py*" }
-            if ($activeProc) {
-                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"이미 끝장 토론이 진행 중입니다. (중복 실행 방지)"}'
-            } elseif (($script:lastAutoDebateTime -gt 0) -and (($nowMs - $script:lastAutoDebateTime) -lt $cooldownMs)) {
-                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"쿨다운 진행 중입니다. (45분 이내 중복 방지)"}'
-            } else {
                 $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
                 $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
                 if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
-                    $script:lastAutoDebateTime = $nowMs
-                    $script:isAutoDebateRunning = $true
-                    $autoThemeCandidates = @(
-                        @{ code = "000660"; name = "SK하이닉스" },
-                        @{ code = "005380"; name = "현대차" },
-                        @{ code = "196170"; name = "알테오젠" },
-                        @{ code = "034020"; name = "두산에너빌리티" },
-                        @{ code = "042700"; name = "한미반도체" },
-                        @{ code = "068270"; name = "셀트리온" },
-                        @{ code = "328130"; name = "루닛" },
-                        @{ code = "058470"; name = "리노공업" },
-                        @{ code = "000270"; name = "기아" },
-                        @{ code = "086520"; name = "에코프로" }
-                    )
-                    $chosenCand = $autoThemeCandidates | Get-Random
-                    Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--stock", $chosenCand.code, "--stock-name", $chosenCand.name, "--sync") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
-                    Send-JsonResponse $stream $corsHeaders "{\`"success\`":true,\`"message\`":\`"1시간 주기 [$($chosenCand.name)] 핵심 테마 검증 토론이 백그라운드에서 발주되었습니다.\`"}"
-                } else {
-                    Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"Node.js 또는 GCP Cloud Run 환경에서 자동 테마 검증이 처리됩니다."}'
+                    $pyArgs = @($debateScript, "--stock", $stockQuery, "--sync")
+                    if ($stockName) {
+                        $pyArgs += @("--stock-name", $stockName)
+                    }
+                    Start-Process -FilePath $pyPath -ArgumentList $pyArgs -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                    $resJson = @{
+                        success = $true
+                        message = "'$stockName' 5대 에이전트 끝장 토론이 성공적으로 소집되었습니다. 잠시 후 피드가 갱신됩니다."
+                    } | ConvertTo-Json -Compress
+                    Send-JsonResponse $stream $corsHeaders $resJson
+                }
+                else {
+                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"토론 실행 환경을 찾을 수 없습니다."}'
                 }
             }
         }
         elseif ($urlPath -eq "/api/stock-debates/last-auto-status") {
             $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-            $elapsedMinutes = [Math]::Floor(($nowMs - $script:lastAutoDebateTime) / 60000)
-            if ($script:lastAutoDebateTime -eq 0) { $elapsedMinutes = 999 }
-
-            # 실제 실행 중인 debate_arena 프로세스가 있는지 실시간 감지
-            $activeProc = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*debate_arena.py*" }
-            if ($activeProc) {
-                $script:isAutoDebateRunning = $true
-            } else {
-                $script:isAutoDebateRunning = $false
+            $elapsedMinutes = if ($script:lastAutoDebateTime -gt 0) { [Math]::Floor(($nowMs - $script:lastAutoDebateTime) / 60000) } else { 999 }
+            
+            $activeProc = Get-Process -Name "python" -ErrorAction SilentlyContinue | Where-Object {
+                try { $_.Path -like "*madang6*" -or $_.CommandLine -like "*debate_arena*" } catch { $false }
             }
+            $script:isAutoDebateRunning = ($activeProc -ne $null)
 
             $needsTrigger = ($script:lastAutoDebateTime -eq 0) -or ($elapsedMinutes -ge 60)
             if ($script:isAutoDebateRunning) { $needsTrigger = $false }
 
             $statusJson = @{
                 lastAutoDebateTime = $script:lastAutoDebateTime
-                elapsedMinutes = $elapsedMinutes
-                isRunning = $script:isAutoDebateRunning
-                needsTrigger = $needsTrigger
+                elapsedMinutes     = $elapsedMinutes
+                isRunning          = $script:isAutoDebateRunning
+                needsTrigger       = $needsTrigger
             } | ConvertTo-Json -Compress
 
             Send-JsonResponse $stream $corsHeaders $statusJson
         }
+        elseif ($urlPath -eq "/api/stock-debates/auto-theme-debate") {
+            $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
+            $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
+            $autoThemeCandidates = @(
+                @{ code = "000660"; name = "SK하이닉스" },
+                @{ code = "005380"; name = "현대차" },
+                @{ code = "196170"; name = "알테오젠" },
+                @{ code = "034020"; name = "두산에너빌리티" },
+                @{ code = "042700"; name = "한미반도체" },
+                @{ code = "068270"; name = "셀트리온" },
+                @{ code = "328130"; name = "루닛" },
+                @{ code = "058470"; name = "리노공업" },
+                @{ code = "000270"; name = "기아" },
+                @{ code = "086520"; name = "에코프로" }
+            )
+            $chosenCand = $autoThemeCandidates | Get-Random
+            if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
+                Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--stock", $chosenCand.code, "--stock-name", $chosenCand.name, "--sync") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                $resJson = @{
+                    success = $true
+                    message = "1시간 주기 [$($chosenCand.name)] 핵심 테마 검증 토론이 백그라운드에서 발주되었습니다."
+                } | ConvertTo-Json -Compress
+                Send-JsonResponse $stream $corsHeaders $resJson
+            }
+            else {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"토론 실행 환경을 찾을 수 없습니다."}'
+            }
+        }
         elseif ($urlPath -eq "/api/analyze-ai-url") {
             $targetUrl = ""
-            if ($requestText -match '"url"\s*:\s*"([^"]+)"') {
-                $targetUrl = $Matches[1]
-            } elseif ($requestText -match 'url=([^&\s]+)') {
+            if ($requestText -match 'url=([^&\s]+)') {
                 $targetUrl = [System.Uri]::UnescapeDataString($Matches[1])
             }
             
@@ -1032,25 +1068,26 @@ while ($true) {
                         $pageDesc = $Matches[1].Trim()
                     }
                 }
-            } catch {}
+            }
+            catch {}
 
             # AI 모델 분석 JSON 응답 (3초 이내 초고속 반환)
             $cleanTitle = $pageTitle -replace '\s*[-|].*$', ''
             if ([string]::IsNullOrWhiteSpace($cleanTitle)) { $cleanTitle = $domain }
             
             $resObj = [PSCustomObject]@{
-                success = $true
-                title = $cleanTitle
-                developer = ($domain.Split('.')[0]).ToUpper()
-                category = "AI System"
-                tags = @($domain, "AI Platform")
-                summary = $pageDesc
-                garageIdeas = "1. Integration with $cleanTitle API`n2. Automated Workflow"
-                quickStart = "Visit official site: $targetUrl"
-                pricing = "Freemium / Pay-as-you-go"
-                country = "US"
+                success       = $true
+                title         = $cleanTitle
+                developer     = ($domain.Split('.')[0]).ToUpper()
+                category      = "AI System"
+                tags          = @($domain, "AI Platform")
+                summary       = $pageDesc
+                garageIdeas   = "1. Integration with $cleanTitle API`n2. Automated Workflow"
+                quickStart    = "Visit official site: $targetUrl"
+                pricing       = "Freemium / Pay-as-you-go"
+                country       = "US"
                 similarModels = "Zapier, Make.com"
-                docsUrl = $targetUrl
+                docsUrl       = $targetUrl
             }
 
             $resJson = ConvertTo-Json $resObj -Depth 5 -Compress
@@ -1062,7 +1099,8 @@ while ($true) {
                 if (Test-Path $threadsTokenConfigFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($threadsTokenConfigFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     $defaultCfg = '{"agentBaseUrl":"http://localhost:8000","tokenIssuedDate":"2026-08-31","validDays":60,"recipientEmail":"admin@example.com","smtpHost":"smtp.gmail.com","smtpPort":587,"smtpUser":"","smtpPass":"","enableEmailAlert":true}'
                     Send-JsonResponse $stream $corsHeaders $defaultCfg
                 }
@@ -1085,7 +1123,8 @@ while ($true) {
                 try {
                     $cfgRaw = [System.IO.File]::ReadAllText($threadsTokenConfigFile, [System.Text.Encoding]::UTF8)
                     $cfgObj = $cfgRaw | ConvertFrom-Json
-                } catch {}
+                }
+                catch {}
             }
             
             $recipient = if ($cfgObj -and $cfgObj.recipientEmail) { $cfgObj.recipientEmail } else { "admin@example.com" }
@@ -1110,11 +1149,13 @@ while ($true) {
                     $smtp.Send($mail)
                     $sentSuccess = $true
                     $statusMsg = "📩 테스트 메일이 수신 주소($recipient)(으)로 성공적으로 발송되었습니다!"
-                } catch {
+                }
+                catch {
                     $sentSuccess = $false
                     $statusMsg = "⚠️ SMTP 메일 발송 실패: $($_.Exception.Message) - SMTP 설정(계정/비밀번호/포트)을 확인해주세요."
                 }
-            } else {
+            }
+            else {
                 $sentSuccess = $false
                 $statusMsg = "⚠️ SMTP 설정(계정 및 비밀번호)이 입력되지 않았습니다. 메일을 수신하시려면 아래 설정에서 SMTP 계정과 비밀번호를 입력 후 저장해주세요."
             }
@@ -1131,7 +1172,8 @@ while ($true) {
             $subPath = $urlPath.Substring(18)
             if ($subPath -in @("/status", "/start", "/stop", "/trigger")) {
                 $subPath = "/api/agent" + $subPath
-            } elseif (-not $subPath.StartsWith("/api/")) {
+            }
+            elseif (-not $subPath.StartsWith("/api/")) {
                 $subPath = "/api" + $subPath
             }
             $baseUrl = "http://127.0.0.1:8000"
@@ -1140,7 +1182,8 @@ while ($true) {
                     $cfgRaw = [System.IO.File]::ReadAllText($threadsTokenConfigFile, [System.Text.Encoding]::UTF8)
                     $cfgObj = $cfgRaw | ConvertFrom-Json
                     if ($cfgObj.agentBaseUrl) { $baseUrl = $cfgObj.agentBaseUrl.TrimEnd('/') }
-                } catch {}
+                }
+                catch {}
             }
             $baseUrl = $baseUrl -replace 'localhost', '127.0.0.1'
             $targetUrl = "$baseUrl$subPath"
@@ -1150,11 +1193,11 @@ while ($true) {
                 $reqBody = if ($headerBodySplit.Length -eq 2) { $headerBodySplit[1] } else { "" }
 
                 $webParams = @{
-                    Uri = $targetUrl
-                    Method = $method
-                    TimeoutSec = 4
+                    Uri             = $targetUrl
+                    Method          = $method
+                    TimeoutSec      = 4
                     UseBasicParsing = $true
-                    ErrorAction = "Stop"
+                    ErrorAction     = "Stop"
                 }
                 if ($method -in @("POST", "PUT") -and -not [string]::IsNullOrWhiteSpace($reqBody)) {
                     $webParams["Body"] = $reqBody
@@ -1164,16 +1207,17 @@ while ($true) {
                 $proxyRes = Invoke-WebRequest @webParams
                 $rawBytes = if ($proxyRes.RawContentStream) { $proxyRes.RawContentStream.ToArray() } else { [System.Text.Encoding]::UTF8.GetBytes($proxyRes.Content) }
                 Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $rawBytes
-            } catch {
+            }
+            catch {
                 $errObj = [PSCustomObject]@{
-                    is_running = $false
-                    is_offline = $true
-                    success = $false
-                    message = "Threads AI 에이전트 서버($baseUrl)에 연결할 수 없습니다."
-                    error = $_.Exception.Message
+                    is_running       = $false
+                    is_offline       = $true
+                    success          = $false
+                    message          = "Threads AI 에이전트 서버($baseUrl)에 연결할 수 없습니다."
+                    error            = $_.Exception.Message
                     dynamic_schedule = [PSCustomObject]@{ market_name = "에이전트 오프라인" }
-                    statistics = [PSCustomObject]@{ total_articles_crawled = 0; total_posts_generated = 0 }
-                    sources_health = @()
+                    statistics       = [PSCustomObject]@{ total_articles_crawled = 0; total_posts_generated = 0 }
+                    sources_health   = @()
                 }
                 Send-JsonResponse $stream $corsHeaders ($errObj | ConvertTo-Json -Depth 5 -Compress)
             }
@@ -1196,7 +1240,8 @@ while ($true) {
                         $nextRun = $csvArr[0].'Next Run Time'
                     }
                 }
-            } catch {}
+            }
+            catch {}
 
             # 2. 실행 중인 PowerShell 프로세스(sap_collector.ps1) 확인
             try {
@@ -1204,10 +1249,12 @@ while ($true) {
                 if ($runningProcs) {
                     $isRunning = $true
                     $taskState = "Running"
-                } elseif ($taskState -eq "Running") {
+                }
+                elseif ($taskState -eq "Running") {
                     $isRunning = $true
                 }
-            } catch {}
+            }
+            catch {}
 
             # 3. 수집된 뉴스 총 건수 파악
             $newsCount = 0
@@ -1221,11 +1268,13 @@ while ($true) {
                     if ($jsonRaw.StartsWith([char]0xFEFF)) { $jsonRaw = $jsonRaw.Substring(1) }
                     $arr = $jsonRaw | ConvertFrom-Json
                     $newsCount = @($arr).Count
-                } catch {}
+                }
+                catch {}
                 if ($newsCount -eq 0) {
                     try {
                         $newsCount = @(Get-Content $targetNewsPath | Where-Object { $_ -match '"id":\s*"sap_news_' }).Count
-                    } catch {}
+                    }
+                    catch {}
                 }
             }
 
@@ -1242,18 +1291,19 @@ while ($true) {
                         if ($cObj.agentBaseUrl) { $sapBaseUrl = $cObj.agentBaseUrl }
                         if ($cObj.intervalMinutes) { $intervalMin = [int]$cObj.intervalMinutes }
                     }
-                } catch {}
+                }
+                catch {}
             }
 
             $statObj = [PSCustomObject]@{
-                is_running = $isRunning
-                task_state = $taskState
-                last_run_time = $lastRun
-                next_run_time = $nextRun
+                is_running       = $isRunning
+                task_state       = $taskState
+                last_run_time    = $lastRun
+                next_run_time    = $nextRun
                 total_news_count = $newsCount
-                agent_base_url = $sapBaseUrl
+                agent_base_url   = $sapBaseUrl
                 interval_minutes = $intervalMin
-                agent_dir = "C:\Users\bangt\Downloads\madang6\sap-integration-agent"
+                agent_dir        = "C:\Users\bangt\Downloads\madang6\sap-integration-agent"
             }
             Send-JsonResponse $stream $corsHeaders ($statObj | ConvertTo-Json -Depth 3 -Compress)
         }
@@ -1262,7 +1312,8 @@ while ($true) {
             try {
                 & schtasks /run /tn $taskName | Out-Null
                 Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"SAP Integration Suite 에이전트 작업을 시작했습니다."}'
-            } catch {
+            }
+            catch {
                 Send-JsonResponse $stream $corsHeaders "{`"success`":false,`"message`":`"실행 실패: $($_.Exception.Message)`"}"
             }
         }
@@ -1277,7 +1328,8 @@ while ($true) {
                     }
                 }
                 Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"SAP Integration Suite 에이전트 작업을 중지했습니다."}'
-            } catch {
+            }
+            catch {
                 Send-JsonResponse $stream $corsHeaders "{`"success`":false,`"message`":`"중지 실패: $($_.Exception.Message)`"}"
             }
         }
@@ -1302,10 +1354,12 @@ while ($true) {
                         if ($nArr) { $cnt = @($nArr).Count }
                     }
                     Send-JsonResponse $stream $corsHeaders "{`"success`":true,`"message`":`"SAP 소식 즉시 수집을 완료했습니다.`",`"newsCount`":$cnt}"
-                } catch {
+                }
+                catch {
                     Send-JsonResponse $stream $corsHeaders "{`"success`":false,`"message`":`"수집 실행 실패: $($_.Exception.Message)`"}"
                 }
-            } else {
+            }
+            else {
                 Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"sap_collector.ps1 스크립트를 찾을 수 없습니다."}'
             }
         }
@@ -1315,7 +1369,8 @@ while ($true) {
                 if (Test-Path $sapCfgFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($sapCfgFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     $defaultSapCfg = '{"agentBaseUrl":"http://127.0.0.1:8080","intervalMinutes":720,"taskName":"SAPIntegrationSuiteAgent"}'
                     Send-JsonResponse $stream $corsHeaders $defaultSapCfg
                 }
@@ -1340,44 +1395,48 @@ while ($true) {
                     if ($bodyObj -and $bodyObj.url) {
                         $targetUrl = $bodyObj.url.Trim()
                     }
-                } catch {}
+                }
+                catch {}
             }
             if ([string]::IsNullOrWhiteSpace($targetUrl)) {
                 Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"유효한 URL이 지정되지 않았습니다."}'
-            } else {
+            }
+            else {
                 $cleanTarget = $targetUrl -replace 'localhost', '127.0.0.1'
 
                 # 자기 자신(현재 서버 포트)에 대한 ping 요청 시 단일 스레드 데드락 방지
                 if ($cleanTarget -match ":$Port(/|$)" -or $cleanTarget -eq "http://127.0.0.1:$Port" -or $cleanTarget -eq "http://localhost:$Port") {
                     $pingOut = [PSCustomObject]@{
-                        success = $true
+                        success    = $true
                         statusCode = 200
-                        latencyMs = 1
-                        url = $targetUrl
-                        message = "연결 성공 (로컬 포털 서버 가동 중, 1ms)"
+                        latencyMs  = 1
+                        url        = $targetUrl
+                        message    = "연결 성공 (로컬 포털 서버 가동 중, 1ms)"
                     }
                     Send-JsonResponse $stream $corsHeaders ($pingOut | ConvertTo-Json -Compress)
-                } else {
+                }
+                else {
                     $sw = [System.Diagnostics.Stopwatch]::StartNew()
                     try {
                         $pingRes = Invoke-WebRequest -Uri $cleanTarget -Method GET -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
                         $sw.Stop()
                         $pingOut = [PSCustomObject]@{
-                            success = $true
+                            success    = $true
                             statusCode = [int]$pingRes.StatusCode
-                            latencyMs = [int]$sw.ElapsedMilliseconds
-                            url = $targetUrl
-                            message = "연결 성공 ($([int]$sw.ElapsedMilliseconds)ms, HTTP $([int]$pingRes.StatusCode))"
+                            latencyMs  = [int]$sw.ElapsedMilliseconds
+                            url        = $targetUrl
+                            message    = "연결 성공 ($([int]$sw.ElapsedMilliseconds)ms, HTTP $([int]$pingRes.StatusCode))"
                         }
                         Send-JsonResponse $stream $corsHeaders ($pingOut | ConvertTo-Json -Compress)
-                    } catch {
+                    }
+                    catch {
                         $sw.Stop()
                         $errOut = [PSCustomObject]@{
-                            success = $false
+                            success   = $false
                             latencyMs = [int]$sw.ElapsedMilliseconds
-                            url = $targetUrl
-                            error = $_.Exception.Message
-                            message = "연결 실패: 에이전트 서버가 응답하지 않습니다."
+                            url       = $targetUrl
+                            error     = $_.Exception.Message
+                            message   = "연결 실패: 에이전트 서버가 응답하지 않습니다."
                         }
                         Send-JsonResponse $stream $corsHeaders ($errOut | ConvertTo-Json -Compress)
                     }
@@ -1389,7 +1448,8 @@ while ($true) {
                 if (Test-Path $dataFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($dataFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -1412,7 +1472,8 @@ while ($true) {
                 if (Test-Path $aiDataFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($aiDataFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -1434,7 +1495,8 @@ while ($true) {
                 if (Test-Path $aiTermDataFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($aiTermDataFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -1456,7 +1518,8 @@ while ($true) {
                 if (Test-Path $sapTermDataFile) {
                     $jsonBytes = [System.IO.File]::ReadAllBytes($sapTermDataFile)
                     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -1478,11 +1541,13 @@ while ($true) {
                 if (Test-Path $sapNewsDataFile) {
                     $rawText = [System.IO.File]::ReadAllText($sapNewsDataFile, [System.Text.Encoding]::UTF8)
                     Send-JsonResponse $stream $corsHeaders $rawText
-                } elseif (Test-Path $sapNewsJsFile) {
+                }
+                elseif (Test-Path $sapNewsJsFile) {
                     $rawText = [System.IO.File]::ReadAllText($sapNewsJsFile, [System.Text.Encoding]::UTF8)
                     $cleanJson = $rawText -replace '^window\.PORTAL_DATA_SAP_NEWS\s*=\s*', '' -replace ';\s*$', ''
                     Send-JsonResponse $stream $corsHeaders $cleanJson
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -1504,11 +1569,13 @@ while ($true) {
                 if (Test-Path $sapKnowledgeDataFile) {
                     $rawText = [System.IO.File]::ReadAllText($sapKnowledgeDataFile, [System.Text.Encoding]::UTF8)
                     Send-JsonResponse $stream $corsHeaders $rawText
-                } elseif (Test-Path $sapKnowledgeJsFile) {
+                }
+                elseif (Test-Path $sapKnowledgeJsFile) {
                     $rawText = [System.IO.File]::ReadAllText($sapKnowledgeJsFile, [System.Text.Encoding]::UTF8)
                     $cleanJson = $rawText -replace '^window\.PORTAL_DATA_SAP_KNOWLEDGE\s*=\s*', '' -replace ';\s*$', ''
                     Send-JsonResponse $stream $corsHeaders $cleanJson
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders "[]"
                 }
             }
@@ -1560,7 +1627,8 @@ while ($true) {
                                             $k = $s.Item
                                             $knowledgeSnippet += "[사내 등록 지식: $($k.topic) - $($k.title)]`n$($k.content)`n`n"
                                         }
-                                    } catch {}
+                                    }
+                                    catch {}
                                 }
 
                                 $newsSnippet = ""
@@ -1571,7 +1639,8 @@ while ($true) {
                                         foreach ($n in $newsList[0..1]) {
                                             $newsSnippet += "[SAP 최신 뉴스/업데이트]: $($n.title) ($($n.category))`n"
                                         }
-                                    } catch {}
+                                    }
+                                    catch {}
                                 }
 
                                 $systemPrompt = @"
@@ -1610,14 +1679,14 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                         system_instruction = [PSCustomObject]@{
                                             parts = @( [PSCustomObject]@{ text = $systemPrompt } )
                                         }
-                                        contents = @(
+                                        contents           = @(
                                             [PSCustomObject]@{
-                                                role = "user"
+                                                role  = "user"
                                                 parts = @( [PSCustomObject]@{ text = $userContentText } )
                                             }
                                         )
-                                        generationConfig = [PSCustomObject]@{
-                                            temperature = 0.2
+                                        generationConfig   = [PSCustomObject]@{
+                                            temperature     = 0.2
                                             maxOutputTokens = 8192
                                         }
                                     }
@@ -1633,7 +1702,8 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                             if ($res.candidates -and $res.candidates[0].content.parts[0].text) {
                                                 return $res
                                             }
-                                        } catch {}
+                                        }
+                                        catch {}
                                     }
                                     return $null
                                 }
@@ -1647,7 +1717,8 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                             $retryResp = & $callGemini $false
                                             if ($null -ne $retryResp) { $gResp = $retryResp }
                                         }
-                                    } else {
+                                    }
+                                    else {
                                         $gResp = & $callGemini $false
                                     }
 
@@ -1674,17 +1745,19 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                         }
 
                                         $consultingResult = [PSCustomObject]@{
-                                            success = $true
-                                            answer = $answerText
+                                            success   = $true
+                                            answer    = $answerText
                                             timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
                                         }
-                                    } else {
+                                    }
+                                    else {
                                         $consultingResult = [PSCustomObject]@{
                                             success = $false
                                             message = "Gemini API로부터 유효한 답변을 받지 못했습니다. 잠시 후 다시 시도해주세요."
                                         }
                                     }
-                                } catch {
+                                }
+                                catch {
                                     $consultingResult = [PSCustomObject]@{
                                         success = $false
                                         message = "Gemini API 호출 실패: $($_.Exception.Message)"
@@ -1692,7 +1765,8 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                 }
                             }
                         }
-                    } catch {
+                    }
+                    catch {
                         $consultingResult = [PSCustomObject]@{
                             success = $false
                             message = "요청 처리 중 오류 발생: $($_.Exception.Message)"
@@ -1746,18 +1820,19 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                         $parsedObj = $rawJson.Trim() | ConvertFrom-Json
                                         if ($parsedObj -and $parsedObj.summary) {
                                             $termAnalysisResult = [PSCustomObject]@{
-                                                success = $true
-                                                term = $cleanTerm
-                                                category = $parsedObj.category
-                                                parentTerm = $parsedObj.parentTerm
-                                                importance = $parsedObj.importance
+                                                success      = $true
+                                                term         = $cleanTerm
+                                                category     = $parsedObj.category
+                                                parentTerm   = $parsedObj.parentTerm
+                                                importance   = $parsedObj.importance
                                                 relatedTerms = $parsedObj.relatedTerms
-                                                summary = $parsedObj.summary
-                                                docsUrl = $parsedObj.docsUrl
+                                                summary      = $parsedObj.summary
+                                                docsUrl      = $parsedObj.docsUrl
                                             }
                                         }
                                     }
-                                } catch {}
+                                }
+                                catch {}
                             }
 
                             if ($null -eq $termAnalysisResult) {
@@ -1780,24 +1855,26 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                 if (-not [string]::IsNullOrWhiteSpace($userSummary)) { $finalAiSum = $userSummary }
 
                                 $termAnalysisResult = [PSCustomObject]@{
-                                    success = $true
-                                    term = $cleanTerm
-                                    category = $cat
-                                    parentTerm = $parent
-                                    importance = $imp
+                                    success      = $true
+                                    term         = $cleanTerm
+                                    category     = $cat
+                                    parentTerm   = $parent
+                                    importance   = $imp
                                     relatedTerms = $rel
-                                    summary = $finalAiSum
-                                    docsUrl = $url
+                                    summary      = $finalAiSum
+                                    docsUrl      = $url
                                 }
                             }
                         }
-                    } catch {}
+                    }
+                    catch {}
                 }
 
                 if ($null -ne $termAnalysisResult) {
                     $jsonStr = $termAnalysisResult | ConvertTo-Json -Depth 5
                     Send-JsonResponse $stream $corsHeaders $jsonStr
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"AI ?⑹뼱 遺꾩꽍 ?ㅽ뙣"}'
                 }
             }
@@ -1838,18 +1915,19 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                         $parsedObj = $rawJson.Trim() | ConvertFrom-Json
                                         if ($parsedObj -and $parsedObj.summary) {
                                             $termAnalysisResult = [PSCustomObject]@{
-                                                success = $true
-                                                term = $cleanTerm
-                                                category = $parsedObj.category
-                                                parentTerm = $parsedObj.parentTerm
-                                                importance = $parsedObj.importance
+                                                success      = $true
+                                                term         = $cleanTerm
+                                                category     = $parsedObj.category
+                                                parentTerm   = $parsedObj.parentTerm
+                                                importance   = $parsedObj.importance
                                                 relatedTerms = $parsedObj.relatedTerms
-                                                summary = $parsedObj.summary
-                                                docsUrl = $parsedObj.docsUrl
+                                                summary      = $parsedObj.summary
+                                                docsUrl      = $parsedObj.docsUrl
                                             }
                                         }
                                     }
-                                } catch {}
+                                }
+                                catch {}
                             }
 
                             if ($null -eq $termAnalysisResult) {
@@ -1866,12 +1944,14 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                     if ($lowerT -match "fiori|ui5|odata") { $parent = "SAP Fiori / SAPUI5" } else { $parent = "ABAP Core" }
                                     $imp = "Intermediate Tech"
                                     $rel = @("ABAP", "SAP Fiori / SAPUI5", "OData Service")
-                                } elseif ($lowerT -match "btp|hana|basis|cloud") {
+                                }
+                                elseif ($lowerT -match "btp|hana|basis|cloud") {
                                     $cat = "Architecture / Platform"
                                     if ($lowerT -match "hana") { $parent = "SAP S/4HANA" } else { $parent = "SAP ERP" }
                                     $imp = "Core Concept"
                                     $rel = @("HANA DB", "SAP BTP Platform")
-                                } elseif ($lowerT -match "sac|analytics|bw|bi") {
+                                }
+                                elseif ($lowerT -match "sac|analytics|bw|bi") {
                                     $cat = "Data / Analytics"
                                     $parent = "SAP BTP Platform"
                                     $imp = "Application Service"
@@ -1882,24 +1962,26 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                 if (-not [string]::IsNullOrWhiteSpace($userSummary)) { $finalSum = $userSummary }
 
                                 $termAnalysisResult = [PSCustomObject]@{
-                                    success = $true
-                                    term = $cleanTerm
-                                    category = $cat
-                                    parentTerm = $parent
-                                    importance = $imp
+                                    success      = $true
+                                    term         = $cleanTerm
+                                    category     = $cat
+                                    parentTerm   = $parent
+                                    importance   = $imp
                                     relatedTerms = $rel
-                                    summary = $finalSum
-                                    docsUrl = $url
+                                    summary      = $finalSum
+                                    docsUrl      = $url
                                 }
                             }
                         }
-                    } catch {}
+                    }
+                    catch {}
                 }
 
                 if ($null -ne $termAnalysisResult) {
                     $jsonStr = $termAnalysisResult | ConvertTo-Json -Depth 5
                     Send-JsonResponse $stream $corsHeaders $jsonStr
-                } else {
+                }
+                else {
                     Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"SAP ?⑹뼱 遺꾩꽍 ?ㅽ뙣"}'
                 }
             }
@@ -1912,7 +1994,8 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                     try {
                         $bObj = $headerBodySplit[1] | ConvertFrom-Json
                         if ($bObj -and $bObj.ip) { $testIp = $bObj.ip }
-                    } catch {}
+                    }
+                    catch {}
                 }
             }
             Send-TelegramNewIpAlert $testIp "/test" "테스트 유입 시뮬레이션"
@@ -1948,19 +2031,19 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                         return $false
                     } | Select-Object -First 1
                     $agentList += [PSCustomObject]@{
-                        id = $def.id
-                        name = $def.name
-                        category = $def.category
-                        icon = $def.icon
+                        id         = $def.id
+                        name       = $def.name
+                        category   = $def.category
+                        icon       = $def.icon
                         is_running = [bool]($null -ne $matchProc)
-                        pid = if ($matchProc) { [int]$matchProc.ProcessId } else { $null }
+                        pid        = if ($matchProc) { [int]$matchProc.ProcessId } else { $null }
                     }
                 }
                 $runningCnt = @($agentList | Where-Object { $_.is_running }).Count
                 $resObj = [PSCustomObject]@{
-                    success = $true
-                    agents = $agentList
-                    totalCount = $agentList.Count
+                    success      = $true
+                    agents       = $agentList
+                    totalCount   = $agentList.Count
                     runningCount = $runningCnt
                 }
                 $jsonOut = $resObj | ConvertTo-Json -Depth 4
@@ -1982,7 +2065,8 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                 Start-Process -FilePath $pyExe -ArgumentList $fullArgs -WorkingDirectory $sub.cwd -WindowStyle Hidden
                                 $actCount++
                             }
-                        } else {
+                        }
+                        else {
                             if ($match) {
                                 Stop-Process -Id $match.ProcessId -Force -ErrorAction SilentlyContinue
                                 $actCount++
@@ -1996,22 +2080,26 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                     $foundDef = $agentDefs | Where-Object { $_.id -eq $targetId } | Select-Object -First 1
                     if (-not $foundDef) {
                         Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"에이전트를 찾을 수 없습니다."}'
-                    } else {
+                    }
+                    else {
                         $match = $procs | Where-Object { $_.CommandLine -like "*$($foundDef.pattern)*" } | Select-Object -First 1
                         if ($targetAction -eq "start") {
                             if ($match) {
                                 Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "이미 가동 중입니다. (PID: $($match.ProcessId))"; pid = $match.ProcessId } | ConvertTo-Json)
-                            } else {
+                            }
+                            else {
                                 $scriptPath = Join-Path $foundDef.cwd $foundDef.script
                                 $fullArgs = if ($foundDef.args.Length -gt 0) { "`"$scriptPath`" $($foundDef.args -join ' ')" } else { "`"$scriptPath`"" }
                                 $p = Start-Process -FilePath $pyExe -ArgumentList $fullArgs -WorkingDirectory $foundDef.cwd -WindowStyle Hidden -PassThru
                                 Start-Sleep -Milliseconds 600
                                 Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "[$($foundDef.name)] 기동 완료"; pid = $p.Id } | ConvertTo-Json)
                             }
-                        } else {
+                        }
+                        else {
                             if (-not $match) {
                                 Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "이미 정지된 상태입니다." } | ConvertTo-Json)
-                            } else {
+                            }
+                            else {
                                 Stop-Process -Id $match.ProcessId -Force -ErrorAction SilentlyContinue
                                 Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "[$($foundDef.name)] 정지 완료 (PID: $($match.ProcessId))" } | ConvertTo-Json)
                             }
@@ -2034,17 +2122,18 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                 $ext = [System.IO.Path]::GetExtension($filePath).ToLower()
                 $mimeType = switch ($ext) {
                     ".html" { "text/html; charset=utf-8" }
-                    ".css"  { "text/css; charset=utf-8" }
-                    ".js"   { "application/javascript; charset=utf-8" }
+                    ".css" { "text/css; charset=utf-8" }
+                    ".js" { "application/javascript; charset=utf-8" }
                     ".json" { "application/json; charset=utf-8" }
-                    ".png"  { "image/png" }
-                    ".jpg"  { "image/jpeg" }
-                    ".svg"  { "image/svg+xml" }
+                    ".png" { "image/png" }
+                    ".jpg" { "image/jpeg" }
+                    ".svg" { "image/svg+xml" }
                     default { "application/octet-stream" }
                 }
                 $fileBytes = [System.IO.File]::ReadAllBytes($filePath)
                 Send-RawBytesResponse $stream $corsHeaders $mimeType $fileBytes
-            } else {
+            }
+            else {
                 $notFoundBody = "<html><body><h1>404 Not Found</h1></body></html>"
                 $notFoundBytes = [System.Text.Encoding]::UTF8.GetBytes($notFoundBody)
                 $responseHeader = "HTTP/1.1 404 Not Found`r`nContent-Type: text/html; charset=utf-8`r`nContent-Length: $($notFoundBytes.Length)`r`n${corsHeaders}Connection: close`r`n`r`n"
@@ -2053,15 +2142,16 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                     $stream.Write($headerBytes, 0, $headerBytes.Length)
                     $stream.Write($notFoundBytes, 0, $notFoundBytes.Length)
                     $stream.Flush()
-                } catch {}
+                }
+                catch {}
             }
         }
         $client.Close()
-    } catch {
+    }
+    catch {
         Write-Host " [Server Error] $_" -ForegroundColor Red
         Write-Host " [Position] $($_.InvocationInfo.PositionMessage)" -ForegroundColor Magenta
         Write-Host " [Trace] $($_.ScriptStackTrace)" -ForegroundColor Yellow
-        Start-Sleep -Milliseconds 20
     }
 }
 
