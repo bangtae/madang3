@@ -186,10 +186,10 @@ window.TechStackView = {
     let aiModels = window.AiModel ? window.AiModel.getAiModels().length : 0;
     let aiTerms = window.AiTermModel ? window.AiTermModel.getTerms().length : 0;
     let sapTerms = window.SapTermModel ? window.SapTermModel.getTerms().length : 0;
-    let stockReports = window.StockCouncilModel && window.StockCouncilModel.reports ? window.StockCouncilModel.reports.length : 0;
+    let stockDebates = window.StockDebateModel && window.StockDebateModel.items ? window.StockDebateModel.items.length : 0;
 
-    const total = apis + aiModels + aiTerms + sapTerms + stockReports;
-    resEl.textContent = `${total}건 (API:${apis}, AI:${aiModels}, 용어:${aiTerms + sapTerms}, 심의:${stockReports})`;
+    const total = apis + aiModels + aiTerms + sapTerms + stockDebates;
+    resEl.textContent = `${total}건 (API:${apis}, AI:${aiModels}, 용어:${aiTerms + sapTerms}, 토론:${stockDebates})`;
   },
 
   renderTechStackCards() {

@@ -9,6 +9,23 @@ window.StockDebateView = {
     this.initialized = true;
     this.bindEvents();
     this.startCountdownTimer();
+    this.startLiveDebateWatcher();
+  },
+
+  livePollInterval: null,
+
+  startLiveDebateWatcher() {
+    if (this.livePollInterval) clearInterval(this.livePollInterval);
+    // 1.5초 간격으로 LIVE 상태의 토론이 있는지 확인하여 실시간 갱신
+    this.livePollInterval = setInterval(async () => {
+      if (!window.StockDebateModel) return;
+      const all = window.StockDebateModel.items || [];
+      const hasLive = all.some(d => d.status === 'LIVE');
+      if (hasLive || this.isActivelyPolling) {
+        await window.StockDebateModel.loadDebates();
+        this.render();
+      }
+    }, 1500);
   },
 
   startCountdownTimer() {
@@ -94,7 +111,65 @@ window.StockDebateView = {
         setTimeout(() => btnRefresh.classList.remove('loading-spin'), 600);
       });
     }
+
+    // 전체 토론 기록 비우기 버튼
+    const btnClearAll = document.getElementById('btn-clear-all-debates');
+    if (btnClearAll) {
+      btnClearAll.addEventListener('click', async () => {
+        if (!window.StockDebateModel) return;
+        const total = (window.StockDebateModel.items || []).length;
+        if (total === 0) {
+          alert('삭제할 토론 기록이 없습니다.');
+          return;
+        }
+        if (confirm(`저장된 모든 끝장 토론 기록(${total}건)을 완전히 삭제하시겠습니까?`)) {
+          btnClearAll.disabled = true;
+          btnClearAll.textContent = '⏳ 삭제 중...';
+          await window.StockDebateModel.clearAllDebates();
+          this.render();
+          btnClearAll.disabled = false;
+          btnClearAll.textContent = '🗑️ 전체 비우기';
+        }
+      });
+    }
+
+    // 개별 토론 삭제 이벤트 위임
+    const feedContainer = document.getElementById('stock-debate-feed');
+    if (feedContainer && !feedContainer._hasDeleteBound) {
+      feedContainer._hasDeleteBound = true;
+      feedContainer.addEventListener('click', async (e) => {
+        const delBtn = e.target.closest('.btn-delete-debate-card');
+        if (!delBtn) return;
+        const debateId = delBtn.getAttribute('data-id');
+        const stockName = delBtn.getAttribute('data-stock') || '해당';
+        if (!debateId || !window.StockDebateModel) return;
+
+        if (confirm(`[${stockName}] 끝장 토론 기록을 삭제하시겠습니까?`)) {
+          delBtn.disabled = true;
+          delBtn.textContent = '⏳';
+          const ok = await window.StockDebateModel.deleteDebate(debateId);
+          if (ok) {
+            this.render();
+          } else {
+            alert('삭제에 실패했습니다. 잠시 후 다시 시도해주세요.');
+            delBtn.disabled = false;
+            delBtn.textContent = '🗑️ 삭제';
+          }
+        }
+      });
+    }
   },
+
+  cleanVal(v, unit) {
+    if (!v || v === 'N/A' || v === 'N/A배' || v === 'N/A원') return 'N/A';
+    let s = String(v).trim();
+    while (s.endsWith(unit + unit)) {
+      s = s.slice(0, -unit.length);
+    }
+    return s.includes(unit) ? s : `${s}${unit}`;
+  },
+
+  isActivelyPolling: false,
 
   async handleTriggerDebate(stockQuery) {
     const btnTrigger = document.getElementById('btn-trigger-debate');
@@ -102,44 +177,67 @@ window.StockDebateView = {
 
     if (btnTrigger) {
       btnTrigger.disabled = true;
-      btnTrigger.innerHTML = '<span class="loading-spin">🔄</span> 에이전트 5인 소집 및 난타전 진행 중...';
+      btnTrigger.innerHTML = '<span class="loading-spin">🔄</span> 에이전트 5인 소집 및 실시간 토론 중...';
     }
     if (statusBox) {
       statusBox.classList.remove('hidden');
       statusBox.innerHTML = `
         <div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-size: 0.88rem;">
           <span class="loading-spin" style="display:inline-block; animation: spin 1s infinite linear;">⚔️</span>
-          <span><strong>[${stockQuery}]</strong> 5대 서브에이전트(성장론자·신중론자·기술분석가·주린이·단가)가 격렬한 끝장 토론을 벌이고 있습니다...</span>
+          <span><strong>[${stockQuery}]</strong> 5대 서브에이전트(단가·주린이·기술분석·신중론·성장론) 소집 및 실시간 난타전 진행 중...</span>
         </div>
       `;
     }
 
+    this.isActivelyPolling = true;
+
     try {
       const res = await window.StockDebateModel.triggerDebate(stockQuery);
       if (res.success) {
-        if (statusBox) {
-          statusBox.innerHTML = `
-            <div style="color: #10b981; font-size: 0.88rem;">
-              ✅ <strong>[${stockQuery}]</strong> 끝장 토론이 성공적으로 완료 및 기록되었습니다! 아래 피드에서 확인하세요.
-            </div>
-          `;
-          setTimeout(() => statusBox.classList.add('hidden'), 4000);
-        }
+        // 1.5초 주기로 12턴 완료 또는 최대 30초 동안 지속 동기화
+        let pollCount = 0;
+        const maxPolls = 20; // 30초
+        const pollTimer = setInterval(async () => {
+          pollCount++;
+          await window.StockDebateModel.loadDebates();
+          this.render();
+          const latest = window.StockDebateModel.items[0];
+          if (!latest || latest.status === 'COMPLETED' || pollCount >= maxPolls) {
+            clearInterval(pollTimer);
+            this.isActivelyPolling = false;
+            if (btnTrigger) {
+              btnTrigger.disabled = false;
+              btnTrigger.innerHTML = '🔥 즉시 끝장 토론 소집 (Debate Summon)';
+            }
+            if (statusBox) {
+              statusBox.innerHTML = `
+                <div style="color: #10b981; font-size: 0.88rem;">
+                  ✅ <strong>[${stockQuery}]</strong> 12턴 끝장 토론 및 최종 의결 판정이 완료되었습니다! 아래 피드에서 확인하세요.
+                </div>
+              `;
+              setTimeout(() => statusBox.classList.add('hidden'), 5000);
+            }
+          }
+        }, 1500);
       } else {
+        this.isActivelyPolling = false;
+        if (btnTrigger) {
+          btnTrigger.disabled = false;
+          btnTrigger.innerHTML = '🔥 즉시 끝장 토론 소집 (Debate Summon)';
+        }
         if (statusBox) {
           statusBox.innerHTML = `<div style="color: #ef4444; font-size: 0.88rem;">⚠️ ${res.message || '토론 소집 실패'}</div>`;
         }
       }
     } catch (e) {
-      if (statusBox) {
-        statusBox.innerHTML = `<div style="color: #ef4444; font-size: 0.88rem;">❌ 오류: ${e.message}</div>`;
-      }
-    } finally {
+      this.isActivelyPolling = false;
       if (btnTrigger) {
         btnTrigger.disabled = false;
         btnTrigger.innerHTML = '🔥 즉시 끝장 토론 소집 (Debate Summon)';
       }
-      this.render();
+      if (statusBox) {
+        statusBox.innerHTML = `<div style="color: #ef4444; font-size: 0.88rem;">❌ 오류: ${e.message}</div>`;
+      }
     }
   },
 
@@ -161,22 +259,9 @@ window.StockDebateView = {
         <div class="empty-debate-placeholder" style="text-align: center; padding: 60px 20px; background: rgba(30, 41, 59, 0.4); border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 16px;">
           <div style="font-size: 3rem; margin-bottom: 12px;">⚔️</div>
           <h3 style="color: #f8fafc; margin-bottom: 8px;">기록된 끝장 토론이 없습니다</h3>
-          <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px;">관리메뉴의 <strong>[에이전트 정보]</strong> 화면에서 '🔥 즉시 끝장 토론 소집'을 실행하여 5대 서브에이전트의 난타전을 시작해 보세요.</p>
-          <button type="button" class="btn btn-danger btn-sm" id="btn-empty-goto-summon" style="padding: 8px 16px; font-weight: 600;">
-            ⚔️ 관리 > 에이전트 정보에서 토론 소집하기 &rarr;
-          </button>
+          <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 0;">현재 등록된 끝장 토론 기록이 없습니다. 새로운 토론이 등록되면 이곳에 표시됩니다.</p>
         </div>
       `;
-      const btnEmptyGoto = document.getElementById('btn-empty-goto-summon');
-      if (btnEmptyGoto) {
-        btnEmptyGoto.addEventListener('click', () => {
-          if (window.AppController && window.AppController.switchTopNav) {
-            window.AppController.switchTopNav('admin');
-            const agentSideBtn = document.querySelector('[data-side="threads-agent"]');
-            if (agentSideBtn) agentSideBtn.click();
-          }
-        });
-      }
       return;
     }
 
@@ -297,22 +382,28 @@ window.StockDebateView = {
             <div class="stock-title-row">
               <h3 class="debate-stock-name">${d.stock_name || '종목'}</h3>
               <span class="debate-stock-code">${d.item_code || ''}</span>
-              <span class="debate-price-badge">${d.current_price ? d.current_price + '원' : ''} (${d.change_pct || '+0.0%'})</span>
-              <span class="debate-val-badge">PER ${d.per || 'N/A'} | PBR ${d.pbr || 'N/A'}</span>
+              ${d.market ? `<span style="background: #0369a1; color: #f0f9ff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">${d.market}</span>` : ''}
+              <span class="debate-price-badge">${d.current_price && d.current_price !== 'N/A' ? d.current_price + '원' : ''} (${d.change_pct || '+0.0%'})</span>
+              <span class="debate-val-badge">PER ${this.cleanVal(d.per, '배')} | PBR ${this.cleanVal(d.pbr, '배')}</span>
+              ${d.shares_outstanding && d.shares_outstanding !== 'N/A' ? `<span style="background: rgba(148, 163, 184, 0.12); color: #cbd5e1; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">상장주식 ${d.shares_outstanding}</span>` : ''}
             </div>
             <div class="debate-topic-row">
               <span class="topic-label">🎯 토론 격돌 주제:</span>
               <strong class="topic-text">${d.topic || '핵심 모멘텀 및 밸류에이션 공방'}</strong>
             </div>
             ${d.news_headline ? `
-            <div class="debate-news-row" style="margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #38bdf8; background: rgba(56, 189, 248, 0.08); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.25);">
-              <span style="font-weight: 700; flex-shrink: 0; color: #0284c7;">📰 실시간 뉴스 팩트:</span>
-              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #0369a1; font-weight: 500;">${d.news_headline}</span>
+            <div class="debate-news-row" style="margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #38bdf8; background: rgba(56, 189, 248, 0.08); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.25);">
+              <span style="font-weight: 700; flex-shrink: 0; color: #38bdf8;">${(d.news_headline.includes('KOSCOM') || d.news_headline.includes('공시') || d.news_headline.includes('전환') || d.news_headline.includes('상장') || d.news_headline.includes('DART')) ? '📋 Open DART 전자공시 팩트:' : '🪙 토스증권 실시간 팩트:'}</span>
+              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e0f2fe; font-weight: 500;">${d.news_headline}</span>
             </div>` : ''}
           </div>
-          <div class="header-right">
+          <div class="header-right" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            ${d.status === 'LIVE' ? `<span class="debate-live-badge">🔴 LIVE 토론 진행 중 (${turns.length}/12턴)</span>` : `<span class="debate-completed-badge">✅ 의결 완료 (12턴)</span>`}
             ${heatBadge}
             <span class="debate-time-badge">⏱️ ${d.timestamp || ''}</span>
+            <button type="button" class="btn-delete-debate-card" data-id="${d.id}" data-stock="${d.stock_name || d.item_code}" style="background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 4px 10px; border-radius: 6px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s;" title="이 끝장 토론 기록을 삭제합니다">
+              🗑️ 삭제
+            </button>
           </div>
         </div>
 

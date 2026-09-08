@@ -1386,8 +1386,6 @@ window.AppController = {
       if (viewMenuConfig) viewMenuConfig.classList.add('hidden');
       if (viewTechStack) viewTechStack.classList.add('hidden');
       if (viewStockTemp) viewStockTemp.classList.add('hidden');
-      const viewStockCouncil = document.getElementById('view-stock-council');
-      if (viewStockCouncil) viewStockCouncil.classList.add('hidden');
       const viewStockDebate = document.getElementById('view-stock-debate');
       if (viewStockDebate) viewStockDebate.classList.add('hidden');
       if (viewThreadsAgent) viewThreadsAgent.classList.add('hidden');
@@ -1420,12 +1418,6 @@ window.AppController = {
         window.StockTempModel.loadStockTempData().then(() => {
           window.StockTempView.renderView();
         });
-      }
-    } else if (sideView === 'stock-council') {
-      const viewStockCouncil = document.getElementById('view-stock-council');
-      if (viewStockCouncil) viewStockCouncil.classList.remove('hidden');
-      if (window.StockCouncilView) {
-        window.StockCouncilView.render();
       }
     } else if (sideView === 'stock-debate') {
       const viewStockDebate = document.getElementById('view-stock-debate');

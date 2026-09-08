@@ -727,9 +727,40 @@ while ($true) {
                 if ($headerBodySplit.Length -eq 2) {
                     $postData = $headerBodySplit[1]
                     if (-not [string]::IsNullOrWhiteSpace($postData)) {
-                        [System.IO.File]::WriteAllText($stockCouncilDataFile, $postData, $Utf8NoBom)
-                        $jsContent = "// data/initialStockCouncilReports.js`nwindow.PORTAL_DATA_STOCK_COUNCIL = $postData;`n"
-                        [System.IO.File]::WriteAllText($stockCouncilJsFile, $jsContent, $Utf8NoBom)
+                        try {
+                            $incoming = $postData | ConvertFrom-Json
+                            $existingList = [System.Collections.Generic.List[object]]::new()
+                            if (Test-Path $stockCouncilDataFile) {
+                                $rawExisting = [System.IO.File]::ReadAllText($stockCouncilDataFile, [System.Text.Encoding]::UTF8)
+                                $parsedExisting = $rawExisting | ConvertFrom-Json
+                                if ($parsedExisting -is [System.Array]) {
+                                    $existingList.AddRange($parsedExisting)
+                                } elseif ($parsedExisting) {
+                                    $existingList.Add($parsedExisting)
+                                }
+                            }
+                            if ($incoming -is [System.Array]) {
+                                $saveText = $postData
+                            } else {
+                                $foundIdx = -1
+                                if ($incoming.id) {
+                                    for ($i = 0; $i -lt $existingList.Count; $i++) {
+                                        if ($existingList[$i].id -eq $incoming.id) { $foundIdx = $i; break }
+                                    }
+                                }
+                                if ($foundIdx -ge 0) {
+                                    $existingList[$foundIdx] = $incoming
+                                } else {
+                                    $existingList.Insert(0, $incoming)
+                                }
+                                $saveText = $existingList | ConvertTo-Json -Depth 10
+                            }
+                            [System.IO.File]::WriteAllText($stockCouncilDataFile, $saveText, $Utf8NoBom)
+                            $jsContent = "// data/initialStockCouncilReports.js`nwindow.PORTAL_DATA_STOCK_COUNCIL = $saveText;`n"
+                            [System.IO.File]::WriteAllText($stockCouncilJsFile, $jsContent, $Utf8NoBom)
+                        } catch {
+                            [System.IO.File]::WriteAllText($stockCouncilDataFile, $postData, $Utf8NoBom)
+                        }
                     }
                 }
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
@@ -795,6 +826,44 @@ while ($true) {
                     }
                 }
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+            elseif ($method -eq "DELETE") {
+                $deleteId = ""
+                $deleteAll = $false
+                if ($requestLine -match '[?&]id=([^&\s]+)') {
+                    $deleteId = [System.Uri]::UnescapeDataString($Matches[1]).Trim()
+                }
+                if ($requestLine -match '[?&]all=true') {
+                    $deleteAll = $true
+                }
+                
+                try {
+                    $existingList = @()
+                    if (Test-Path $stockDebateDataFile) {
+                        try {
+                            $rawExisting = [System.IO.File]::ReadAllText($stockDebateDataFile, [System.Text.Encoding]::UTF8)
+                            $parsed = $rawExisting | ConvertFrom-Json
+                            if ($parsed -is [System.Array]) { $existingList = [System.Collections.ArrayList]@($parsed) }
+                            elseif ($parsed) { $existingList = [System.Collections.ArrayList]@($parsed) }
+                        } catch {}
+                    }
+
+                    if ($deleteAll) {
+                        $existingList = @()
+                    } elseif (-not [string]::IsNullOrWhiteSpace($deleteId)) {
+                        $filtered = @($existingList | Where-Object { $_.id -ne $deleteId })
+                        $existingList = [System.Collections.ArrayList]@($filtered)
+                    }
+
+                    $finalJson = $existingList | ConvertTo-Json -Depth 10
+                    if (-not $finalJson) { $finalJson = "[]" }
+                    [System.IO.File]::WriteAllText($stockDebateDataFile, $finalJson, $Utf8NoBom)
+                    $jsContent = "// data/initialStockDebateLogs.js`nwindow.PORTAL_DATA_STOCK_DEBATES = $finalJson;`n"
+                    [System.IO.File]::WriteAllText($stockDebateJsFile, $jsContent, $Utf8NoBom)
+                    Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"삭제 완료되었습니다."}'
+                } catch {
+                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"삭제 처리 중 오류가 발생했습니다."}'
+                }
             }
         }
         elseif ($urlPath -eq "/api/stock-debates/trigger") {

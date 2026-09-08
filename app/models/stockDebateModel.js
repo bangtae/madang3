@@ -1,4 +1,4 @@
-﻿// app/models/stockDebateModel.js - AI 끝장 토론실 (Debate Arena) 데이터 모델
+// app/models/stockDebateModel.js - AI 끝장 토론실 (Debate Arena) 데이터 모델
 window.StockDebateModel = {
   items: [],
   selectedStock: 'all',
@@ -51,8 +51,12 @@ window.StockDebateModel = {
         const res = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now());
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             this.items = data;
+            loaded = true;
+            break;
+          } else if (data && typeof data === 'object' && data.id) {
+            this.items = [data];
             loaded = true;
             break;
           }
@@ -148,6 +152,54 @@ window.StockDebateModel = {
       return { success: false, message: e.message };
     } finally {
       this.isTriggering = false;
+    }
+  },
+
+  async deleteDebate(debateId) {
+    if (!debateId) return false;
+    try {
+      const endpoints = [
+        `/api/stock-debates?id=${encodeURIComponent(debateId)}`,
+        `http://localhost:8080/api/stock-debates?id=${encodeURIComponent(debateId)}`
+      ];
+      for (const ep of endpoints) {
+        try {
+          const res = await fetch(ep, { method: 'DELETE' });
+          if (res.ok) break;
+        } catch (e) {}
+      }
+      // 로컬 배열에서도 즉시 제거
+      this.items = this.items.filter(d => d.id !== debateId);
+      try {
+        localStorage.setItem('portal_stock_debate_logs', JSON.stringify(this.items));
+      } catch (e) {}
+      return true;
+    } catch (e) {
+      console.error('Failed to delete debate:', e);
+      return false;
+    }
+  },
+
+  async clearAllDebates() {
+    try {
+      const endpoints = [
+        '/api/stock-debates?all=true',
+        'http://localhost:8080/api/stock-debates?all=true'
+      ];
+      for (const ep of endpoints) {
+        try {
+          const res = await fetch(ep, { method: 'DELETE' });
+          if (res.ok) break;
+        } catch (e) {}
+      }
+      this.items = [];
+      try {
+        localStorage.removeItem('portal_stock_debate_logs');
+      } catch (e) {}
+      return true;
+    } catch (e) {
+      console.error('Failed to clear debates:', e);
+      return false;
     }
   }
 };

@@ -380,9 +380,6 @@ window.ThreadsAgentView = {
                 <label style="font-size: 0.85rem; color: #cbd5e1; font-weight: 600; margin: 0;">
                   ⚡ 5대 에이전트 온디맨드 즉시 분석 발주
                 </label>
-                <button type="button" id="btn-goto-stock-council" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 5px 12px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">
-                  🏛️ 심의실 리포트 열람 바로가기 &rarr;
-                </button>
               </div>
 
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -403,12 +400,15 @@ window.ThreadsAgentView = {
                   <span class="summon-icon">⚔️</span>
                   <span class="summon-title">🔥 5대 에이전트 끝장 토론 즉시 소집 (Debate Summon)</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                   <div class="summon-stats-preview">
                     <span>총 격론 세션: <strong id="debate-stat-total" style="color: #38bdf8;">${totalDebates}</strong>건</span>
                     <span style="margin: 0 8px; color: rgba(255,255,255,0.2);">|</span>
                     <span>오늘의 격돌: <strong id="debate-stat-today" style="color: #f59e0b;">${todayDebates}</strong>건</span>
                   </div>
+                  <button type="button" id="btn-admin-clear-all-debates" class="btn btn-sm" style="font-size: 0.78rem; padding: 5px 12px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; cursor: pointer;" title="저장된 모든 끝장 토론 기록을 삭제합니다">
+                    🗑️ 끝장 토론 전체 비우기
+                  </button>
                   <button type="button" id="btn-goto-stock-debate" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 4px 10px; color: #f43f5e; border-color: rgba(244, 63, 94, 0.4);" title="AI 끝장 토론실 피드로 이동">
                     🔥 토론실 바로가기 &rarr;
                   </button>
@@ -626,17 +626,6 @@ window.ThreadsAgentView = {
     const btnAdminStockAnalyze = document.getElementById('btn-admin-stock-analyze');
     const inputAdminStockQuery = document.getElementById('input-admin-stock-query');
     const statusBanner = document.getElementById('admin-stock-status-banner');
-    const btnGotoStockCouncil = document.getElementById('btn-goto-stock-council');
-
-    if (btnGotoStockCouncil) {
-      btnGotoStockCouncil.addEventListener('click', () => {
-        if (window.AppController && window.AppController.switchTopNav) {
-          window.AppController.switchTopNav('invest');
-          const councilSideBtn = document.querySelector('[data-side="stock-council"]');
-          if (councilSideBtn) councilSideBtn.click();
-        }
-      });
-    }
 
     if (btnAdminStockAnalyze && inputAdminStockQuery) {
       const handleAdminAnalyze = async () => {
@@ -664,19 +653,12 @@ window.ThreadsAgentView = {
             let attempts = 0;
             const pollInterval = setInterval(async () => {
               attempts++;
-              if (window.StockCouncilModel && window.StockCouncilModel.loadReports) {
-                await window.StockCouncilModel.loadReports();
-              }
 
               if (attempts >= 4) {
                 clearInterval(pollInterval);
                 if (statusBanner) {
                   statusBanner.className = 'council-status-banner success';
-                  statusBanner.innerHTML = `✅ <b>[${query}]</b> 5인 심의 분석이 완료되었습니다. <a href="javascript:void(0)" id="link-admin-goto-council" style="color: #38bdf8; text-decoration: underline; margin-left: 8px;">심의실에서 결과 보기 &rarr;</a>`;
-                  const linkGoto = document.getElementById('link-admin-goto-council');
-                  if (linkGoto && btnGotoStockCouncil) {
-                    linkGoto.addEventListener('click', () => btnGotoStockCouncil.click());
-                  }
+                  statusBanner.innerHTML = `✅ <b>[${query}]</b> 5대 에이전트 온디맨드 분석 및 리포트 저장이 완료되었습니다.`;
                 }
               }
             }, 2500);
@@ -800,6 +782,31 @@ window.ThreadsAgentView = {
         handleDebateSummon(stock);
       });
     });
+
+    // 끝장 토론 전체 비우기 버튼 (관리자 메뉴)
+    const btnAdminClearDebates = document.getElementById('btn-admin-clear-all-debates');
+    if (btnAdminClearDebates) {
+      btnAdminClearDebates.addEventListener('click', async () => {
+        if (!window.StockDebateModel) return;
+        const total = (window.StockDebateModel.items || []).length;
+        if (total === 0) {
+          alert('삭제할 끝장 토론 기록이 없습니다.');
+          return;
+        }
+        if (confirm(`저장된 모든 끝장 토론 기록(${total}건)을 완전히 삭제하시겠습니까?`)) {
+          btnAdminClearDebates.disabled = true;
+          btnAdminClearDebates.textContent = '⏳ 삭제 중...';
+          await window.StockDebateModel.clearAllDebates();
+          this.updateDebateStatsOnly();
+          if (window.StockDebateView) {
+            window.StockDebateView.render();
+          }
+          btnAdminClearDebates.disabled = false;
+          btnAdminClearDebates.textContent = '🗑️ 끝장 토론 전체 비우기';
+          alert('모든 끝장 토론 기록이 성공적으로 삭제되었습니다.');
+        }
+      });
+    }
 
     // --- Common Refresh Event ---
     const btnRefreshView = document.getElementById('btn-agent-refresh-view');
