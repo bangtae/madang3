@@ -492,6 +492,10 @@ try {
   if (fs.existsSync(krxPath)) {
     krxStockMap = JSON.parse(fs.readFileSync(krxPath, 'utf8'));
   }
+} catch (e) {
+  console.warn('[KRX Map Load Error]', e.message);
+}
+
 let dartCorpCodes = {};
 try {
   const dartPath = path.join(__dirname, 'data', 'dart_corp_codes.json');
