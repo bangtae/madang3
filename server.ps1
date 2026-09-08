@@ -871,12 +871,21 @@ while ($true) {
         }
         elseif ($urlPath -eq "/api/stock-debates/trigger") {
             $stockQuery = "005930"
+            $stockName = ""
             if ($requestLine -match '[?&]stock=([^&\s]+)') {
                 $stockQuery = [System.Uri]::UnescapeDataString($Matches[1]).Trim()
             } elseif ($requestText -match '"stock"\s*:\s*"([^"]+)"') {
                 $stockQuery = $Matches[1].Trim()
             }
+            if ($requestText -match '"stock_name"\s*:\s*"([^"]+)"') {
+                $stockName = $Matches[1].Trim()
+            } elseif ($requestText -match '"originalQuery"\s*:\s*"([^"]+)"') {
+                $stockName = $Matches[1].Trim()
+            }
+            
+            # 6자리 코드가 아닌 한글 종목명이 들어왔을 때 코드 변환
             if ($stockQuery -notmatch '^\d{6}$') {
+                if (-not $stockName) { $stockName = $stockQuery }
                 $krxMapPath = Join-Path $PSScriptRoot "data\krx_stock_map.json"
                 if (Test-Path $krxMapPath) {
                     try {
@@ -893,11 +902,30 @@ while ($true) {
                     } catch {}
                 }
             }
+
+            # 대표 종목 역방향 매핑
+            if (-not $stockName) {
+                $revMap = @{
+                    "005930" = "삼성전자"; "000660" = "SK하이닉스"; "005380" = "현대차"; "196170" = "알테오젠";
+                    "034020" = "두산에너빌리티"; "035420" = "NAVER"; "035720" = "카카오"; "028300" = "HLB";
+                    "086520" = "에코프로"; "247540" = "에코프로비엠"; "000250" = "삼천당제약"; "058470" = "리노공업";
+                    "352820" = "하이브"; "328130" = "루닛"; "042700" = "한미반도체"; "068270" = "셀트리온";
+                    "000270" = "기아"; "005490" = "POSCO홀딩스"
+                }
+                if ($revMap.ContainsKey($stockQuery)) {
+                    $stockName = $revMap[$stockQuery]
+                }
+            }
+
             $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
             $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
             if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
-                Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--stock", $stockQuery, "--sync") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
-                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"끝장 토론이 성공적으로 소집되었습니다. 잠시 후 피드가 갱신됩니다."}'
+                $pyArgs = @($debateScript, "--stock", $stockQuery, "--sync")
+                if ($stockName) {
+                    $pyArgs += @("--stock-name", $stockName)
+                }
+                Start-Process -FilePath $pyPath -ArgumentList $pyArgs -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                Send-JsonResponse $stream $corsHeaders "{\`"success\`":true,\`"message\`":\`"'$($stockName)' 5대 에이전트 끝장 토론이 성공적으로 소집되었습니다. 잠시 후 피드가 갱신됩니다.\`"}"
             } else {
                 Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"토론 실행 환경을 찾을 수 없습니다."}'
             }

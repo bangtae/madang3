@@ -473,30 +473,44 @@ function saveDebateLog(debateItem) {
 let lastAutoDebateTime = 0;
 let isAutoDebateRunning = false;
 
-async function generateCloudDebate({ stock = '005930', customTopic = '', isAutoTheme = false } = {}) {
+async function generateCloudDebate({ stock = '005930', stockName = '', customTopic = '', isAutoTheme = false } = {}) {
   const geminiKey = getGeminiApiKey();
   if (!geminiKey) {
     throw new Error('GEMINI_API_KEY가 설정되지 않아 클라우드 토론을 생성할 수 없습니다.');
   }
 
-  // 1. 종목코드 및 명칭 해석
+  // 1. 종목코드 및 명칭 양방향 해석
+  const defaultMap = {
+    '루닛': '328130', '삼성전자': '005930', 'SK하이닉스': '000660', '현대차': '005380',
+    '현대자동차': '005380', '알테오젠': '196170', '두산에너빌리티': '034020', 'NAVER': '035420',
+    '네이버': '035420', '카카오': '035720', 'HLB': '028300', '에코프로': '086520',
+    '에코프로비엠': '247540', '삼천당제약': '000250', '리노공업': '058470', '하이브': '352820',
+    '한미반도체': '042700', '셀트리온': '068270', '기아': '000270', 'POSCO홀딩스': '005490'
+  };
+  const reverseMap = {
+    '005930': '삼성전자', '000660': 'SK하이닉스', '005380': '현대차', '196170': '알테오젠',
+    '034020': '두산에너빌리티', '035420': 'NAVER', '035720': '카카오', '028300': 'HLB',
+    '086520': '에코프로', '247540': '에코프로비엠', '000250': '삼천당제약', '058470': '리노공업',
+    '352820': '하이브', '328130': '루닛', '042700': '한미반도체', '068270': '셀트리온',
+    '000270': '기아', '005490': 'POSCO홀딩스'
+  };
+
   let resolvedCode = '005930';
-  let resolvedName = '';
+  let resolvedName = stockName || '';
   const rawStock = String(stock || '').trim();
+
   if (/^\d{6}$/.test(rawStock)) {
     resolvedCode = rawStock;
+    if (!resolvedName) resolvedName = reverseMap[rawStock] || '';
   } else {
-    const defaultMap = {
-      '루닛': '328130', '삼성전자': '005930', 'SK하이닉스': '000660', '현대차': '005380',
-      '알테오젠': '196170', '두산에너빌리티': '034020', 'NAVER': '035420', '네이버': '035420',
-      '카카오': '035720', 'HLB': '028300', '에코프로': '086520', '에코프로비엠': '247540',
-      '삼천당제약': '000250', '리노공업': '058470', '하이브': '352820', '한미반도체': '042700'
-    };
     resolvedCode = defaultMap[rawStock] || defaultMap[rawStock.replace(/\s+/g, '')] || '005930';
     resolvedName = rawStock;
   }
+  if (!resolvedName && reverseMap[resolvedCode]) {
+    resolvedName = reverseMap[resolvedCode];
+  }
 
-  // 2. 네이버 증권 / 토스증권 실시간 시세 API 선행 호출 (실제 주가 100% 실측 확보)
+  // 2. 네이버 증권 실시간 시세 API 선행 호출
   let realPrice = null;
   let realChangePct = null;
   let realMarket = 'KOSPI';
@@ -506,7 +520,7 @@ async function generateCloudDebate({ stock = '005930', customTopic = '', isAutoT
     const qRes = await fetch(qUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (qRes.ok) {
       const qData = await qRes.json();
-      if (qData.stockName) realStockName = qData.stockName;
+      if (qData.stockName && qData.stockName.length > 1) realStockName = qData.stockName;
       if (qData.closePrice) realPrice = qData.closePrice;
       if (qData.fluctuationsRatio !== undefined) {
         const ratio = parseFloat(qData.fluctuationsRatio);
@@ -519,51 +533,65 @@ async function generateCloudDebate({ stock = '005930', customTopic = '', isAutoT
     console.warn('[RealtimeQuote Error]', quoteErr.message);
   }
 
-  const systemPrompt = `[역할: 전문 시장 테마 내비게이터 & 주식 끝장토론 심의위원회]
-당신은 개인 투자자의 눈높이에서 복잡한 시장의 흐름을 짚어주는 ‘전문 시장 테마 내비게이터’이자, 5대 주식 에이전트 끝장 토론실(Debate Arena)의 심의위원장(단가 분석)입니다.
-당신의 임무는 방대한 최신 뉴스·공시 데이터 속에서 '가짜 뉴스'와 '단순 노이즈'를 걸러내고(사이버 정수기 필터링), 실질적인 투자 가치가 있는 핵심 테마와 종목의 연결 고리를 분석하여 5대 서브에이전트의 유동적 턴(8턴~20턴) 격돌 토론 및 최종 판정을 도출하는 것입니다.
+  const systemPrompt = `[역할: 5대 에이전트 주식 끝장 토론실(Debate Arena) 심의위원회 & 전문 애널리스트]
+당신은 대한민국 최고 수준의 5대 주식 서브에이전트(메인총괄 CIO, 신중론자, 성장론자, 차티스트/수급, 주린이, 단가)가 한 치의 거짓 없이 치열하게 맞붙는 'AI 끝장 토론실'의 심의위원회 총괄 오케스트레이터입니다.
 
-[5대 서브에이전트 역할 및 전담 분석 체계]
-1. 단가 (danka, ⚖️, #eab308): 메인총괄/심의위원장
-   - Open DART 전자공시 팩트, 재무상태표 및 현금흐름 4대 유형(우량/성장/재기/몰락형) 판정, 부채비율 200% 초과 여부 및 유증/CB 위험 감시.
-2. 주린이 (jurin, 🐣, #10b981): 현실적 질문 및 초보 투자자 코칭
-   - 네이버 증권 연간/분기 실적 추이의 일상 비유 해설, 초보자가 궁금해할 직관적인 질문 제기.
-3. 차티스트 (chartist, 📈, #38bdf8): 토스증권 기술분석 전문가
-   - 일봉/주봉 추세, 지지/저항 구조적 마디가(1차 매수가, 목표 청산가, 최종 손절가), 속임수(Fakeout) 방어.
-4. 신중론자 (bear, 🛡️, #f43f5e): 자본시장 심리 및 작전주 탐지 아키텍처
-   - 세력의 3단계 운전 모델(1단계 매집, 2단계 상승/개미털기, 3단계 설거지/엑시트), 작전 리스크 점수(X/5점) 평가.
-5. 성장론자 (bull, 🚀, #8b5cf6): 유목민 Ver 4.0 전문 트레이더 페르소나
-   - 메가트렌드 및 증시 사계론, CAN SLIM 실적 폭발성, 20일선 눌림목/45일선 낙주 타점 및 기계적 손절 전략.
+단순한 공시 단발성 공방이 아닌, 투자자가 실제로 해당 기업을 100% 꿰뚫어 볼 수 있도록 아래 [5대 핵심 검증 단계]를 12턴에 걸쳐 한 단계씩 순차적으로 검증하고 반박하며 치열한 티키타카 공방을 벌이세요.
 
-[토론 진행 및 턴 수 규칙 (8턴 ~ 20턴 유동적 결정)]
-- 종목의 공시 건수, CB 물량, 작전 의혹, 차트 이평선 등 쟁점의 복잡성에 따라 8턴에서 최대 20턴 사이에서 유동적으로 턴 수를 결정하세요.
-- 턴 1부터 N-1까지는 5명의 에이전트가 치열하게 공방(티키타카)을 벌이며, 마지막 N번째 턴은 항상 심의위원장 '단가'가 최종 의결 판정을 선언하며 마칩니다.
+[5대 핵심 검증 단계 체계]
+1단계: [기업 개요 & 주요 사업 및 R&D/매출 구조 (DART 사업보고서 기반)]
+   - 어떤 기업이고 어떤 사업을 영위하는지, 핵심 매출 비중은 어디서 나오는지
+   - 연구개발(R&D) 투자 규모 및 신성장 파이프라인/특허 현황
+2단계: [재무제표 건전성 & 현금흐름 판정 (DART 재무제표 기반)]
+   - 최근 매출액, 영업이익, 당기순이익, 부채비율(200% 초과 여부), 단기차입금
+   - 현금흐름 4대 유형(우량/성장/재기/몰락형), 유상증자/CB(전환사채) 폭탄 리스크
+3단계: [인터넷 시장 테마 & 메가트렌드 모멘텀 (인터넷/뉴스 실시간 팩트체크)]
+   - 과거부터 현재까지 인터넷 커뮤니티와 뉴스에서 이 종목을 움직였던 핵심 테마들
+   - 실질적인 수혜 연결 고리가 있는 진짜 테마 vs 단순 찌라시/노이즈 가짜 테마 필터링
+4단계: [네이버 증권 연간·분기 실적 추이 분석]
+   - 연간 및 최근 분기 실적 추이(매출, 영업이익률), 컨센서스 상회/하회 여부
+   - 주린이(초보 투자자) 눈높이의 쉬운 일상 비유 해설
+5단계: [토스증권 차트 마디가 & 수급 세력/작전주 의혹 검증]
+   - 외국인/기관/개인/연기금 최근 수급 주체 및 지분율
+   - 세력의 매집, 상승/개미털기, 설거지 흔적이 있는지 작전 리스크 점검
+   - 차트 지지/저항 마디가, 20일선 눌림목 타점, 1차 매수가, 목표가, 손절선 제시
+6단계: [심의위원회 최종 판정 & 애널리스트 관점 종합 의결]
+   - 5대 에이전트 공방을 총괄하여 최종 투자 의견(BUY / HOLD / CAUTION), 적정 목표가, 포트폴리오 비중(%) 선언
 
-[가이드라인 및 문체 제약]
-- 인간다운 문체(Humanize KR v1.5): 상투적인 AI 관용구를 배제하고 "~합니다", "~입니다"와 같이 능동적이고 간결한 종결 어미를 사용하세요.
-- 법적 리스크 관리: 사실 근거를 기반으로 답변합니다.
+[12턴 진행 순서 및 전담 발언 규칙 (총 12턴 필수)]
+• Turn 1 (메인총괄 / CIO): 안건 상정, 기업 개요, 주요 사업 부문 및 R&D/핵심 매출 비중 제시 (1단계 검증)
+• Turn 2 (신중론자 / Value Auditor): DART 재무제표 건전성 공격 (부채비율, CB/유증, 현금흐름 리스크) (2단계 검증)
+• Turn 3 (성장론자 / Growth Maximalist): 기업 본질 및 R&D 투자의 미래 매출 전환 가능성 방어 반격 (2단계 방어)
+• Turn 4 (주린이 / Novice Investor): 초보 투자자 현실 공포 질문 ("회사는 좋은데 부채비율 높으면 위험한가요?")
+• Turn 5 (성장론자 / Growth Maximalist): 인터넷 시장 테마 및 메가트렌드 모멘텀 팩트 제시 (3단계 검증)
+• Turn 6 (신중론자 / Value Auditor): 시장 테마의 허와 실, 가짜 뉴스 및 일회성 테마 거품 지적 (3단계 공격)
+• Turn 7 (차티스트 / Technical Analyst): 네이버 증권 연간·분기 실적 추이 및 컨센서스 진단 (4단계 검증)
+• Turn 8 (차티스트 / Technical Analyst): 토스증권 차트마디가(지지선, 저항선, 20일선 타점, 손절가) 분석 (5단계 검증)
+• Turn 9 (신중론자 / Value Auditor): 수급 주체(외인/기관/개인) 분석 및 세력 장난/작전주 의혹 점검 (5단계 공격)
+• Turn 10 (주린이 / Novice Investor): 매매 타이밍 직설 질문 ("그럼 지금 당장 사도 되나요? 언제 팔아요?")
+• Turn 11 (단가 / quantitative): PBR/PER 밸류에이션 기반 3단계 분할 매수가 및 안전마진 가이드 제시
+• Turn 12 (메인총괄 / CIO): 심의위원회 최종 의결 및 전문 애널리스트 종합 결론 (목표가, 손절가, 포트폴리오 비중 확정)
 
-반드시 마크다운 블록(\`\`\`json)이나 기타 서두 없이 오직 순수한 JSON 객체 하나만 출력하세요.
-
-JSON 출력 규격:
+[문체 및 JSON 출력 규격]
+반드시 마크다운 블록(\`\`\`json) 없이 순수한 JSON 객체 하나만 출력하세요.
 {
-  "stock_name": "${realStockName || '종목명'}",
+  "stock_name": "${realStockName || resolvedName || '종목명'}",
   "item_code": "${resolvedCode}",
   "market": "${realMarket}",
   "current_price": "${realPrice || 'N/A'}",
   "change_pct": "${realChangePct || '+0.0%'}",
-  "per": "최신 PER (예: 15.2배 또는 N/A)",
-  "pbr": "최신 PBR (예: 1.8배 또는 N/A)",
-  "shares_outstanding": "발행주식수 또는 N/A",
-  "topic": "1️⃣ 테마명: 핵심을 찌르는 직관적인 이름 및 격돌 화두",
-  "news_headline": "공식 뉴스/공시 팩트 한 줄 요약",
+  "per": "최신 PER (예: 12.5배)",
+  "pbr": "최신 PBR (예: 1.8배)",
+  "shares_outstanding": "발행주식수",
+  "topic": "${realStockName || resolvedName} 5대 심층 검증: 사업/R&D·재무·테마·실적·세력수급 12턴 끝장 토론",
+  "news_headline": "DART 사업보고서 및 최신 공시/뉴스 핵심 팩트 한 줄 요약",
   "theme_report": {
-    "theme_name": "핵심 테마명",
-    "news_evidence": "핵심 문장을 자연스러운 한국어로 요약",
+    "theme_name": "기업 핵심 테마명",
+    "news_evidence": "핵심 테마 및 실적 연결 고리 팩트 요약",
     "metrics": {
-      "subject": "주체 (정부, 대기업 등)",
-      "timing": "시점 (예: 2024년 4분기 공급 개시)",
-      "earnings_link": "실적 연결성 (영업이익 흑자전환 등)",
+      "subject": "주체 (글로벌 완성차, 정부 정책 등)",
+      "timing": "시점 (예: 2025~2026년 양산)",
+      "earnings_link": "실적 연결성 (영업이익 기여도 등)",
       "market_reaction": "시장 반응 (외인 수급, 거래량 등)"
     },
     "investment_horizon": "단기 | 중기 | 장기 중 택1",
@@ -572,22 +600,22 @@ JSON 출력 규격:
       "secondary": "2차 수혜 (종목명) - 연결 고리 설명",
       "related": "연관 테마 (종목명) - 확장 가능성"
     },
-    "expert_comment": "💡 전문가의 투자 전략 코멘트"
+    "expert_comment": "💡 애널리스트 관점의 종합 투자 코멘트"
   },
   "final_action": "BUY (분할접근) | HOLD (관망) | CAUTION (리스크관리)",
-  "action_title": "⚖️ 심의위원회 최종 의결 판정 요약명",
-  "verdict_summary": "5대 심의위원 공방 요약 및 최종 종합 결론 (3~4문장)",
+  "action_title": "⚖️ 심의위원회 최종 의결 판정 (목표가/손절가 명시)",
+  "verdict_summary": "사업구조, 재무건전성, 시장테마, 네이버실적, 차트수급을 종합한 애널리스트 관점의 최종 결론 (3~4문장)",
   "bull_score": 75,
   "bear_score": 35,
   "turns": [
     {
       "turn": 1,
-      "agent_id": "danka",
-      "speaker": "단가",
-      "role": "메인총괄 (심의위원장)",
-      "avatar": "⚖️",
-      "tag": "토론 개시",
-      "badge_color": "#eab308",
+      "agent_id": "lead_orchestrator",
+      "speaker": "메인총괄 (CIO)",
+      "role": "🏛️ 메인총괄 (CIO)",
+      "avatar": "🏛️",
+      "tag": "1단계: 기업개요 및 R&D/사업구조 분석",
+      "badge_color": "#38bdf8",
       "message": "...",
       "time": "10:00"
     }
@@ -596,12 +624,12 @@ JSON 출력 규격:
 
   let userPrompt = '';
   if (isAutoTheme) {
-    userPrompt = `오늘(최근 24시간 내) 한국 주식 시장(KOSPI/KOSDAQ)에서 가장 뜨겁게 화제가 되고 있거나 실질적 모멘텀이 발생한 핵심 테마와 그 대표 대장주를 Google 실시간 검색으로 발굴하세요.
-그리고 '핵심 테마 검증 2.1' 가이드라인에 따라 철저히 팩트체크 및 필터링을 거쳐 5대 에이전트의 유동적 턴(8~20턴) 끝장 토론과 최종 판정이 담긴 완성된 JSON을 생성하세요.`;
+    userPrompt = `오늘 한국 주식 시장(KOSPI/KOSDAQ)에서 가장 뜨겁게 화제가 되고 있거나 실질적 모멘텀이 발생한 핵심 테마와 그 대표 대장주를 Google 실시간 검색으로 발굴하세요.
+그리고 '5대 핵심 검증 단계(기업개요/R&D → 재무제표 건전성 → 시장테마 팩트체크 → 네이버 연간/분기 실적 → 토스 차트마디가 & 세력수급)'에 따라 5대 에이전트의 치열한 12턴 단계별 끝장 토론과 애널리스트 최종 판정이 담긴 완성된 JSON을 생성하세요.`;
   } else {
-    userPrompt = `종목 [${realStockName || stock} (${resolvedCode})] ${customTopic ? `(토론 주제: ${customTopic})` : ''}에 대해 Google 실시간 검색으로 최신 DART 전자공시, 뉴스, 재무상태, 차트 흐름을 조사하세요.
+    userPrompt = `종목 [${realStockName || resolvedName || stock} (${resolvedCode})]에 대해 Google 실시간 검색으로 최신 DART 전자공시, 사업보고서(주요사업, 매출비중, R&D), 재무제표, 인터넷 관련 테마, 네이버 증권 실적 추이, 토스증권 수급과 차트 흐름을 정밀 조사하세요.
 현재 실측 종가는 ${realPrice ? realPrice + '원' : '실시간 시세'} (${realChangePct || ''}) 입니다.
-'핵심 테마 검증 2.1' 가이드라인과 5대 에이전트 전담 분석 체계(DART 현금흐름/네이버 실적/토스 차트마디가/작전주 탐지/유목민 4.0)를 바탕으로 8턴에서 20턴 사이의 유동적 끝장 토론 JSON을 생성하세요.`;
+'5대 핵심 검증 단계 체계'에 따라 5대 에이전트(메인총괄, 신중론자, 성장론자, 차티스트, 주린이, 단가)가 1턴부터 12턴까지 단계별로 치열하게 공방을 벌이고, 애널리스트 관점의 최종 투자 판정을 내리는 12턴 끝장 토론 JSON을 완성하세요.`;
   }
 
   const payload = {
@@ -677,16 +705,32 @@ JSON 출력 규격:
     month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
   }).format(now);
 
-  // 자동 테마 발굴일 경우 AI가 도출한 대장주 종목코드/명칭을 최우선 적용하고 실시간 시세 재보정
+  // 종목코드 및 종목명 최종 확정 (AI 추출 결과 및 역방향 맵 우선)
   let finalItemCode = resolvedCode;
-  let finalStockName = realStockName || resolvedName;
+  if (isAutoTheme && debateData.item_code) {
+    finalItemCode = String(debateData.item_code).trim();
+  } else if (debateData.item_code && /^\d{6}$/.test(debateData.item_code)) {
+    finalItemCode = debateData.item_code;
+  }
+
+  const stockReverseMap = {
+    '005930': '삼성전자', '000660': 'SK하이닉스', '005380': '현대차', '196170': '알테오젠',
+    '034020': '두산에너빌리티', '035420': 'NAVER', '035720': '카카오', '028300': 'HLB',
+    '086520': '에코프로', '247540': '에코프로비엠', '000250': '삼천당제약', '058470': '리노공업',
+    '352820': '하이브', '328130': '루닛', '042700': '한미반도체', '068270': '셀트리온',
+    '000270': '기아', '005490': 'POSCO홀딩스'
+  };
+
+  let finalStockName = debateData.stock_name || realStockName || resolvedName || stockReverseMap[finalItemCode] || '국내 핵심 종목';
+  if (stockReverseMap[finalItemCode]) {
+    finalStockName = stockReverseMap[finalItemCode];
+  }
+
   let finalMarket = realMarket;
   let finalPrice = realPrice;
   let finalChangePct = realChangePct;
 
   if (isAutoTheme && debateData.item_code) {
-    finalItemCode = String(debateData.item_code).trim();
-    if (debateData.stock_name) finalStockName = String(debateData.stock_name).trim();
     try {
       const qUrl = `https://m.stock.naver.com/api/stock/${finalItemCode}/basic`;
       const qRes = await fetch(qUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
@@ -708,11 +752,11 @@ JSON 출력 규격:
   const debateItem = {
     id: `debate_${Date.now()}`,
     item_code: finalItemCode || '005930',
-    stock_name: finalStockName || '국내 핵심 종목',
+    stock_name: finalStockName,
     market: finalMarket || 'KOSPI',
     status: 'COMPLETED',
     timestamp: kstTime,
-    topic: debateData.topic || '핵심 테마 검증 2.1 및 5대 에이전트 공방',
+    topic: debateData.topic || `${finalStockName} 5대 심층 검증: 사업/R&D·재무·테마·실적·세력수급 12턴 끝장 토론`,
     current_price: finalPrice || debateData.current_price || 'N/A',
     change_pct: finalChangePct || debateData.change_pct || '+0.0%',
     per: debateData.per || 'N/A',
@@ -839,6 +883,7 @@ app.get('/api/stock-debates/last-auto-status', (req, res) => {
 // 엔드포인트 3: 즉시 토론 소집 (Debate Summon) - 로컬 파이썬 우선, 부재 시 Gemini Cloud 엔진 즉시 폴백!
 app.post('/api/stock-debates/trigger', async (req, res) => {
   const stock = (req.body?.stock || '005930').trim();
+  const stockName = (req.body?.stock_name || req.body?.originalQuery || '').trim();
   const topic = (req.body?.topic || '').trim();
   const pythonPath = 'C:\\Users\\bangt\\Downloads\\madang6\\newsfilter_threads_agent\\.venv\\Scripts\\python.exe';
   const scriptPath = 'C:\\Users\\bangt\\Downloads\\madang6\\debate_arena.py';
@@ -854,7 +899,7 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
         if (err) {
           console.warn('[Debate Local Error, Falling back to Gemini Cloud Engine]', err.message);
           // 로컬 에러 발생 시 클라우드 엔진으로 즉시 폴백
-          generateCloudDebate({ stock, customTopic: topic })
+          generateCloudDebate({ stock, stockName, customTopic: topic })
             .then(debateItem => {
               res.json({
                 success: true,
@@ -882,10 +927,10 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
           return res.json({ 
             success: true, 
             debate: resultJson, 
-            message: `'${stock}' 끝장 토론이 성공적으로 완료 및 기록되었습니다!` 
+            message: `'${resultJson?.stock_name || stockName || stock}' 끝장 토론이 성공적으로 완료 및 기록되었습니다!` 
           });
         } catch (parseErr) {
-          return res.json({ success: true, message: `'${stock}' 끝장 토론이 생성되었습니다.` });
+          return res.json({ success: true, message: `'${stockName || stock}' 끝장 토론이 생성되었습니다.` });
         }
       });
       return;
@@ -896,7 +941,7 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
 
   // 2. GCP Cloud Run 및 파이썬 미설치 환경: Gemini 2.5 Flash 기반 Cloud Debate Engine 즉시 구동!
   try {
-    const debateItem = await generateCloudDebate({ stock, customTopic: topic });
+    const debateItem = await generateCloudDebate({ stock, stockName, customTopic: topic });
     return res.json({
       success: true,
       debate: debateItem,

@@ -445,9 +445,6 @@ window.StockDebateView = {
             ${d.status === 'LIVE' ? `<span class="debate-live-badge">🔴 LIVE 토론 진행 중 (${turns.length}/12턴)</span>` : `<span class="debate-completed-badge">✅ 의결 완료 (12턴)</span>`}
             ${heatBadge}
             <span class="debate-time-badge">⏱️ ${d.timestamp || ''}</span>
-            <button type="button" class="btn-delete-debate-card" data-id="${d.id}" data-stock="${d.stock_name || d.item_code}" style="background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 4px 10px; border-radius: 6px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s;" title="이 끝장 토론 기록을 삭제합니다">
-              🗑️ 삭제
-            </button>
           </div>
         </div>
 

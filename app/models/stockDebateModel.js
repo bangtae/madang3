@@ -22,11 +22,31 @@ window.StockDebateModel = {
       '루닛': '328130', '삼성전자': '005930', 'SK하이닉스': '000660', '현대차': '005380',
       '현대자동차': '005380', '알테오젠': '196170', '두산에너빌리티': '034020', 'NAVER': '035420',
       '네이버': '035420', '카카오': '035720', 'HLB': '028300', '에코프로': '086520',
-      '에코프로비엠': '247540', '삼천당제약': '000250', '리노공업': '058470', '하이브': '352820'
+      '에코프로비엠': '247540', '삼천당제약': '000250', '리노공업': '058470', '하이브': '352820',
+      '한미반도체': '042700', '셀트리온': '068270', '기아': '000270', 'POSCO홀딩스': '005490'
     };
     if (defaultMap[q]) return defaultMap[q];
     if (defaultMap[cleanQ]) return defaultMap[cleanQ];
 
+    return q;
+  },
+
+  resolveStockName(query) {
+    if (!query) return '삼성전자';
+    const q = query.trim();
+    const reverseMap = {
+      '005930': '삼성전자', '000660': 'SK하이닉스', '005380': '현대차', '196170': '알테오젠',
+      '034020': '두산에너빌리티', '035420': 'NAVER', '035720': '카카오', '028300': 'HLB',
+      '086520': '에코프로', '247540': '에코프로비엠', '000250': '삼천당제약', '058470': '리노공업',
+      '352820': '하이브', '328130': '루닛', '042700': '한미반도체', '068270': '셀트리온',
+      '000270': '기아', '005490': 'POSCO홀딩스'
+    };
+    if (reverseMap[q]) return reverseMap[q];
+    const krxMap = window.PORTAL_KRX_STOCK_MAP || {};
+    for (const [name, code] of Object.entries(krxMap)) {
+      if (code === q) return name;
+    }
+    if (/^\d{6}$/.test(q)) return q;
     return q;
   },
 
@@ -159,6 +179,7 @@ window.StockDebateModel = {
   async triggerDebate(stockQuery, customTopic = '') {
     this.isTriggering = true;
     const resolvedCode = this.resolveStockCode(stockQuery);
+    const resolvedName = this.resolveStockName(stockQuery) || stockQuery;
     try {
       const endpoints = ['/api/stock-debates/trigger', 'http://localhost:8080/api/stock-debates/trigger'];
       let res = null;
@@ -167,7 +188,12 @@ window.StockDebateModel = {
           res = await fetch(ep, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json; charset=utf-8' },
-            body: JSON.stringify({ stock: resolvedCode, originalQuery: stockQuery, topic: customTopic })
+            body: JSON.stringify({ 
+              stock: resolvedCode, 
+              stock_name: resolvedName, 
+              originalQuery: stockQuery, 
+              topic: customTopic 
+            })
           });
           if (res.ok) break;
         } catch (e) {}
