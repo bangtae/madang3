@@ -1,8 +1,8 @@
 {
-    "ip":  "192.168.219.115",
-    "firstAccess":  "2026-09-09 01:25:55",
-    "lastAccess":  "2026-09-09 01:25:55",
+    "ip":  "127.0.0.1",
+    "firstAccess":  "2026-09-09 01:36:35",
+    "lastAccess":  "2026-09-09 01:36:35",
     "count":  1,
     "status":  "ALLOWED",
-    "lastPath":  "/api/sap-agent/status"
+    "lastPath":  "/api/stock-debates"
 }

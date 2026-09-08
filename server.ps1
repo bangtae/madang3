@@ -65,6 +65,8 @@ $telegramConfigFile = Join-Path $dataDir "telegramConfig.json"
 $script:telegramAlertCooldown = @{}
 $script:telegramLastUpdateId = 0
 $telegramPollSw = [System.Diagnostics.Stopwatch]::StartNew()
+$script:lastAutoDebateTime = 0
+$script:isAutoDebateRunning = $false
 
 function Get-TelegramConfig {
     $botToken = ""
@@ -901,17 +903,52 @@ while ($true) {
             }
         }
         elseif ($urlPath -eq "/api/stock-debates/auto-theme-debate") {
-            $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
-            $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
-            if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
-                Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--sync") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
-                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"1시간 주기 핵심 테마 검증 토론이 백그라운드에서 발주되었습니다."}'
+            $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+            $cooldownMs = 45 * 60 * 1000 # 45분 쿨다운
+
+            # 실제 실행 중인 프로세스 감지
+            $activeProc = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*debate_arena.py*" }
+            if ($activeProc) {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"이미 끝장 토론이 진행 중입니다. (중복 실행 방지)"}'
+            } elseif (($script:lastAutoDebateTime -gt 0) -and (($nowMs - $script:lastAutoDebateTime) -lt $cooldownMs)) {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"쿨다운 진행 중입니다. (45분 이내 중복 방지)"}'
             } else {
-                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"Node.js 또는 GCP Cloud Run 환경에서 자동 테마 검증이 처리됩니다."}'
+                $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
+                $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
+                if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
+                    $script:lastAutoDebateTime = $nowMs
+                    $script:isAutoDebateRunning = $true
+                    Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--sync") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                    Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"1시간 주기 핵심 테마 검증 토론이 백그라운드에서 발주되었습니다."}'
+                } else {
+                    Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"Node.js 또는 GCP Cloud Run 환경에서 자동 테마 검증이 처리됩니다."}'
+                }
             }
         }
         elseif ($urlPath -eq "/api/stock-debates/last-auto-status") {
-            Send-JsonResponse $stream $corsHeaders '{"lastAutoDebateTime":0,"elapsedMinutes":60,"isRunning":false,"needsTrigger":true}'
+            $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+            $elapsedMinutes = [Math]::Floor(($nowMs - $script:lastAutoDebateTime) / 60000)
+            if ($script:lastAutoDebateTime -eq 0) { $elapsedMinutes = 999 }
+
+            # 실제 실행 중인 debate_arena 프로세스가 있는지 실시간 감지
+            $activeProc = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*debate_arena.py*" }
+            if ($activeProc) {
+                $script:isAutoDebateRunning = $true
+            } else {
+                $script:isAutoDebateRunning = $false
+            }
+
+            $needsTrigger = ($script:lastAutoDebateTime -eq 0) -or ($elapsedMinutes -ge 60)
+            if ($script:isAutoDebateRunning) { $needsTrigger = $false }
+
+            $statusJson = @{
+                lastAutoDebateTime = $script:lastAutoDebateTime
+                elapsedMinutes = $elapsedMinutes
+                isRunning = $script:isAutoDebateRunning
+                needsTrigger = $needsTrigger
+            } | ConvertTo-Json -Compress
+
+            Send-JsonResponse $stream $corsHeaders $statusJson
         }
         elseif ($urlPath -eq "/api/analyze-ai-url") {
             $targetUrl = ""
