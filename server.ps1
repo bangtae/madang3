@@ -1,4 +1,4 @@
-﻿# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
+# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
 param([int]$Port = 8080)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -898,6 +898,19 @@ while ($true) {
             } else {
                 Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"토론 실행 환경을 찾을 수 없습니다."}'
             }
+        }
+        elseif ($urlPath -eq "/api/stock-debates/auto-theme-debate") {
+            $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
+            $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
+            if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
+                Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--sync") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"1시간 주기 핵심 테마 검증 토론이 백그라운드에서 발주되었습니다."}'
+            } else {
+                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"Node.js 또는 GCP Cloud Run 환경에서 자동 테마 검증이 처리됩니다."}'
+            }
+        }
+        elseif ($urlPath -eq "/api/stock-debates/last-auto-status") {
+            Send-JsonResponse $stream $corsHeaders '{"lastAutoDebateTime":0,"elapsedMinutes":60,"isRunning":false,"needsTrigger":true}'
         }
         elseif ($urlPath -eq "/api/analyze-ai-url") {
             $targetUrl = ""

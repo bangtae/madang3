@@ -90,7 +90,41 @@ window.StockDebateModel = {
       } catch (e) {}
     }
 
+    // 4. 1시간 주기 핵심 테마 검증 2.1 자동 갱신 백그라운드 체크
+    this.checkAutoThemeDebate();
+
     return this.items;
+  },
+
+  isCheckingAuto: false,
+  async checkAutoThemeDebate() {
+    if (this.isCheckingAuto) return;
+    this.isCheckingAuto = true;
+    try {
+      // 서버의 마지막 자동 토론 생성 시간 및 경과 시간 확인
+      const res = await fetch('/api/stock-debates/last-auto-status');
+      if (res.ok) {
+        const status = await res.json();
+        if (status.needsTrigger && !status.isRunning) {
+          console.log('[DebateModel] 1시간 경과 감지: 핵심 테마 검증 2.1 자동 토론 요청 발주...');
+          const autoRes = await fetch('/api/stock-debates/auto-theme-debate', { method: 'POST' });
+          if (autoRes.ok) {
+            const result = await autoRes.json();
+            if (result.success && result.debate) {
+              const idx = this.items.findIndex(d => d.id === result.debate.id);
+              if (idx < 0) this.items.unshift(result.debate);
+              if (window.StockDebateView && typeof window.StockDebateView.render === 'function') {
+                window.StockDebateView.render();
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // 무시 (오프라인 등)
+    } finally {
+      this.isCheckingAuto = false;
+    }
   },
 
   getFilteredDebates() {

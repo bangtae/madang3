@@ -374,26 +374,7 @@ window.ThreadsAgentView = {
 
             <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 0;">
 
-            <!-- 하단: 온디맨드 즉시 분석 발주 컨트롤 -->
-            <div class="agent-control-box" style="background: rgba(15, 23, 42, 0.4); padding: 14px 18px; border-radius: 8px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
-                <label style="font-size: 0.85rem; color: #cbd5e1; font-weight: 600; margin: 0;">
-                  ⚡ 5대 에이전트 온디맨드 즉시 분석 발주
-                </label>
-              </div>
-
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <input type="text" id="input-admin-stock-query" class="form-control" style="font-size: 0.86rem; padding: 8px 12px; flex: 1; min-width: 200px;" placeholder="종목명 또는 코드 (예: 삼성전자, 005930, 현대차, SK하이닉스...)" />
-                <button type="button" id="btn-admin-stock-analyze" class="btn btn-primary" style="white-space: nowrap; padding: 8px 16px; font-size: 0.86rem; font-weight: 600;">
-                  ⚡ 즉시 분석 발주
-                </button>
-              </div>
-              <div id="admin-stock-status-banner" class="council-status-banner" style="display: none; margin-top: 10px; font-size: 0.82rem; padding: 10px 14px; border-radius: 6px;"></div>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 0;">
-
-            <!-- 하단 2: 5대 에이전트 끝장 토론 즉시 소집 컨트롤 (Debate Summon) -->
+            <!-- 하단: 5대 에이전트 끝장 토론 즉시 소집 컨트롤 (Debate Summon) -->
             <div class="debate-summon-card" style="margin-bottom: 0;">
               <div class="summon-header">
                 <div class="summon-title-wrap">
@@ -622,67 +603,7 @@ window.ThreadsAgentView = {
       });
     }
 
-    // --- 5호: 온디맨드 주식 심의 발주 이벤트 ---
-    const btnAdminStockAnalyze = document.getElementById('btn-admin-stock-analyze');
-    const inputAdminStockQuery = document.getElementById('input-admin-stock-query');
-    const statusBanner = document.getElementById('admin-stock-status-banner');
 
-    if (btnAdminStockAnalyze && inputAdminStockQuery) {
-      const handleAdminAnalyze = async () => {
-        const query = inputAdminStockQuery.value.trim();
-        if (!query) {
-          alert('분석할 종목명 또는 종목코드를 입력해주세요 (예: 삼성전자, 005930, 현대차)');
-          inputAdminStockQuery.focus();
-          return;
-        }
-
-        btnAdminStockAnalyze.disabled = true;
-        const origHtml = btnAdminStockAnalyze.innerHTML;
-        btnAdminStockAnalyze.innerHTML = '<span class="spinner-sm"></span> 분석 발주 중...';
-
-        if (statusBanner) {
-          statusBanner.style.display = 'flex';
-          statusBanner.className = 'council-status-banner info';
-          statusBanner.innerHTML = `⚡ <b>[${query}]</b> 5대 주식 서브에이전트에게 온디맨드 즉시 분석을 발주했습니다. 잠시 후 리포트가 수신됩니다...`;
-        }
-
-        try {
-          const res = await model.triggerDemandAnalysis(query);
-          if (res.success) {
-            inputAdminStockQuery.value = '';
-            let attempts = 0;
-            const pollInterval = setInterval(async () => {
-              attempts++;
-
-              if (attempts >= 4) {
-                clearInterval(pollInterval);
-                if (statusBanner) {
-                  statusBanner.className = 'council-status-banner success';
-                  statusBanner.innerHTML = `✅ <b>[${query}]</b> 5대 에이전트 온디맨드 분석 및 리포트 저장이 완료되었습니다.`;
-                }
-              }
-            }, 2500);
-          } else {
-            alert(res.message || '분석 요청에 실패했습니다.');
-            if (statusBanner) statusBanner.style.display = 'none';
-          }
-        } catch (err) {
-          alert(`분석 요청 오류: ${err.message}`);
-          if (statusBanner) statusBanner.style.display = 'none';
-        } finally {
-          btnAdminStockAnalyze.disabled = false;
-          btnAdminStockAnalyze.innerHTML = origHtml;
-        }
-      };
-
-      btnAdminStockAnalyze.addEventListener('click', handleAdminAnalyze);
-      inputAdminStockQuery.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          handleAdminAnalyze();
-        }
-      });
-    }
 
     // --- 5대 에이전트 끝장 토론 즉시 소집 이벤트 바인딩 ---
     const btnGotoDebate = document.getElementById('btn-goto-stock-debate');

@@ -402,12 +402,295 @@ app.post('/api/stock-debates', (req, res) => {
   }
 });
 
+// ==========================================
+// AI 끝장 토론 (Debate Arena) & 핵심 테마 검증 2.1 엔진
+// ==========================================
+
+function saveDebateLog(debateItem) {
+  const dataDir = path.join(__dirname, 'data');
+  const filePath = path.join(dataDir, 'stockDebateLogs.json');
+  const jsFilePath = path.join(dataDir, 'initialStockDebateLogs.js');
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    let existing = [];
+    if (fs.existsSync(filePath)) {
+      try { existing = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
+    }
+    if (!Array.isArray(existing)) existing = [];
+    
+    // 중복 제거 또는 최상단 삽입
+    const idx = existing.findIndex(r => r.id === debateItem.id);
+    if (idx >= 0) existing[idx] = debateItem;
+    else existing.unshift(debateItem);
+
+    if (existing.length > 100) existing = existing.slice(0, 100);
+
+    fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), 'utf8');
+    fs.writeFileSync(jsFilePath, `// data/initialStockDebateLogs.js\nwindow.PORTAL_DATA_STOCK_DEBATES = ${JSON.stringify(existing, null, 2)};\n`, 'utf8');
+    return true;
+  } catch (err) {
+    console.error('[DebateLog Save Error]', err);
+    return false;
+  }
+}
+
+let lastAutoDebateTime = 0;
+let isAutoDebateRunning = false;
+
+async function generateCloudDebate({ stock = '005930', customTopic = '', isAutoTheme = false } = {}) {
+  const geminiKey = getGeminiApiKey();
+  if (!geminiKey) {
+    throw new Error('GEMINI_API_KEY가 설정되지 않아 클라우드 토론을 생성할 수 없습니다.');
+  }
+
+  const systemPrompt = `[역할: 전문 시장 테마 내비게이터 & 주식 끝장토론 심의위원회]
+당신은 개인 투자자의 눈높이에서 복잡한 시장의 흐름을 짚어주는 ‘전문 시장 테마 내비게이터’이자, 5대 주식 에이전트 끝장 토론실(Debate Arena)의 심의위원장(단가 분석)입니다.
+당신의 임무는 방대한 최신 뉴스 데이터 속에서 '가짜 뉴스'와 '단순 노이즈'를 걸러내고(사이버 정수기 필터링), 실질적인 투자 가치가 있는 핵심 테마와 종목의 연결 고리를 분석하여 5대 서브에이전트의 12턴 격돌 토론 및 최종 판정을 도출하는 것입니다.
+
+[수행 목표 및 단계: 핵심 테마 검증 2.1]
+1. 뉴스 분석 및 필터링: 제공된 최신 뉴스 자료의 진실성을 먼저 검증하세요. 허위 사실이나 악의적인 조작 정보가 포함되었는지 확인하고, 공신력 있는 근거가 있는 내용만을 분석 대상으로 삼습니다.
+2. 테마 추출 및 구조화: 뉴스 키워드가 어떤 산업 섹터로 연결되는지, 그 흐름을 '초보자도 한눈에 보이게' 입체적으로 구조화합니다.
+3. 심층 평가: 6가지 검증 기준(주체, 시점, 실적 연결성, 반복성, 시장 반응, 근거)을 바탕으로 테마의 강도를 냉철하게 분석합니다.
+4. 종목 매핑: 관련 종목을 [대장주 / 2차 수혜주 / 연관 테마주]의 3단계로 명확히 구분하여 제시합니다.
+5. 5대 에이전트 12턴 난타전:
+   - 단가 (danka, ⚖️, #eab308): 메인총괄/심의위원장, 팩트체크 기준 제시 및 의결
+   - 주린이 (jurin, 🐣, #10b981): 초보 투자자 관점의 솔직한 질문 및 의문 제기
+   - 차티스트 (chartist, 📈, #38bdf8): 기술분석, 이평선, 지지/저항, 수급 공방
+   - 신중론자 (bear, 🛡️, #f43f5e): 하방 리스크, 밸류에이션 부담, 매크로 경고
+   - 성장론자 (bull, 🚀, #8b5cf6): 성장 모멘텀, 신시장 개척, 업사이드 주장
+   ※ 턴 1부터 11까지는 5명의 에이전트가 좌우 치열하게 공방(티키타카)을 벌이고, 마지막 12턴은 심의위원장 '단가'가 최종 의결 판정을 내립니다.
+
+[가이드라인 및 문체 제약]
+- 인간다운 문체(Humanize KR v1.5): "결론적으로", "시사하는 바가 크다"와 같은 상투적인 AI 관용구를 삭제하세요. "~되어진다" 같은 피동 표현 대신 "~합니다", "~입니다"와 같은 능동적이고 간결한 종결 어미를 사용하세요.
+- 리듬감 있는 설명: 문장의 길이를 다양하게 조절하여 읽는 재미를 주되, 불필요한 수식어(매우, 정말 등)는 지양합니다.
+- 법적 리스크 관리: 투자 권유가 아닌 '정보 제공'과 '분석'에 집중하세요. 특히 단정적 표현은 피하고, 반드시 사실 근거를 기반으로 답변합니다.
+
+반드시 마크다운 블록(\`\`\`json)이나 기타 서두 없이 오직 순수한 JSON 객체 하나만 출력하세요.
+
+JSON 출력 규격:
+{
+  "stock_name": "종목명 (예: 루닛, 삼성전자 등)",
+  "item_code": "6자리 종목코드 (예: 328130, 005930 등)",
+  "market": "KOSPI 또는 KOSDAQ",
+  "current_price": "최신 주가 (예: 52,300)",
+  "change_pct": "등락률 (예: +3.2%)",
+  "per": "15.4배",
+  "pbr": "2.1배",
+  "shares_outstanding": "발행주식수 또는 N/A",
+  "topic": "1️⃣ 테마명: 핵심을 찌르는 직관적인 이름 및 격돌 화두",
+  "news_headline": "공식 뉴스/공시 팩트 한 줄 요약",
+  "theme_report": {
+    "theme_name": "핵심 테마명",
+    "news_evidence": "핵심 문장을 자연스러운 한국어로 요약",
+    "metrics": {
+      "subject": "주체 (예: 정부, 대기업, 기관)",
+      "timing": "시점 (예: 2024년 4분기 공급 개시)",
+      "earnings_link": "실적 연결성 (예: 영업이익 흑자전환 가시화)",
+      "market_reaction": "시장 반응 (예: 거래대금 급증, 외인 연속 순매수)"
+    },
+    "investment_horizon": "단기 | 중기 | 장기 중 택1",
+    "stock_map": {
+      "leader": "대장주 (종목명) - 선정이유 요약",
+      "secondary": "2차 수혜 (종목명) - 연결 고리 설명",
+      "related": "연관 테마 (종목명) - 확장 가능성"
+    },
+    "expert_comment": "💡 전문가의 투자 전략 코멘트 (친절하고 리듬감 있는 옆자리 설명 어조)"
+  },
+  "final_action": "BUY (분할접근) | HOLD (관망) | CAUTION (리스크관리)",
+  "action_title": "⚖️ 심의위원회 최종 의결 판정 요약명",
+  "verdict_summary": "5대 심의위원 공방 요약 및 최종 종합 결론 (3~4문장)",
+  "bull_score": 75,
+  "bear_score": 35,
+  "turns": [
+    {
+      "turn": 1,
+      "agent_id": "danka",
+      "speaker": "단가",
+      "role": "메인총괄 (심의위원장)",
+      "avatar": "⚖️",
+      "tag": "토론 개시",
+      "badge_color": "#eab308",
+      "message": "이번 토론 안건은 ... 입니다. 팩트 데이터부터 점검해봅시다.",
+      "time": "10:00"
+    },
+    ... 총 12개의 턴 (turn 1부터 turn 12까지, 마지막 12턴은 danka의 최종 의결 판정)
+  ]
+}`;
+
+  let userPrompt = '';
+  if (isAutoTheme) {
+    userPrompt = `오늘(최근 24시간 내) 한국 주식 시장(KOSPI/KOSDAQ)에서 가장 뜨겁게 화제가 되고 있거나 실질적 모멘텀이 발생한 핵심 테마와 그 대표 대장주를 Google 실시간 검색으로 발굴하세요.
+그리고 '핵심 테마 검증 2.1' 가이드라인에 따라 철저히 팩트체크 및 필터링을 거쳐 5대 에이전트의 12턴 끝장 토론과 최종 판정이 담긴 완성된 JSON을 생성하세요.`;
+  } else {
+    userPrompt = `종목 '${stock}' ${customTopic ? `(토론 주제: ${customTopic})` : ''}에 대해 Google 실시간 검색으로 최근 뉴스, 공시, 밸류에이션 팩트를 조사하세요.
+'핵심 테마 검증 2.1' 가이드라인을 바탕으로 테마 분석 지표와 종목맵, 전문가 코멘트를 포함하고 5대 에이전트의 12턴 끝장 토론 JSON을 생성하세요.`;
+  }
+
+  const payload = {
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+    tools: [{ google_search: {} }],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 8192
+    }
+  };
+
+  const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
+  let rawText = '';
+  for (const m of models) {
+    try {
+      const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${geminiKey}`;
+      const gRes = await fetch(gUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const gData = await gRes.json();
+      const candidateText = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (candidateText) {
+        rawText = candidateText;
+        break;
+      }
+    } catch (err) {
+      console.warn(`[Debate Cloud Engine] Model ${m} error:`, err.message);
+    }
+  }
+
+  if (!rawText) {
+    throw new Error('Gemini 클라우드 엔진으로부터 토론 데이터를 수신하지 못했습니다.');
+  }
+
+  let cleaned = rawText.trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
+  let debateData;
+  try {
+    debateData = JSON.parse(cleaned);
+  } catch (e) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) debateData = JSON.parse(match[0]);
+    else throw new Error('AI 토론 JSON 파싱 실패');
+  }
+
+  const now = new Date();
+  const kstTime = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(now);
+
+  const debateItem = {
+    id: `debate_${Date.now()}`,
+    item_code: debateData.item_code || (typeof stock === 'string' && /^\d{6}$/.test(stock) ? stock : '005930'),
+    stock_name: debateData.stock_name || '국내 핵심 테마주',
+    market: debateData.market || 'KOSPI',
+    status: 'COMPLETED',
+    timestamp: kstTime,
+    topic: debateData.topic || '핵심 테마 검증 2.1 및 5대 에이전트 공방',
+    current_price: debateData.current_price || 'N/A',
+    change_pct: debateData.change_pct || '+0.0%',
+    per: debateData.per || 'N/A',
+    pbr: debateData.pbr || 'N/A',
+    shares_outstanding: debateData.shares_outstanding || 'N/A',
+    news_headline: debateData.news_headline || '',
+    theme_report: debateData.theme_report || null,
+    final_action: debateData.final_action || 'HOLD (관망)',
+    action_title: debateData.action_title || '⚖️ 심의위원회 의결',
+    verdict_summary: debateData.verdict_summary || '',
+    bull_score: debateData.bull_score || 50,
+    bear_score: debateData.bear_score || 50,
+    turns: Array.isArray(debateData.turns) && debateData.turns.length > 0 ? debateData.turns : [
+      {
+        turn: 1,
+        agent_id: "danka",
+        speaker: "단가",
+        role: "메인총괄 (심의위원장)",
+        avatar: "⚖️",
+        tag: "최종 의결 판정",
+        badge_color: "#eab308",
+        message: debateData.verdict_summary || "실시간 핵심 테마 검증 2.1이 완료되었습니다.",
+        time: kstTime
+      }
+    ]
+  };
+
+  saveDebateLog(debateItem);
+  return debateItem;
+}
+
+async function triggerAutoThemeDebate(force = false) {
+  const now = Date.now();
+  const cooldownMs = 45 * 60 * 1000; // 최소 45분 쿨다운
+
+  if (!force && (now - lastAutoDebateTime < cooldownMs)) {
+    return { skipped: true, reason: '쿨다운 진행 중', lastRun: lastAutoDebateTime };
+  }
+
+  if (isAutoDebateRunning) {
+    return { skipped: true, reason: '이미 자동 검증 토론이 실행 중입니다.' };
+  }
+
+  isAutoDebateRunning = true;
+  try {
+    console.log('[AutoThemeDebate] 1시간 주기 핵심 테마 검증 2.1 자동 토론 생성 시작...');
+    const result = await generateCloudDebate({ isAutoTheme: true });
+    lastAutoDebateTime = Date.now();
+    console.log(`[AutoThemeDebate] 자동 토론 완료: [${result.stock_name}] ${result.topic}`);
+    return { success: true, debate: result };
+  } catch (err) {
+    console.error('[AutoThemeDebate Error]', err.message);
+    return { success: false, error: err.message };
+  } finally {
+    isAutoDebateRunning = false;
+  }
+}
+
+// 1시간 주기 백그라운드 타이머 기동 (60분)
+setInterval(() => {
+  triggerAutoThemeDebate(false).catch(() => {});
+}, 60 * 60 * 1000);
+
+// 서버 기동 15초 후 초기 상태 점검 (저장된 토론이 없으면 최초 1회 즉시 실행)
+setTimeout(() => {
+  const logFile = path.join(__dirname, 'data', 'stockDebateLogs.json');
+  let hasLogs = false;
+  if (fs.existsSync(logFile)) {
+    try {
+      const logs = JSON.parse(fs.readFileSync(logFile, 'utf8'));
+      if (Array.isArray(logs) && logs.length > 0) hasLogs = true;
+    } catch (e) {}
+  }
+  if (!hasLogs) {
+    console.log('[AutoThemeDebate] 저장된 토론 데이터가 없어 초기 핵심 테마 검증 토론을 가동합니다.');
+    triggerAutoThemeDebate(true).catch(() => {});
+  }
+}, 15000);
+
+// 엔드포인트 1: 1시간 자동 테마 검증 트리거 (Cloud Scheduler, cron, 클라이언트 연동용)
+app.all('/api/stock-debates/auto-theme-debate', async (req, res) => {
+  const force = req.query.force === 'true' || req.body?.force === true;
+  const result = await triggerAutoThemeDebate(force);
+  res.json(result);
+});
+
+// 엔드포인트 2: 자동 토론 상태 확인
+app.get('/api/stock-debates/last-auto-status', (req, res) => {
+  const now = Date.now();
+  const elapsedMinutes = Math.floor((now - lastAutoDebateTime) / 60000);
+  res.json({
+    lastAutoDebateTime,
+    elapsedMinutes,
+    isRunning: isAutoDebateRunning,
+    needsTrigger: lastAutoDebateTime === 0 || elapsedMinutes >= 60
+  });
+});
+
+// 엔드포인트 3: 즉시 토론 소집 (Debate Summon) - 로컬 파이썬 우선, 부재 시 Gemini Cloud 엔진 즉시 폴백!
 app.post('/api/stock-debates/trigger', async (req, res) => {
   const stock = (req.body?.stock || '005930').trim();
   const topic = (req.body?.topic || '').trim();
   const pythonPath = 'C:\\Users\\bangt\\Downloads\\madang6\\newsfilter_threads_agent\\.venv\\Scripts\\python.exe';
   const scriptPath = 'C:\\Users\\bangt\\Downloads\\madang6\\debate_arena.py';
 
+  // 1. 로컬 환경에 파이썬 및 스크립트가 온전히 존재하면 로컬 프로세스 실행
   if (fs.existsSync(pythonPath) && fs.existsSync(scriptPath)) {
     try {
       const cp = require('child_process');
@@ -416,8 +699,20 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
       
       cp.execFile(pythonPath, args, { cwd: path.dirname(scriptPath), encoding: 'utf8' }, (err, stdout, stderr) => {
         if (err) {
-          console.error('[Debate Trigger Error]', err, stderr);
-          return res.status(500).json({ success: false, error: err.message, stderr });
+          console.warn('[Debate Local Error, Falling back to Gemini Cloud Engine]', err.message);
+          // 로컬 에러 발생 시 클라우드 엔진으로 즉시 폴백
+          generateCloudDebate({ stock, customTopic: topic })
+            .then(debateItem => {
+              res.json({
+                success: true,
+                debate: debateItem,
+                message: `'${debateItem.stock_name}' 5대 에이전트 끝장 토론이 성공적으로 완료되었습니다!`
+              });
+            })
+            .catch(cloudErr => {
+              res.status(500).json({ success: false, error: cloudErr.message });
+            });
+          return;
         }
         try {
           const lines = stdout.trim().split('\n');
@@ -437,11 +732,23 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
           return res.json({ success: true, message: `'${stock}' 끝장 토론이 생성되었습니다.` });
         }
       });
+      return;
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      console.warn('[Debate Spawn Exception, Falling back to Gemini Cloud]', e.message);
     }
-  } else {
-    res.status(500).json({ success: false, error: 'Python 환경 또는 debate_arena.py를 찾을 수 없습니다.' });
+  }
+
+  // 2. GCP Cloud Run 및 파이썬 미설치 환경: Gemini 2.5 Flash 기반 Cloud Debate Engine 즉시 구동!
+  try {
+    const debateItem = await generateCloudDebate({ stock, customTopic: topic });
+    return res.json({
+      success: true,
+      debate: debateItem,
+      message: `'${debateItem.stock_name}' 5대 에이전트 끝장 토론이 성공적으로 완료되었습니다!`
+    });
+  } catch (cloudErr) {
+    console.error('[Debate Trigger Cloud Engine Error]', cloudErr);
+    return res.status(500).json({ success: false, error: cloudErr.message });
   }
 });
 

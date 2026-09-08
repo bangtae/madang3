@@ -396,6 +396,50 @@ window.StockDebateView = {
               <span style="font-weight: 700; flex-shrink: 0; color: #38bdf8;">${(d.news_headline.includes('KOSCOM') || d.news_headline.includes('공시') || d.news_headline.includes('전환') || d.news_headline.includes('상장') || d.news_headline.includes('DART')) ? '📋 Open DART 전자공시 팩트:' : '🪙 토스증권 실시간 팩트:'}</span>
               <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e0f2fe; font-weight: 500;">${d.news_headline}</span>
             </div>` : ''}
+
+            ${d.theme_report ? `
+            <div class="debate-theme-report-box" style="margin-top: 8px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 8px; padding: 10px 14px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 0.95rem;">🔍</span>
+                  <strong style="color: #38bdf8; font-size: 0.86rem;">핵심 테마 검증 2.1 리포트</strong>
+                  <span style="background: rgba(56, 189, 248, 0.15); color: #7dd3fc; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 600;">1시간 주기 전문 내비게이터 자동 검증</span>
+                </div>
+                <div style="font-size: 0.76rem; color: #94a3b8;">
+                  투자 시계: <strong style="color: #f59e0b;">${d.theme_report.investment_horizon || '중기'}</strong>
+                </div>
+              </div>
+
+              ${d.theme_report.news_evidence ? `
+                <div style="font-size: 0.82rem; color: #cbd5e1; margin-bottom: 6px; line-height: 1.4;">
+                  <span style="color: #94a3b8; font-weight: 600;">📰 뉴스 근거:</span> ${d.theme_report.news_evidence}
+                </div>
+              ` : ''}
+
+              ${d.theme_report.metrics ? `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; margin-bottom: 6px; font-size: 0.75rem; background: rgba(30, 41, 59, 0.5); padding: 6px 10px; border-radius: 6px;">
+                  <div><span style="color: #94a3b8;">주체:</span> <strong style="color: #f1f5f9;">${d.theme_report.metrics.subject || '-'}</strong></div>
+                  <div><span style="color: #94a3b8;">시점:</span> <strong style="color: #f1f5f9;">${d.theme_report.metrics.timing || '-'}</strong></div>
+                  <div><span style="color: #94a3b8;">실적 연결성:</span> <strong style="color: #10b981;">${d.theme_report.metrics.earnings_link || '-'}</strong></div>
+                  <div><span style="color: #94a3b8;">시장 반응:</span> <strong style="color: #38bdf8;">${d.theme_report.metrics.market_reaction || '-'}</strong></div>
+                </div>
+              ` : ''}
+
+              ${d.theme_report.stock_map ? `
+                <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 6px; display: flex; flex-direction: column; gap: 3px;">
+                  <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 2px;">📈 관련 종목 맵:</div>
+                  <div><span style="color: #f43f5e; font-weight: 600;">👑 대장주:</span> ${d.theme_report.stock_map.leader || '-'}</div>
+                  <div><span style="color: #38bdf8; font-weight: 600;">🥈 2차 수혜:</span> ${d.theme_report.stock_map.secondary || '-'}</div>
+                  <div><span style="color: #a855f7; font-weight: 600;">🔗 연관 테마:</span> ${d.theme_report.stock_map.related || '-'}</div>
+                </div>
+              ` : ''}
+
+              ${d.theme_report.expert_comment ? `
+                <div style="margin-top: 4px; font-size: 0.8rem; color: #fde047; background: rgba(234, 179, 8, 0.08); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #eab308; line-height: 1.4;">
+                  ${d.theme_report.expert_comment}
+                </div>
+              ` : ''}
+            </div>` : ''}
           </div>
           <div class="header-right" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             ${d.status === 'LIVE' ? `<span class="debate-live-badge">🔴 LIVE 토론 진행 중 (${turns.length}/12턴)</span>` : `<span class="debate-completed-badge">✅ 의결 완료 (12턴)</span>`}
