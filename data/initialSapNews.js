@@ -1,6 +1,24 @@
 // data/initialSapNews.js - Auto-updated by SAP Agent
 window.PORTAL_DATA_SAP_NEWS = [
     {
+        "id":  "sap_news_f49d41b7",
+        "title":  "Named-User calling S/4HANA API via Cloud Integration iFlow(OAuth2SAMLBearer) From CAP Services",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/named-user-calling-s-4hana-api-via-cloud-integration-iflow-oauth2samlbearer/ba-p/14479676",
+        "category":  "Migration",
+        "summary":  "Introduction/Scenario Recently came across a blog post on Principal Authentication from BTP Webapp to S/4HANA (private cloud/on premise) via SAP Integration Suite(CI). Decided to try a similar use c...",
+        "published_at":  "2026-09-09T02:24:18Z"
+    },
+    {
+        "id":  "sap_news_6d69550e",
+        "title":  "SAP Cloud Integration - Questions",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-cloud-integration-questions/qaq-p/14481851",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "Hi Experts, Our client has requested us to answer the following questions before even implementing the interface... Could you please help us to get the answers for the following questions? Should we...",
+        "published_at":  "2026-09-08T19:40:54Z"
+    },
+    {
         "id":  "sap_news_c06d112d",
         "title":  "SAP S/4HANA Cloud Public Edition: Handling Missing Public APIs as a Partner — A Practical Guide",
         "source":  "SAP Community",

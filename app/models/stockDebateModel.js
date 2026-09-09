@@ -17,7 +17,24 @@ window.StockDebateModel = {
     const cleanQ = q.replace(/\s+/g, '');
     if (krxMap[cleanQ]) return krxMap[cleanQ];
 
-    // 2. 대표 종목 Fallback
+    // 2. 미국 대표 종목 (US Big Tech)
+    const usMap = {
+      'NVDA': 'NVDA', '엔비디아': 'NVDA', 'NVIDIA': 'NVDA',
+      'TSLA': 'TSLA', '테슬라': 'TSLA', 'TESLA': 'TSLA',
+      'AAPL': 'AAPL', '애플': 'AAPL', 'APPLE': 'AAPL',
+      'MSFT': 'MSFT', '마이크로소프트': 'MSFT', 'MICROSOFT': 'MSFT',
+      'GOOGL': 'GOOGL', '구글': 'GOOGL', '알파벳': 'GOOGL',
+      'AMZN': 'AMZN', '아마존': 'AMZN',
+      'META': 'META', '메타': 'META',
+      'AVGO': 'AVGO', '브로드컴': 'AVGO',
+      'PLTR': 'PLTR', '팔란티어': 'PLTR',
+      'AMD': 'AMD', '에이엠디': 'AMD'
+    };
+    if (usMap[q.toUpperCase()]) return usMap[q.toUpperCase()];
+    if (usMap[q]) return usMap[q];
+    if (usMap[cleanQ]) return usMap[cleanQ];
+
+    // 3. 대표 국장 종목 Fallback
     const defaultMap = {
       '루닛': '328130', '삼성전자': '005930', 'SK하이닉스': '000660', '현대차': '005380',
       '현대자동차': '005380', '알테오젠': '196170', '두산에너빌리티': '034020', 'NAVER': '035420',
@@ -28,12 +45,21 @@ window.StockDebateModel = {
     if (defaultMap[q]) return defaultMap[q];
     if (defaultMap[cleanQ]) return defaultMap[cleanQ];
 
+    if (/^[A-Z]{1,5}$/i.test(q)) return q.toUpperCase();
+
     return '';
   },
 
   resolveStockName(query) {
     if (!query || !query.trim()) return '';
     const q = query.trim();
+    const usReverseMap = {
+      'NVDA': 'NVIDIA (엔비디아)', 'TSLA': 'Tesla (테슬라)', 'AAPL': 'Apple (애플)',
+      'MSFT': 'Microsoft (마이크로소프트)', 'GOOGL': 'Alphabet (알파벳)', 'AMZN': 'Amazon (아마존)',
+      'META': 'Meta (메타)', 'AVGO': 'Broadcom (브로드컴)', 'PLTR': 'Palantir (팔란티어)', 'AMD': 'AMD (에이엠디)'
+    };
+    if (usReverseMap[q.toUpperCase()]) return usReverseMap[q.toUpperCase()];
+
     const reverseMap = {
       '005930': '삼성전자', '000660': 'SK하이닉스', '005380': '현대차', '196170': '알테오젠',
       '034020': '두산에너빌리티', '035420': 'NAVER', '035720': '카카오', '028300': 'HLB',
@@ -150,11 +176,25 @@ window.StockDebateModel = {
 
   getFilteredDebates() {
     return this.items.filter(item => {
-      // Stock filter
-      if (this.selectedStock !== 'all') {
-        const matchCode = (item.item_code || '') === this.selectedStock;
-        const matchName = (item.stock_name || '') === this.selectedStock;
-        if (!matchCode && !matchName) return false;
+      // Stock & Source filter
+      if (this.selectedStock && this.selectedStock !== 'all') {
+        if (this.selectedStock === 'src:AUTO_SCOUT') {
+          const isAuto = item.source_type === 'AUTO_SCOUT' || (!item.source_type && item.item_code === '000660');
+          if (!isAuto) return false;
+        } else if (this.selectedStock === 'src:USER_SUMMON') {
+          const isAuto = item.source_type === 'AUTO_SCOUT' || (!item.source_type && item.item_code === '000660');
+          if (isAuto) return false;
+        } else if (this.selectedStock === 'mkt:KR') {
+          const isUs = item.market_flag === 'US' || item.market === 'NASDAQ' || item.market === 'NYSE';
+          if (isUs) return false;
+        } else if (this.selectedStock === 'mkt:US') {
+          const isUs = item.market_flag === 'US' || item.market === 'NASDAQ' || item.market === 'NYSE';
+          if (!isUs) return false;
+        } else {
+          const matchCode = (item.item_code || '') === this.selectedStock;
+          const matchName = (item.stock_name || '') === this.selectedStock;
+          if (!matchCode && !matchName) return false;
+        }
       }
 
       // Search query filter
@@ -187,7 +227,7 @@ window.StockDebateModel = {
     if (!resolvedCode && !resolvedName) {
       return { 
         success: false, 
-        message: `'${rawQ}'은(는) 한국거래소(KRX) 상장 종목 목록에서 찾을 수 없습니다. 올바른 종목명(예: 현대차, 알테오젠) 또는 6자리 종목코드를 입력해주세요.` 
+        message: `'${rawQ}'은(는) 한국거래소(KRX) 또는 미국증시(NYSE/NASDAQ) 상장 종목 목록에서 찾을 수 없습니다. 올바른 종목명/티커(예: 현대차, 알테오젠, NVDA, TSLA) 또는 종목코드를 입력해주세요.` 
       };
     }
     this.isTriggering = true;

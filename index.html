@@ -16,6 +16,15 @@
         };
         sessionStorage.setItem('portal_auth_user', JSON.stringify(defaultGuest));
       }
+
+      // Zero-Flicker: 새로고침 시 직전 서브 뷰가 있으면 메인 대시보드 깜빡임 0ms 원천 차단
+      try {
+        var h = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+        var saved = h || sessionStorage.getItem('madang_current_view');
+        if (saved && saved !== 'dashboard') {
+          document.documentElement.setAttribute('data-pre-view', saved);
+        }
+      } catch (e) {}
     })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1144,6 +1153,9 @@
               </div>
               <button type="button" id="btn-refresh-debates" class="btn btn-secondary btn-sm" style="padding: 6px 12px; font-size: 0.85rem;" title="새로고침">
                 🔄 새로고침
+              </button>
+              <button type="button" id="btn-toggle-all-debates" class="btn btn-secondary btn-sm" style="padding: 6px 12px; font-size: 0.85rem; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);" title="모든 종목 12턴 대화 일괄 열기/닫기">
+                📂 전체 펼치기
               </button>
             </div>
           </div>

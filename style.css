@@ -264,6 +264,11 @@ body {
   display: none;
 }
 
+/* Zero-Flicker: 새로고침 시 직전 서브 화면 복원 중 메인 대시보드 깜빡임 0ms 차단 */
+html[data-pre-view] #view-dashboard {
+  display: none !important;
+}
+
 .view-header {
   margin-bottom: 24px;
 }
@@ -825,6 +830,296 @@ textarea:focus {
     width: 100%;
     justify-content: center;
   }
+
+  /* 5대 에이전트 끝장 토론 소집 카드 모바일 반응형 최적화 */
+  .debate-summon-card {
+    padding: 14px 14px;
+    border-radius: 12px;
+  }
+
+  .summon-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .summon-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+  }
+
+  .summon-stats-preview {
+    width: 100%;
+    margin-bottom: 2px;
+    font-size: 0.8rem;
+  }
+
+  .summon-header-actions .btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 130px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .summon-input-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .stock-input-wrap {
+    width: 100%;
+  }
+
+  .stock-input-wrap .form-input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .btn-summon {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    white-space: normal;
+  }
+
+  /* 5대 서브에이전트 AI 끝장 토론실 모바일 반응형 최적화 */
+  .stock-debate-feed-container {
+    gap: 16px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .stock-debate-card {
+    padding: 14px 12px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .debate-card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .header-left {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .header-right {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+    box-sizing: border-box;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  }
+
+  .stock-title-row {
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .debate-stock-name {
+    font-size: 1.15rem;
+  }
+
+  .debate-stock-code {
+    font-size: 0.78rem;
+  }
+
+  .debate-price-badge {
+    font-size: 0.78rem;
+    padding: 2px 6px;
+  }
+
+  .debate-val-badge {
+    font-size: 0.72rem;
+    padding: 2px 6px;
+  }
+
+  .debate-topic-row {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    margin-top: 4px;
+  }
+
+  .debate-sources-row {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .official-source-chip {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .fact-check-shield-chip {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .debate-news-row {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    gap: 6px;
+    box-sizing: border-box;
+  }
+
+  .debate-theme-report-box {
+    padding: 8px 10px;
+    margin-top: 6px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .theme-report-metrics {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 4px !important;
+    font-size: 0.72rem !important;
+    padding: 6px 8px !important;
+  }
+
+  .debate-filter-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .debate-stock-tabs-wrap {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+    width: 100%;
+    padding-bottom: 4px;
+    box-sizing: border-box;
+  }
+
+  .debate-stock-tabs-wrap::-webkit-scrollbar {
+    display: none;
+  }
+
+  .debate-tab {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .debate-search-wrap {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .debate-arena-timeline {
+    gap: 12px;
+    margin-bottom: 14px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .debate-turn-row {
+    max-width: 100%;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .turn-content-wrap {
+    max-width: calc(100% - 42px);
+  }
+
+  .turn-bubble {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .turn-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+
+  .debate-turn-verdict {
+    padding: 12px 12px;
+    border-radius: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .verdict-bubble-body {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .debate-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding-top: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .footer-action-badge {
+    text-align: center;
+    font-size: 0.8rem;
+    padding: 4px 10px;
+  }
+
+  .footer-summary-text {
+    font-size: 0.8rem;
+    line-height: 1.45;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
 }
 
 /* 갤럭시 폴드7 접었을 때 & 소형 스마트폰 디스플레이 (width <= 480px) */
@@ -895,10 +1190,77 @@ textarea:focus {
     width: 95vw;
     padding: 16px;
   }
+
+  .debate-summon-card {
+    padding: 12px 10px;
+  }
+
+  .summon-title {
+    font-size: 0.95rem;
+  }
+
+  .summon-header-actions .btn {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .preset-chips-row {
+    gap: 6px;
+  }
+
+  .debate-preset-chip {
+    padding: 4px 9px;
+    font-size: 0.75rem;
+  }
+
+  .main-content {
+    padding: 10px 8px;
+  }
+
+  .stock-debate-card {
+    padding: 12px 10px;
+    border-radius: 10px;
+  }
+
+  .theme-report-metrics {
+    grid-template-columns: 1fr !important;
+  }
+
+  .stock-title-row .debate-stock-name {
+    font-size: 1.05rem;
+  }
+
+  .debate-header-badges {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .debate-status-pill {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* 갤럭시 폴드7 커버 디스플레이 극초소형 (width <= 380px) */
 @media screen and (max-width: 380px) {
+  .main-content {
+    padding: 8px 4px;
+  }
+
+  .stock-debate-card {
+    padding: 10px 6px;
+    border-radius: 8px;
+  }
+
+  .stock-title-row {
+    gap: 4px;
+  }
+
+  .debate-price-badge {
+    font-size: 0.72rem;
+    padding: 1px 4px;
+  }
   .top-header {
     padding: 0 4px;
   }
@@ -4156,6 +4518,47 @@ input:disabled + .slider {
   color: #94a3b8;
 }
 
+.summon-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-clear-debates {
+  font-size: 0.78rem;
+  padding: 5px 12px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-clear-debates:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.btn-goto-debate {
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  color: #f43f5e;
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-goto-debate:hover {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.6);
+  color: #fb7185;
+}
+
 .summon-input-bar {
   display: flex;
   gap: 12px;
@@ -4284,6 +4687,30 @@ input:disabled + .slider {
   color: #38bdf8;
 }
 
+.debate-tab.tab-source-auto {
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #7dd3fc;
+}
+
+.debate-tab.tab-source-auto.active {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+.debate-tab.tab-source-user {
+  border-color: rgba(244, 63, 94, 0.35);
+  color: #fda4af;
+}
+
+.debate-tab.tab-source-user.active {
+  background: rgba(244, 63, 94, 0.25);
+  border-color: #f43f5e;
+  color: #f43f5e;
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
+}
+
 .debate-search-wrap {
   min-width: 260px;
 }
@@ -4364,6 +4791,33 @@ input:disabled + .slider {
   font-family: monospace;
 }
 
+.debate-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.debate-source-badge.badge-auto-scout {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+}
+
+.debate-source-badge.badge-user-summon {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fda4af;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.2);
+}
+
 .debate-price-badge {
   font-size: 0.85rem;
   font-weight: 700;
@@ -4416,8 +4870,94 @@ input:disabled + .slider {
 }
 
 .debate-time-badge {
-  font-size: 0.78rem;
-  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  white-space: nowrap;
+}
+
+.debate-time-badge.badge-updated {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
+  font-weight: 600;
+}
+
+/* 🌐 시장 구분 뱃지 (국장/미장) */
+.badge-market-kr {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(3, 105, 161, 0.25);
+  color: #7dd3fc;
+  border: 1px solid rgba(3, 105, 161, 0.45);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badge-market-us {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(147, 51, 234, 0.22);
+  color: #c084fc;
+  border: 1px solid rgba(147, 51, 234, 0.45);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* 🏛️ 4대 공식 출처 링크 칩 & 팩트체크 쉴드 */
+.debate-sources-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.official-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(30, 41, 59, 0.7);
+  color: #94a3b8;
+  border: 1px solid rgba(71, 85, 105, 0.45);
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 0.73rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.official-source-chip:hover {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.fact-check-shield-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.12);
 }
 
 /* 대화 아레나 타임라인 */
@@ -4663,6 +5203,291 @@ input:disabled + .slider {
   line-height: 1.5;
   flex: 1;
 }
+
+/* 토론 복사 버튼 */
+.btn-copy-debate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-copy-debate:hover {
+  background: rgba(16, 185, 129, 0.24);
+  color: #fff;
+  border-color: #34d399;
+  transform: translateY(-1px);
+}
+
+.btn-copy-debate.copied {
+  background: rgba(16, 185, 129, 0.35) !important;
+  color: #ffffff !important;
+  border-color: #10b981 !important;
+}
+
+/* 토론 열고 닫기 토글 버튼 */
+.btn-toggle-debate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-toggle-debate:hover {
+  background: rgba(56, 189, 248, 0.22);
+  color: #fff;
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+}
+
+.btn-toggle-debate.is-expanded {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.btn-toggle-debate.is-expanded:hover {
+  background: rgba(148, 163, 184, 0.2);
+  color: #fff;
+}
+
+/* 접힌 상태 안내 배너 */
+.debate-collapsed-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px dashed rgba(56, 189, 248, 0.3);
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin: 10px 0 14px 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #cbd5e1;
+  font-size: 0.86rem;
+  flex-wrap: wrap;
+}
+
+.debate-collapsed-banner:hover {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: #38bdf8;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.15);
+}
+
+.collapsed-banner-icon {
+  font-size: 1.1rem;
+}
+
+.collapsed-banner-text {
+  flex: 1;
+  min-width: 200px;
+}
+
+.collapsed-banner-action {
+  color: #38bdf8;
+  font-weight: 700;
+  padding: 4px 10px;
+  background: rgba(56, 189, 248, 0.15);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.debate-collapsed-banner:hover .collapsed-banner-action {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+/* ==========================================================================
+   AI 끝장 토론실 모바일 반응형 최적화 (전 기종 호환: Galaxy, iPhone, Fold)
+   ========================================================================== */
+
+@media screen and (max-width: 768px) {
+  .stock-debate-card {
+    padding: 14px 12px !important;
+    border-radius: 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .debate-card-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .header-left,
+  .header-right {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .header-right {
+    justify-content: flex-start !important;
+  }
+
+  .stock-title-row {
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .debate-stock-name {
+    font-size: 1.15rem !important;
+  }
+
+  .debate-topic-row {
+    font-size: 0.86rem !important;
+    word-break: keep-all !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .debate-news-row {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    padding: 6px 10px !important;
+    font-size: 0.78rem !important;
+    box-sizing: border-box !important;
+    flex-wrap: wrap !important;
+  }
+
+  .debate-news-row span {
+    min-width: 0 !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+  }
+
+  .debate-sources-row {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+
+  .official-source-chip,
+  .fact-check-shield-chip {
+    padding: 3px 6px !important;
+    font-size: 0.7rem !important;
+    white-space: nowrap !important;
+  }
+
+  .btn-copy-debate,
+  .btn-toggle-debate {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 7px 12px !important;
+  }
+
+  .debate-collapsed-banner {
+    padding: 10px 12px !important;
+    font-size: 0.8rem !important;
+    text-align: center !important;
+  }
+
+  .theme-report-metrics {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .debate-stock-tabs-wrap {
+    display: flex !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+  }
+
+  .debate-stock-tabs-wrap::-webkit-scrollbar {
+    display: none;
+  }
+
+  .debate-search-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .debate-arena-timeline {
+    gap: 12px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .debate-turn-row {
+    max-width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .turn-bubble {
+    padding: 10px 12px !important;
+    font-size: 0.85rem !important;
+    line-height: 1.55 !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .debate-card-footer {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    padding-top: 10px !important;
+  }
+
+  .footer-summary-text {
+    width: 100% !important;
+    word-break: keep-all !important;
+    overflow-wrap: anywhere !important;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .stock-debate-card {
+    padding: 10px 8px !important;
+    border-radius: 10px !important;
+  }
+
+  .theme-report-metrics {
+    grid-template-columns: 1fr !important;
+  }
+
+  .stock-title-row .debate-stock-name {
+    font-size: 1.05rem !important;
+  }
+
+  .official-source-chip,
+  .fact-check-shield-chip {
+    font-size: 0.65rem !important;
+    padding: 2px 5px !important;
+  }
+}
+
 
 
 

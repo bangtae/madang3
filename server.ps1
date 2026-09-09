@@ -1,4 +1,4 @@
-﻿# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
+# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
 param([int]$Port = 8080)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -851,6 +851,26 @@ while ($true) {
                                 $existingList = [System.Collections.ArrayList]@($incomingObj)
                             }
                             elseif ($incomingObj -and ($incomingObj.id -or $incomingObj.item_code)) {
+                                $existingItem = $existingList | Where-Object { $_.id -eq $incomingObj.id -or ($incomingObj.item_code -and $_.item_code -eq $incomingObj.item_code) } | Select-Object -First 1
+                                if ($existingItem) {
+                                    if (-not $incomingObj.created_at) {
+                                        $origCreated = if ($existingItem.created_at) { $existingItem.created_at } elseif ($existingItem.timestamp) { $existingItem.timestamp } else { $incomingObj.timestamp }
+                                        $incomingObj | Add-Member -NotePropertyName "created_at" -NotePropertyValue $origCreated -Force
+                                    }
+                                    if (-not $incomingObj.update_count) {
+                                        $cnt = if ($existingItem.update_count) { [int]$existingItem.update_count + 1 } else { 2 }
+                                        $incomingObj | Add-Member -NotePropertyName "update_count" -NotePropertyValue $cnt -Force
+                                    }
+                                    $incomingObj | Add-Member -NotePropertyName "updated_at" -NotePropertyValue $incomingObj.timestamp -Force
+                                } else {
+                                    if (-not $incomingObj.created_at) {
+                                        $incomingObj | Add-Member -NotePropertyName "created_at" -NotePropertyValue $incomingObj.timestamp -Force
+                                    }
+                                    if (-not $incomingObj.update_count) {
+                                        $incomingObj | Add-Member -NotePropertyName "update_count" -NotePropertyValue 1 -Force
+                                    }
+                                    $incomingObj | Add-Member -NotePropertyName "updated_at" -NotePropertyValue $incomingObj.timestamp -Force
+                                }
                                 $filtered = @($existingList | Where-Object { $_.id -ne $incomingObj.id -and $_.item_code -ne $incomingObj.item_code })
                                 $existingList = [System.Collections.ArrayList]@($filtered)
                                 $existingList.Insert(0, $incomingObj)

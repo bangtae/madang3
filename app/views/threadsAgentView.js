@@ -355,7 +355,7 @@ window.ThreadsAgentView = {
                 { id: 'sub_jurini', name: '주린이 에이전트', icon: '🌱', desc: '초보자 관점 직관성 및 대중 심리 점검', agent: agJurini }
               ].map(item => `
                 <div class="sub-agent-row" id="row-${item.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 12px; flex-wrap: wrap;">
-                  <div style="display: flex; align-items: center; gap: 12px; min-width: 240px;">
+                  <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;">
                     <span style="font-size: 1.5rem;">${item.icon}</span>
                     <div>
                       <div style="font-weight: 600; font-size: 0.9rem; color: #f1f5f9;">${item.name}</div>
@@ -381,16 +381,16 @@ window.ThreadsAgentView = {
                   <span class="summon-icon">⚔️</span>
                   <span class="summon-title">🔥 5대 에이전트 끝장 토론 즉시 소집 (Debate Summon)</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <div class="summon-header-actions">
                   <div class="summon-stats-preview">
                     <span>총 격론 세션: <strong id="debate-stat-total" style="color: #38bdf8;">${totalDebates}</strong>건</span>
                     <span style="margin: 0 8px; color: rgba(255,255,255,0.2);">|</span>
                     <span>오늘의 격돌: <strong id="debate-stat-today" style="color: #f59e0b;">${todayDebates}</strong>건</span>
                   </div>
-                  <button type="button" id="btn-admin-clear-all-debates" class="btn btn-sm" style="font-size: 0.78rem; padding: 5px 12px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; cursor: pointer;" title="저장된 모든 끝장 토론 기록을 삭제합니다">
+                  <button type="button" id="btn-admin-clear-all-debates" class="btn btn-sm btn-clear-debates" title="저장된 모든 끝장 토론 기록을 삭제합니다">
                     🗑️ 끝장 토론 전체 비우기
                   </button>
-                  <button type="button" id="btn-goto-stock-debate" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 4px 10px; color: #f43f5e; border-color: rgba(244, 63, 94, 0.4);" title="AI 끝장 토론실 피드로 이동">
+                  <button type="button" id="btn-goto-stock-debate" class="btn btn-outline btn-sm btn-goto-debate" title="AI 끝장 토론실 피드로 이동">
                     🔥 토론실 바로가기 &rarr;
                   </button>
                 </div>
@@ -398,7 +398,7 @@ window.ThreadsAgentView = {
 
               <div class="summon-input-bar">
                 <div class="stock-input-wrap">
-                  <input type="text" id="input-debate-stock" class="form-input" placeholder="종목명 또는 6자리 코드 (예: 루넷, 삼성전자, 000660, 알테오젠, 현대차)" value="${existingDebateQuery}" />
+                  <input type="text" id="input-debate-stock" class="form-input" placeholder="종목명 또는 티커/코드 (예: 엔비디아, NVDA, 삼전, 000660, 알테오젠, TSLA)" value="${existingDebateQuery}" />
                 </div>
                 <button type="button" id="btn-trigger-debate" class="btn btn-danger btn-summon">
                   🔥 즉시 끝장 토론 소집 (Debate Summon)
@@ -408,12 +408,13 @@ window.ThreadsAgentView = {
               <!-- 빠른 선택 칩 -->
               <div class="preset-chips-row">
                 <span class="preset-label">⚡ 빠른 격돌 종목:</span>
+                <button type="button" class="debate-preset-chip debate-chip-nvda" data-stock="NVDA" style="border-color: rgba(16, 185, 129, 0.4); color: #34d399; font-weight: 700;">🇺🇸 엔비디아 (NVDA)</button>
                 <button type="button" class="debate-preset-chip" data-stock="005930">삼성전자</button>
                 <button type="button" class="debate-preset-chip" data-stock="000660">SK하이닉스</button>
                 <button type="button" class="debate-preset-chip" data-stock="196170">알테오젠</button>
                 <button type="button" class="debate-preset-chip" data-stock="005380">현대차</button>
                 <button type="button" class="debate-preset-chip" data-stock="034020">두산에너빌리티</button>
-                <button type="button" class="debate-preset-chip" data-stock="035420">NAVER</button>
+                <button type="button" class="debate-preset-chip" data-stock="TSLA" style="border-color: rgba(244, 63, 94, 0.4); color: #fb7185;">🇺🇸 테슬라 (TSLA)</button>
               </div>
 
               <div id="debate-summon-status" class="debate-status-alert hidden" style="display: none;"></div>

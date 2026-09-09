@@ -6,6 +6,15 @@ window.AppController = {
   parsedBatchRows: [],
 
   async init() {
+    // 1. [Zero-Flicker] 최우선 즉시 동기 라우팅 (비동기 네트워크 대기 전에 화면 즉시 전환)
+    const initialTarget = (window.location.hash || '').replace('#', '').trim() 
+      || sessionStorage.getItem('madang_current_view');
+
+    if (initialTarget && initialTarget !== 'dashboard') {
+      this.navigateToView(initialTarget, false);
+    }
+    document.documentElement.removeAttribute('data-pre-view');
+
     this.detectUserClientIp();
     await this.loadMenuConfig();
     this.checkAuthGuard();
@@ -28,7 +37,11 @@ window.AppController = {
     if (window.SapSuiteView) {
       window.SapSuiteView.init();
     }
-    this.refreshAllViews();
+
+    // 기본 대시보드 뷰일 때만 refreshAllViews() 수행 (다른 화면일 때 깜빡임 차단)
+    if (!initialTarget || initialTarget === 'dashboard') {
+      this.refreshAllViews();
+    }
 
     this.refreshThreadsAgentStatus();
     
@@ -37,13 +50,13 @@ window.AppController = {
       this.refreshThreadsAgentStatus();
     }, 5000);
 
-    // URL Hash 자동 라우팅 지원 (#life -> 생활 탭 바로 열기)
-    if (window.location.hash) {
-      const hashNav = window.location.hash.replace('#', '').trim().toLowerCase();
-      if (['main', 'api', 'ai', 'work', 'invest', 'life', 'admin'].includes(hashNav)) {
-        setTimeout(() => this.switchTopNav(hashNav), 50);
+    // 브라우저 뒤로가기 / 앞으로가기 지원
+    window.addEventListener('hashchange', () => {
+      const h = window.location.hash.replace('#', '').trim();
+      if (h && h !== this.currentSideView) {
+        this.navigateToView(h, false);
       }
-    }
+    });
   },
 
   async detectUserClientIp() {
@@ -1246,110 +1259,115 @@ window.AppController = {
     }
   },
 
+  getTopViewForSide(sideView) {
+    const map = {
+      'dashboard': 'main',
+      'api-info': 'api',
+      'ai-models': 'ai',
+      'ai-terms': 'ai',
+      'agent-builder': 'agent-builder',
+      'sap-terms': 'work',
+      'sap-suite': 'work',
+      'stock-temp': 'invest',
+      'stock-debate': 'invest',
+      'monster-wave': 'life',
+      'monster-defense': 'life',
+      'threads-agent': 'admin',
+      'ip-whitelist': 'admin',
+      'ip-blacklist': 'admin',
+      'ip-logs': 'admin',
+      'batch-register': 'admin',
+      'tech-stack': 'admin',
+      'menu-config': 'admin'
+    };
+    return map[sideView] || null;
+  },
+
+  getDefaultSideForTop(topView) {
+    const map = {
+      'main': 'dashboard',
+      'api': 'api-info',
+      'ai': 'ai-models',
+      'agent-builder': 'agent-builder',
+      'work': 'sap-terms',
+      'invest': 'stock-temp',
+      'life': 'monster-wave',
+      'admin': 'ip-whitelist'
+    };
+    return map[topView] || 'dashboard';
+  },
+
+  /**
+   * 통합 라우터: 특정 화면으로 즉시 이동하고 상단 메뉴, 사이드바, 본문 뷰를 모두 일치시킴
+   */
+  navigateToView(target, updateHistory = true) {
+    if (!target) return;
+    const clean = target.replace('#', '').trim();
+    let sideView = clean;
+    let topView = this.getTopViewForSide(clean);
+
+    if (!topView) {
+      topView = clean;
+      sideView = this.getDefaultSideForTop(clean);
+    }
+    this.switchSideNav(sideView, updateHistory);
+  },
+
   /**
    * 상단 메뉴 전환 로직
    */
   switchTopNav(view) {
-    this.currentTopView = view;
-
-    // 헤더 버튼 상태 업데이트
-    document.querySelectorAll('.nav-top-btn').forEach(b => {
-      b.classList.toggle('active', b.getAttribute('data-view') === view);
-    });
-
-    const sideMain = document.getElementById('side-menu-main');
-    const sideApi = document.getElementById('side-menu-api');
-    const sideAi = document.getElementById('side-menu-ai');
-    const sideWork = document.getElementById('side-menu-work');
-    const sideInvest = document.getElementById('side-menu-invest');
-    const sideLife = document.getElementById('side-menu-life');
-    const sideAdmin = document.getElementById('side-menu-admin');
-
-    if (view === 'main') {
-      if (sideMain) sideMain.classList.remove('hidden');
-      if (sideApi) sideApi.classList.add('hidden');
-      if (sideAi) sideAi.classList.add('hidden');
-      if (sideWork) sideWork.classList.add('hidden');
-      if (sideInvest) sideInvest.classList.add('hidden');
-      if (sideLife) sideLife.classList.add('hidden');
-      if (sideAdmin) sideAdmin.classList.add('hidden');
-      this.switchSideNav('dashboard');
-    } else if (view === 'api') {
-      if (sideMain) sideMain.classList.add('hidden');
-      if (sideApi) sideApi.classList.remove('hidden');
-      if (sideAi) sideAi.classList.add('hidden');
-      if (sideWork) sideWork.classList.add('hidden');
-      if (sideInvest) sideInvest.classList.add('hidden');
-      if (sideLife) sideLife.classList.add('hidden');
-      if (sideAdmin) sideAdmin.classList.add('hidden');
-      this.switchSideNav('api-info');
-    } else if (view === 'ai') {
-      if (sideMain) sideMain.classList.add('hidden');
-      if (sideApi) sideApi.classList.add('hidden');
-      if (sideAi) sideAi.classList.remove('hidden');
-      if (sideWork) sideWork.classList.add('hidden');
-      if (sideInvest) sideInvest.classList.add('hidden');
-      if (sideLife) sideLife.classList.add('hidden');
-      if (sideAdmin) sideAdmin.classList.add('hidden');
-      this.switchSideNav('ai-models');
-    } else if (view === 'agent-builder') {
-      if (sideMain) sideMain.classList.add('hidden');
-      if (sideApi) sideApi.classList.add('hidden');
-      if (sideAi) sideAi.classList.remove('hidden');
-      if (sideWork) sideWork.classList.add('hidden');
-      if (sideInvest) sideInvest.classList.add('hidden');
-      if (sideLife) sideLife.classList.add('hidden');
-      if (sideAdmin) sideAdmin.classList.add('hidden');
-      this.switchSideNav('agent-builder');
-    } else if (view === 'work') {
-      if (sideMain) sideMain.classList.add('hidden');
-      if (sideApi) sideApi.classList.add('hidden');
-      if (sideAi) sideAi.classList.add('hidden');
-      if (sideWork) sideWork.classList.remove('hidden');
-      if (sideInvest) sideInvest.classList.add('hidden');
-      if (sideLife) sideLife.classList.add('hidden');
-      if (sideAdmin) sideAdmin.classList.add('hidden');
-      this.switchSideNav('sap-terms');
-    } else if (view === 'invest') {
-      if (sideMain) sideMain.classList.add('hidden');
-      if (sideApi) sideApi.classList.add('hidden');
-      if (sideAi) sideAi.classList.add('hidden');
-      if (sideWork) sideWork.classList.add('hidden');
-      if (sideInvest) sideInvest.classList.remove('hidden');
-      if (sideLife) sideLife.classList.add('hidden');
-      if (sideAdmin) sideAdmin.classList.add('hidden');
-      this.switchSideNav('stock-temp');
-    } else if (view === 'life') {
-      if (sideMain) sideMain.classList.add('hidden');
-      if (sideApi) sideApi.classList.add('hidden');
-      if (sideAi) sideAi.classList.add('hidden');
-      if (sideWork) sideWork.classList.add('hidden');
-      if (sideInvest) sideInvest.classList.add('hidden');
-      if (sideLife) sideLife.classList.remove('hidden');
-      if (sideAdmin) sideAdmin.classList.add('hidden');
-      this.switchSideNav('monster-wave');
-    } else if (view === 'admin') {
-      if (sideMain) sideMain.classList.add('hidden');
-      if (sideApi) sideApi.classList.add('hidden');
-      if (sideAi) sideAi.classList.add('hidden');
-      if (sideWork) sideWork.classList.add('hidden');
-      if (sideInvest) sideInvest.classList.add('hidden');
-      if (sideLife) sideLife.classList.add('hidden');
-      if (sideAdmin) sideAdmin.classList.remove('hidden');
-      this.switchSideNav('ip-whitelist');
-    }
+    this.navigateToView(view, true);
   },
 
   /**
    * 좌측 메뉴 전환 로직
    */
-  switchSideNav(sideView) {
+  switchSideNav(sideView, updateHistory = true) {
     this.currentSideView = sideView;
+
+    // 상위 탑메뉴 동기화 (사이드바 컨테이너 표시/숨김 및 탑버튼 활성화)
+    const parentTop = this.getTopViewForSide(sideView);
+    if (parentTop) {
+      this.currentTopView = parentTop;
+      document.querySelectorAll('.nav-top-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-view') === parentTop);
+      });
+      const sideContainers = {
+        'main': document.getElementById('side-menu-main'),
+        'api': document.getElementById('side-menu-api'),
+        'ai': document.getElementById('side-menu-ai'),
+        'work': document.getElementById('side-menu-work'),
+        'invest': document.getElementById('side-menu-invest'),
+        'life': document.getElementById('side-menu-life'),
+        'admin': document.getElementById('side-menu-admin')
+      };
+      Object.keys(sideContainers).forEach(k => {
+        const el = sideContainers[k];
+        if (el) {
+          if (k === parentTop || (parentTop === 'agent-builder' && k === 'ai')) {
+            el.classList.remove('hidden');
+          } else {
+            el.classList.add('hidden');
+          }
+        }
+      });
+    }
 
     // 사이드바 버튼 활성화 상태
     document.querySelectorAll('.nav-side-btn').forEach(b => {
       b.classList.toggle('active', b.getAttribute('data-side') === sideView);
     });
+
+    // URL 해시 및 sessionStorage에 현재 뷰 저장 (새로고침 시 100% 현재 화면 복원)
+    if (updateHistory) {
+      try {
+        if (window.location.hash !== `#${sideView}`) {
+          window.history.replaceState(null, '', `#${sideView}`);
+        }
+        sessionStorage.setItem('madang_current_view', sideView);
+      } catch (e) {}
+    }
 
     // 본문 섹션 표시/숨김
     const viewDashboard = document.getElementById('view-dashboard');
