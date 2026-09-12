@@ -14,7 +14,44 @@ window.SapSuiteModel = {
   },
 
   async loadNews() {
-    // 1. Supabase 시도
+    // 0. 로컬 스토리지 기존 캐시 검사 (한글이 없는 구 영문 캐시 강제 삭제)
+    try {
+      const cachedRaw = localStorage.getItem(this.STORAGE_NEWS_KEY);
+      if (cachedRaw) {
+        const cachedArr = JSON.parse(cachedRaw);
+        if (Array.isArray(cachedArr) && cachedArr.length > 0) {
+          const hasKorean = cachedArr.some(item => /[\uac00-\ud7a3]/.test(item.title || ''));
+          if (!hasKorean) {
+            console.log('[SapSuiteModel] 구 영문 캐시 감지 - LocalStorage 초기화');
+            localStorage.removeItem(this.STORAGE_NEWS_KEY);
+          } else {
+            this.news = cachedArr;
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 1. 서버 REST API 최우선 시도 (강제 캐시 무효화 및 no-store)
+    try {
+      const res = await fetch('/api/sap-news?t=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          this.news = data;
+          this.cacheNews(data);
+          return this.news;
+        }
+      }
+    } catch (e) {}
+
+    // 2. Initial JS 전역 변수 폴백
+    if (Array.isArray(window.PORTAL_DATA_SAP_NEWS) && window.PORTAL_DATA_SAP_NEWS.length > 0) {
+      this.news = window.PORTAL_DATA_SAP_NEWS;
+      this.cacheNews(this.news);
+      return this.news;
+    }
+
+    // 3. Supabase 시도 (보조)
     const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
     if (client) {
       try {
@@ -30,25 +67,6 @@ window.SapSuiteModel = {
       } catch (e) {
         console.warn('Supabase sap_news 로드 실패, REST/로컬 폴백 사용:', e);
       }
-    }
-
-    // 2. 서버 REST API 시도
-    try {
-      const res = await fetch('/api/sap-news');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          this.news = data;
-          this.cacheNews(data);
-          return this.news;
-        }
-      }
-    } catch (e) {}
-
-    // 3. Initial JS 전역 변수 폴백
-    if (Array.isArray(window.PORTAL_DATA_SAP_NEWS) && window.PORTAL_DATA_SAP_NEWS.length > 0) {
-      this.news = window.PORTAL_DATA_SAP_NEWS;
-      return this.news;
     }
 
     // 4. LocalStorage 폴백

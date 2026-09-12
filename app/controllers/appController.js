@@ -1477,6 +1477,11 @@ window.AppController = {
       if (window.SapSuiteView) {
         window.SapSuiteView.init();
       }
+      if (window.SapSuiteModel && window.SapSuiteView) {
+        window.SapSuiteModel.loadNews().then(() => {
+          window.SapSuiteView.render();
+        });
+      }
     } else if (sideView === 'agent-builder') {
 
       if (viewAgentBuilder) viewAgentBuilder.classList.remove('hidden');

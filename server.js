@@ -1752,6 +1752,11 @@ app.post('/api/analyze-ai-url', async (req, res) => {
 
 // SAP Integration Suite Endpoints
 app.get('/api/sap-news', (req, res) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
   const filePath = path.join(__dirname, 'data', 'sapNews.json');
   if (fs.existsSync(filePath)) return res.sendFile(filePath);
   const fbPath = path.join(__dirname, 'data', 'initialSapNews.js');
