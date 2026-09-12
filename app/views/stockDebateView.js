@@ -525,8 +525,8 @@ window.StockDebateView = {
     if (!tabContainer || !window.StockDebateModel) return;
 
     const all = window.StockDebateModel.items || [];
-    const autoCount = all.filter(d => (d.source_type === 'AUTO_SCOUT' || (!d.source_type && d.item_code === '000660'))).length;
-    const userCount = all.length - autoCount;
+    const userCount = all.filter(d => d.source_type === 'USER_SUMMON').length;
+    const autoCount = all.length - userCount;
 
     const stockMap = new Map();
     all.forEach(d => {
@@ -579,10 +579,10 @@ window.StockDebateView = {
 
   buildDebateCardHtml(d, idx) {
     const isExpanded = this.isDebateExpanded(d.id, idx);
-    const isAutoScout = d.source_type === 'AUTO_SCOUT' || (!d.source_type && d.item_code === '000660');
-    const sourceBadgeHtml = isAutoScout
-      ? `<span class="debate-source-badge badge-auto-scout" title="1시간 주기 AI 에이전트단 자동 발굴 종목"><span class="source-icon">🤖</span> AI 자동 발굴</span>`
-      : `<span class="debate-source-badge badge-user-summon" title="사용자가 직접 소집한 끝장 토론"><span class="source-icon">🔥</span> 사용자 즉시 소집</span>`;
+    const isUserSummon = d.source_type === 'USER_SUMMON';
+    const sourceBadgeHtml = isUserSummon
+      ? `<span class="debate-source-badge badge-user-summon" title="사용자가 직접 소집한 끝장 토론"><span class="source-icon">🔥</span> 사용자 즉시 소집</span>`
+      : `<span class="debate-source-badge badge-auto-scout" title="1시간 주기 AI 에이전트단 자동 발굴 종목"><span class="source-icon">🤖</span> AI 자동 발굴</span>`;
 
     const turns = d.turns || [];
     const heatBadge = `<span class="debate-heat-badge">🔥 EXTREME 난타전</span>`;

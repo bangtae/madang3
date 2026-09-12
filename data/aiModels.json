@@ -79,8 +79,8 @@
     "category": "이미지 생성",
     "developer": "Midjourney",
     "provider": "Midjourney",
-    "description": "프롬프트 텍스트만으로 영화 콘셉트 아트, 실사급 사진, 그래픽 일러스트를 최고 품질로 생성하는 생성형 비주얼 AI입니다.",
-    "summary": "프롬프트 텍스트만으로 영화 콘셉트 아트, 실사급 사진, 그래픽 일러스트를 최고 품질로 생성하는 생성형 비주얼 AI입니다.",
+    "description": "텍스트 프롬프트만으로 영화 콘셉트 아트, 실사급 사진, 그래픽 일러스트를 최고 품질로 생성하는 강력한 비주얼 AI입니다.",
+    "summary": "텍스트 프롬프트만으로 영화 콘셉트 아트, 실사급 사진, 그래픽 일러스트를 최고 품질로 생성하는 강력한 비주얼 AI입니다.",
     "createdAt": "2026-08-13T10:10:00.000Z",
     "country": "🇺🇸 미국",
     "similarModels": "Stable Diffusion, Flux.1, DALL-E 3",
@@ -92,9 +92,11 @@
       "디자이너필수",
       "구독전용"
     ],
-    "garageIdeas": "앱/웹 서비스 비주얼 배너 생성, 게임 콘셉트 아티팩트 제작, 브랜딩 로고 아이디어 시각화",
-    "quickStart": "1) midjourney.com 접속 또는 디스코드(Discord) 채널 입장 -> 2) /imagine 프롬프트 명령어로 이미지 생성 -> 3) U/V 버튼으로 업스케일ing",
-    "pricing": "유료 구독 전용 (Basic $10/월 ~ Standard $30/월)"
+    "garageIdeas": "1) 앱/웹 서비스용 비주얼 배너 및 아이콘 생성 파이프라인 구축, 2) 게임 콘셉트 아트 및 캐릭터 아티팩트 제작, 3) 브랜딩 로고 및 마케팅 캠페인 시각화 아이디어 도출",
+    "quickStart": "1) midjourney.com 접속 또는 디스코드(Discord) 채널 입장 -> 2) /imagine 프롬프트 명령어로 이미지 생성 -> 3) U/V 버튼으로 업스케일링",
+    "pricing": "유료 구독 전용 (Basic $10/월, Standard $30/월)",
+    "lastCheckedAt": "2026-09-12T09:56:35.696673+00:00",
+    "updatedAt": "2026-09-12T09:56:35.696673+00:00"
   },
   {
     "id": "ai_demo_4",
@@ -117,7 +119,8 @@
     ],
     "garageIdeas": "오프라인 사내 보안 챗봇, 로컬 문서 RAG 검색 시스템, 개인 개발용 튜닝 LLM 환경",
     "quickStart": "1) ollama.com에서 OS별 설치 파일 다운로드 -> 2) 터미널에서 'ollama run llama3' 실행 -> 3) localhost:11434 REST API 연동",
-    "pricing": "100% 완전 무료 (오픈소스 런타임)"
+    "pricing": "100% 완전 무료 (오픈소스 런타임)",
+    "lastCheckedAt": "2026-09-12T10:03:34.489822+00:00"
   },
   {
     "id": "ai_demo_5",
@@ -141,7 +144,8 @@
     "garageIdeas": "복잡한 수학 문제 풀이 및 자율 알고리즘 생성기, 가성비 최강 자동화 AI 에이전트",
     "quickStart": "1) chat.deepseek.com 무료 가입 후 대화 -> 2) API 키 발급 시 OpenAI 호환 엔드포인트로 기존 코드에 바로 교체 적용",
     "pricing": "웹챗 무료 제공 / API 사용료 매우 저렴 (OpenAI 대비 1/10 수준)",
-    "updatedAt": "2026-08-16T15:27:21.441Z"
+    "updatedAt": "2026-08-16T15:27:21.441Z",
+    "lastCheckedAt": "2026-09-12T11:08:32.695202+00:00"
   },
   {
     "id": "ai_1786631608048",
@@ -149,11 +153,11 @@
     "category": "AI 검색 / 지식조사",
     "developer": "Perplexity",
     "provider": "Perplexity",
-    "description": "전 세계 실시간 웹 정보를 검색하여 명확한 출처 각주와 함께 논리적인 조사 보고서를 작성해 주는 최첨단 AI 대화형 검색엔진입니다.",
-    "summary": "전 세계 실시간 웹 정보를 검색하여 명확한 출처 각주와 함께 논리적인 조사 보고서를 작성해 주는 최첨단 AI 대화형 검색엔진입니다.",
+    "description": "전 세계 실시간 웹 정보를 검색하여 명확한 출처와 함께 논리적인 조사 보고서를 제공하는 AI 대화형 검색 엔진입니다.",
+    "summary": "전 세계 실시간 웹 정보를 검색하여 명확한 출처와 함께 논리적인 조사 보고서를 제공하는 AI 대화형 검색 엔진입니다.",
     "createdAt": "2026-08-13T14:33:28.048Z",
     "country": "🇺🇸 미국",
-    "similarModels": "Genspark, SearchGPT, Google Gemini",
+    "similarModels": "Google Gemini, Microsoft Copilot, You.com, Arc Search",
     "serviceUrl": "https://www.perplexity.ai",
     "docsUrl": "https://docs.perplexity.ai/",
     "tags": [
@@ -162,10 +166,11 @@
       "학술조사",
       "무료/구독"
     ],
-    "garageIdeas": "최신 기술 동향 자동 조사 리포터, 논문/뉴스 실시간 수집 및 요약 RAG 서비스",
-    "quickStart": "1) perplexity.ai 접속 -> 2) 검색창에 궁금한 최신 이슈 질문 -> 3) Pro 플랜 이용 시 Claude 3.5 / GPT-4o 선택",
-    "pricing": "기본 검색 무료 / Pro 구독 ($20/월 - 프리미엄 모델 선택 제공)",
-    "updatedAt": "2026-08-16T00:15:38.054Z"
+    "garageIdeas": "최신 기술 동향을 자동으로 조사하여 리포트를 생성하는 파이프라인 구축, 논문 및 뉴스 실시간 수집 후 요약하여 RAG(검색 증강 생성) 서비스에 활용합니다.",
+    "quickStart": "1) perplexity.ai에 접속합니다. -> 2) 검색창에 궁금한 최신 이슈를 질문합니다. -> 3) Pro 플랜 사용자는 Claude 3.5 Sonnet 또는 GPT-4o를 선택하여 고급 검색 기능을 활용합니다.",
+    "pricing": "기본 검색은 무료로 제공하며, Pro 구독은 월 $20으로 프리미엄 모델(Claude 3.5 Sonnet, GPT-4o 등) 선택 및 고급 기능을 이용할 수 있습니다.",
+    "updatedAt": "2026-09-12T12:13:58.701551+00:00",
+    "lastCheckedAt": "2026-09-12T12:13:58.701551+00:00"
   },
   {
     "id": "ai_1786631502319",
@@ -189,7 +194,8 @@
     "garageIdeas": "유튜브 영상 내용 자동 요약 및 퀴즈 생성기, Google Workspace 이메일/문서 자동화 툴",
     "quickStart": "1) Google 계정으로 gemini.google.com 접속 -> 2) 즉시 무료 사용 -> 3) Advanced 구독 시 2.0 Flash/Pro 확장 이용",
     "pricing": "무료 기본 플랜 / Gemini Advanced (구글 원 AI 프리미엄 $19.99/월)",
-    "updatedAt": "2026-08-16T15:55:06.653Z"
+    "updatedAt": "2026-08-16T15:55:06.653Z",
+    "lastCheckedAt": "2026-09-12T13:19:51.631332+00:00"
   },
   {
     "id": "ai_demo_1",
@@ -197,11 +203,15 @@
     "category": "LLM / 멀티모달",
     "developer": "OpenAI",
     "provider": "OpenAI",
-    "description": "대화형 AI의 대명사. 텍스트 대화, 문서 분석, 이미지 생성(DALL-E 3), 실시간 음성 대화까지 처리하는 만능 AI 비서입니다.",
-    "summary": "대화형 AI의 대명사. 텍스트 대화, 문서 분석, 이미지 생성(DALL-E 3), 실시간 음성 대화까지 처리하는 만능 AI 비서입니다.",
+    "description": "ChatGPT는 텍스트 대화, 문서 분석, 이미지 생성(DALL-E 3), 실시간 음성 대화를 지원하는 AI 서비스입니다. 사용자는 이 서비스로 개인 맞춤형 AI 비서를 경험합니다.",
+    "summary": "ChatGPT는 텍스트 대화, 문서 분석, 이미지 생성(DALL-E 3), 실시간 음성 대화를 지원하는 AI 서비스입니다. 사용자는 이 서비스로 개인 맞춤형 AI 비서를 경험합니다.",
     "createdAt": "2026-08-13T10:00:00.000Z",
     "country": "🇺🇸 미국",
-    "similarModels": "Claude 3.5 Sonnet, Gemini 2.0, DeepSeek R1",
+    "similarModels": [
+      "Claude 3.5 Sonnet",
+      "Gemini 2.0",
+      "DeepSeek R1"
+    ],
     "serviceUrl": "https://chatgpt.com/",
     "docsUrl": "https://help.openai.com/",
     "tags": [
@@ -212,10 +222,11 @@
       "멀티모달",
       "무료/구독"
     ],
-    "garageIdeas": "개인 전용 커스텀 GPTs 챗봇 제작, 업무용 이메일/보고서 자동 작성기, 아이디어 스톰 도구",
+    "garageIdeas": "개인 전용 커스텀 GPTs 챗봇을 제작하여 특정 업무 자동화에 활용합니다. 업무용 이메일, 보고서 초안을 자동으로 작성하여 문서 작업 시간을 단축합니다. 새로운 프로젝트 아이디어 구상 시 브레인스토밍 도구로 활용하여 창의적 사고를 확장합니다.",
     "quickStart": "1) chatgpt.com 가입 -> 2) 웹/앱에서 대화 시작 (무료로 GPT-4o 사용 가능) -> 3) Plus 구독($20/월) 또는 GPTs 커스텀 활용",
-    "pricing": "기본 무료 (GPT-4o 제한적 제공) / Plus 구독 ($20/월) / 개발자 API 별도",
-    "updatedAt": "2026-08-13T14:29:31.479Z"
+    "pricing": "기본 무료 플랜은 GPT-4o를 제한적으로 제공합니다. 유료 Plus 구독은 월 $20이며, 개발자 API는 별도 요금체계를 따릅니다.",
+    "updatedAt": "2026-09-12T14:25:25.340047+00:00",
+    "lastCheckedAt": "2026-09-12T14:25:25.340047+00:00"
   },
   {
     "id": "ai_1786891889786",
@@ -239,7 +250,8 @@
     ],
     "garageIdeas": "쇼핑몰 상품 비주얼 썸네일 자동 생성, 캔버스 인페인팅 기반 고화질 디자인 리터칭 파이프라인",
     "quickStart": "1) playground.com 접속 및 계정 로그인 -> 2) 프롬프트 입력 및 스타일 필터 선택 -> 3) 고화질 이미지 생성",
-    "pricing": "기본 무료 (매일 1,000장 무료 생성 크레딧) / Pro 플랜 선택 가능"
+    "pricing": "기본 무료 (매일 1,000장 무료 생성 크레딧) / Pro 플랜 선택 가능",
+    "lastCheckedAt": "2026-09-12T15:02:14.633008+00:00"
   },
   {
     "id": "ai_1786867303400",

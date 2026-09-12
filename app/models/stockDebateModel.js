@@ -76,9 +76,23 @@ window.StockDebateModel = {
     return q;
   },
 
+  resolveEndpoints(apiPath) {
+    const list = [];
+    if (window.location && window.location.protocol && window.location.protocol.startsWith('http')) {
+      list.push(apiPath);
+      if (window.location.origin) {
+        const originUrl = `${window.location.origin}${apiPath}`;
+        if (!list.includes(originUrl)) list.push(originUrl);
+      }
+    }
+    list.push(`http://localhost:8080${apiPath}`);
+    list.push(`http://192.168.219.115:8080${apiPath}`);
+    return Array.from(new Set(list));
+  },
+
   getApiUrls() {
     if (window.location.protocol.startsWith('http')) {
-      return ['/api/stock-debates', './data/stockDebateLogs.json'];
+      return ['/api/stock-debates', `${window.location.origin}/api/stock-debates`, 'http://localhost:8080/api/stock-debates', 'http://192.168.219.115:8080/api/stock-debates', './data/stockDebateLogs.json'];
     }
     return [
       'http://localhost:8080/api/stock-debates',
@@ -125,6 +139,24 @@ window.StockDebateModel = {
         if (local) {
           this.items = JSON.parse(local);
           loaded = true;
+        }
+      } catch (e) {}
+    } else {
+      // 서버에서 로드되었더라도, 로컬스토리지의 사용자 직접소집 항목이 서버 재시작으로 누락되지 않도록 병합 보존
+      try {
+        const local = localStorage.getItem('portal_stock_debate_logs');
+        if (local) {
+          const localItems = JSON.parse(local);
+          if (Array.isArray(localItems)) {
+            localItems.forEach(localItem => {
+              if (localItem && localItem.source_type === 'USER_SUMMON') {
+                const exists = this.items.some(si => si.id === localItem.id);
+                if (!exists) {
+                  this.items.unshift(localItem);
+                }
+              }
+            });
+          }
         }
       } catch (e) {}
     }
@@ -179,11 +211,11 @@ window.StockDebateModel = {
       // Stock & Source filter
       if (this.selectedStock && this.selectedStock !== 'all') {
         if (this.selectedStock === 'src:AUTO_SCOUT') {
-          const isAuto = item.source_type === 'AUTO_SCOUT' || (!item.source_type && item.item_code === '000660');
+          const isAuto = item.source_type === 'AUTO_SCOUT' || (!item.source_type && item.item_code !== '000660');
           if (!isAuto) return false;
         } else if (this.selectedStock === 'src:USER_SUMMON') {
-          const isAuto = item.source_type === 'AUTO_SCOUT' || (!item.source_type && item.item_code === '000660');
-          if (isAuto) return false;
+          const isUser = item.source_type === 'USER_SUMMON';
+          if (!isUser) return false;
         } else if (this.selectedStock === 'mkt:KR') {
           const isUs = item.market_flag === 'US' || item.market === 'NASDAQ' || item.market === 'NYSE';
           if (isUs) return false;
@@ -232,7 +264,7 @@ window.StockDebateModel = {
     }
     this.isTriggering = true;
     try {
-      const endpoints = ['/api/stock-debates/trigger', 'http://localhost:8080/api/stock-debates/trigger'];
+      const endpoints = this.resolveEndpoints('/api/stock-debates/trigger');
       let res = null;
       for (const ep of endpoints) {
         try {
@@ -243,7 +275,8 @@ window.StockDebateModel = {
               stock: resolvedCode, 
               stock_name: resolvedName, 
               originalQuery: stockQuery, 
-              topic: customTopic 
+              topic: customTopic,
+              source_type: 'USER_SUMMON'
             })
           });
           if (res.ok) break;
@@ -264,8 +297,11 @@ window.StockDebateModel = {
           if (window.StockDebateView && typeof window.StockDebateView.render === 'function') {
             window.StockDebateView.render();
           }
+        } else {
+          // 비동기 백그라운드 소집 시 3초 후 데이터 재동기화
+          setTimeout(() => { this.loadDebates(); }, 3000);
         }
-        return { success: true, result, debate: result.debate, code: resolvedCode };
+        return { success: true, result, debate: result.debate, code: resolvedCode, message: result.message };
       } else {
         return { success: false, message: '서버 연결 실패 또는 에이전트 응답 지연' };
       }
@@ -279,10 +315,7 @@ window.StockDebateModel = {
   async deleteDebate(debateId) {
     if (!debateId) return false;
     try {
-      const endpoints = [
-        `/api/stock-debates?id=${encodeURIComponent(debateId)}`,
-        `http://localhost:8080/api/stock-debates?id=${encodeURIComponent(debateId)}`
-      ];
+      const endpoints = this.resolveEndpoints(`/api/stock-debates?id=${encodeURIComponent(debateId)}`);
       for (const ep of endpoints) {
         try {
           const res = await fetch(ep, { method: 'DELETE' });
@@ -303,10 +336,7 @@ window.StockDebateModel = {
 
   async clearAllDebates() {
     try {
-      const endpoints = [
-        '/api/stock-debates?all=true',
-        'http://localhost:8080/api/stock-debates?all=true'
-      ];
+      const endpoints = this.resolveEndpoints('/api/stock-debates?all=true');
       for (const ep of endpoints) {
         try {
           const res = await fetch(ep, { method: 'DELETE' });
@@ -324,3 +354,12 @@ window.StockDebateModel = {
     }
   }
 };
+
+// 백그라운드 3분 주기 자동 발굴 체크 타이머
+if (typeof window !== 'undefined' && !window._debateAutoInterval) {
+  window._debateAutoInterval = setInterval(() => {
+    if (window.StockDebateModel && typeof window.StockDebateModel.checkAutoThemeDebate === 'function') {
+      window.StockDebateModel.checkAutoThemeDebate();
+    }
+  }, 3 * 60 * 1000);
+}
