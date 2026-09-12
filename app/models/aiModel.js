@@ -66,22 +66,35 @@ window.AiModel = {
     this.isSyncing = true;
     const localModels = this.getAiModelsFromLocal();
 
-    // 1. Supabase Cloud DB 연동 확인
+    // 1. Supabase Cloud DB 연동 확인 (클라우드 단일 원천)
     if (window.isSupabaseEnabled()) {
       try {
         const supabase = window.getSupabaseClient();
         const { data, error } = await supabase.from('ai_models').select('*').order('created_at', { ascending: false });
         if (!error && Array.isArray(data) && data.length > 0) {
-          const formattedFromDb = data.map(dbItem => ({
-            id: dbItem.id,
-            title: dbItem.title,
-            category: dbItem.category || 'LLM / 멀티모달',
-            developer: dbItem.provider || 'AI Provider',
-            provider: dbItem.provider || 'AI Provider',
-            description: dbItem.description || '',
-            summary: dbItem.description || '',
-            createdAt: dbItem.created_at
-          }));
+          const formattedFromDb = data.map(dbItem => {
+            const specs = (dbItem.specs && typeof dbItem.specs === 'object') ? dbItem.specs : {};
+            return {
+              id: dbItem.id,
+              title: dbItem.title,
+              category: dbItem.category || 'LLM / 멀티모달',
+              developer: specs.developer || dbItem.provider || 'AI Provider',
+              provider: specs.developer || dbItem.provider || 'AI Provider',
+              country: specs.country || '🇺🇸 미국',
+              serviceUrl: specs.serviceUrl || '',
+              docsUrl: specs.docsUrl || '',
+              similarModels: specs.similarModels || '',
+              summary: specs.summary || dbItem.description || '',
+              description: dbItem.description || specs.summary || '',
+              garageIdeas: specs.garageIdeas || '',
+              quickStart: specs.quickStart || '',
+              pricing: specs.pricing || '',
+              tags: Array.isArray(dbItem.tags) ? dbItem.tags : (specs.tags || []),
+              createdAt: dbItem.created_at,
+              updatedAt: specs.updatedAt || dbItem.created_at,
+              lastCheckedAt: specs.lastCheckedAt || ''
+            };
+          });
           
           this.aiModels = this.mergeModels(formattedFromDb, localModels);
           localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.aiModels));
@@ -105,6 +118,58 @@ window.AiModel = {
     this.isSyncing = false;
     if (window.AppController && typeof window.AppController.refreshAllViews === 'function') {
       window.AppController.refreshAllViews();
+    }
+  },
+
+  async saveModelToSupabase(model) {
+    if (!window.isSupabaseEnabled() || !model) return;
+    try {
+      const supabase = window.getSupabaseClient();
+      const specs = {
+        developer: model.developer || model.provider || '',
+        country: model.country || '🇺🇸 미국',
+        serviceUrl: model.serviceUrl || '',
+        docsUrl: model.docsUrl || '',
+        similarModels: model.similarModels || '',
+        summary: model.summary || model.description || '',
+        garageIdeas: model.garageIdeas || '',
+        quickStart: model.quickStart || '',
+        pricing: model.pricing || '',
+        lastCheckedAt: model.lastCheckedAt || '',
+        updatedAt: model.updatedAt || new Date().toISOString()
+      };
+      const payload = {
+        id: model.id,
+        title: model.title || '신규 AI 모델',
+        category: model.category || '기타',
+        provider: model.developer || model.provider || '',
+        specs: specs,
+        description: model.description || model.summary || '',
+        tags: Array.isArray(model.tags) ? model.tags : []
+      };
+      const { error } = await supabase.from('ai_models').upsert(payload, { onConflict: 'id' });
+      if (error) {
+        console.warn('[Supabase Upsert Error]:', error);
+      } else {
+        console.log('[Supabase] AI 모델 클라우드 DB 동기화 성공:', model.id);
+      }
+    } catch (e) {
+      console.warn('[Supabase Model Save Exception]:', e);
+    }
+  },
+
+  async deleteModelFromSupabase(id) {
+    if (!window.isSupabaseEnabled() || !id) return;
+    try {
+      const supabase = window.getSupabaseClient();
+      const { error } = await supabase.from('ai_models').delete().eq('id', id);
+      if (error) {
+        console.warn('[Supabase Delete Error]:', error);
+      } else {
+        console.log('[Supabase] AI 모델 클라우드 DB 삭제 완료:', id);
+      }
+    } catch (e) {
+      console.warn('[Supabase Model Delete Exception]:', e);
     }
   },
 
@@ -264,12 +329,16 @@ window.AiModel = {
     }
 
     this.saveAllModels(models);
+    if (resultModel) {
+      this.saveModelToSupabase(resultModel);
+    }
     return { model: resultModel, isUpdate };
   },
 
   deleteAiModel(id) {
     const models = this.getAiModels().filter(m => m.id !== id);
     this.saveAllModels(models);
+    this.deleteModelFromSupabase(id);
     return models;
   },
 
@@ -295,6 +364,7 @@ window.AiModel = {
         updatedAt: new Date().toISOString()
       };
       this.saveAllModels(models);
+      this.saveModelToSupabase(models[index]);
       return models[index];
     }
     return null;

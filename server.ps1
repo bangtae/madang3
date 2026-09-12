@@ -851,7 +851,11 @@ while ($true) {
                                 $existingList = [System.Collections.ArrayList]@($incomingObj)
                             }
                             elseif ($incomingObj -and ($incomingObj.id -or $incomingObj.item_code)) {
-                                $existingItem = $existingList | Where-Object { $_.id -eq $incomingObj.id -or ($incomingObj.item_code -and $_.item_code -eq $incomingObj.item_code) } | Select-Object -First 1
+                                $incomingSource = if ($incomingObj.source_type) { $incomingObj.source_type } else { 'AUTO_SCOUT' }
+                                $existingItem = $existingList | Where-Object {
+                                    $rSource = if ($_.source_type) { $_.source_type } else { 'AUTO_SCOUT' }
+                                    ($_.id -eq $incomingObj.id) -or ($incomingObj.item_code -and $_.item_code -eq $incomingObj.item_code -and $rSource -eq $incomingSource)
+                                } | Select-Object -First 1
                                 if ($existingItem) {
                                     if (-not $incomingObj.created_at) {
                                         $origCreated = if ($existingItem.created_at) { $existingItem.created_at } elseif ($existingItem.timestamp) { $existingItem.timestamp } else { $incomingObj.timestamp }
@@ -871,7 +875,10 @@ while ($true) {
                                     }
                                     $incomingObj | Add-Member -NotePropertyName "updated_at" -NotePropertyValue $incomingObj.timestamp -Force
                                 }
-                                $filtered = @($existingList | Where-Object { $_.id -ne $incomingObj.id -and $_.item_code -ne $incomingObj.item_code })
+                                $filtered = @($existingList | Where-Object {
+                                    $rSource = if ($_.source_type) { $_.source_type } else { 'AUTO_SCOUT' }
+                                    -not (($_.id -eq $incomingObj.id) -or ($incomingObj.item_code -and $_.item_code -eq $incomingObj.item_code -and $rSource -eq $incomingSource))
+                                })
                                 $existingList = [System.Collections.ArrayList]@($filtered)
                                 $existingList.Insert(0, $incomingObj)
                             }
@@ -996,7 +1003,7 @@ while ($true) {
                 $pyPath = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
                 $debateScript = "C:\Users\bangt\Downloads\madang6\debate_arena.py"
                 if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
-                    $pyArgs = @($debateScript, "--stock", $stockQuery, "--sync")
+                    $pyArgs = @($debateScript, "--stock", $stockQuery, "--sync", "--source-type", "USER_SUMMON")
                     if ($stockName) {
                         $pyArgs += @("--stock-name", $stockName)
                     }
@@ -1048,9 +1055,18 @@ while ($true) {
                 @{ code = "000270"; name = "기아" },
                 @{ code = "086520"; name = "에코프로" }
             )
-            $chosenCand = $autoThemeCandidates | Get-Random
+            $existingCodes = @()
+            if (Test-Path $stockDebateDataFile) {
+                try {
+                    $rawExist = [System.IO.File]::ReadAllText($stockDebateDataFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                    $existingCodes = @($rawExist | ForEach-Object { $_.item_code })
+                } catch {}
+            }
+            $unDebated = @($autoThemeCandidates | Where-Object { $_.code -notin $existingCodes })
+            $chosenCand = if ($unDebated.Count -gt 0) { $unDebated | Get-Random } else { $autoThemeCandidates | Get-Random }
+            $script:lastAutoDebateTime = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
             if ((Test-Path $pyPath) -and (Test-Path $debateScript)) {
-                Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--stock", $chosenCand.code, "--stock-name", $chosenCand.name, "--sync") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                Start-Process -FilePath $pyPath -ArgumentList @($debateScript, "--stock", $chosenCand.code, "--stock-name", $chosenCand.name, "--sync", "--source-type", "AUTO_SCOUT") -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
                 $resJson = @{
                     success = $true
                     message = "1시간 주기 [$($chosenCand.name)] 핵심 테마 검증 토론이 백그라운드에서 발주되었습니다."
@@ -2035,7 +2051,8 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                 @{ id = "sub_growth"; name = "성장론자 에이전트"; category = "sub_council"; icon = "🚀"; cwd = (Join-Path $madang6Dir "서브주식에이전트_성장론자"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_성장론자" },
                 @{ id = "sub_cautious"; name = "신중론자 에이전트"; category = "sub_council"; icon = "🛡️"; cwd = (Join-Path $madang6Dir "서브주식에이전트_신중론자"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_신중론자" },
                 @{ id = "sub_technical"; name = "기술적분석가 에이전트"; category = "sub_council"; icon = "📊"; cwd = (Join-Path $madang6Dir "서브주식에이전트_기술적분석가"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_기술적분석가" },
-                @{ id = "sub_jurini"; name = "주린이 에이전트"; category = "sub_council"; icon = "🌱"; cwd = (Join-Path $madang6Dir "서브주식에이전트_주린이"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_주린이" }
+                @{ id = "sub_jurini"; name = "주린이 에이전트"; category = "sub_council"; icon = "🌱"; cwd = (Join-Path $madang6Dir "서브주식에이전트_주린이"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_주린이" },
+                @{ id = "ai_service_updater"; name = "AI 서비스 정보 업데이트 에이전트"; category = "core"; icon = "🤖"; cwd = $madang6Dir; script = "ai_service_updater.py"; args = @("--daemon"); pattern = "ai_service_updater" }
             )
 
             $procs = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "python*" } | Select-Object ProcessId, CommandLine)

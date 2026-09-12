@@ -240,6 +240,42 @@ app.post('/api/apis', (req, res) => {
   }
 });
 
+// AI 서비스 모델 목록 조회 및 저장 API
+app.get('/api/ai-models', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'aiModels.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const fallbackPath = path.join(__dirname, 'data', 'initialAiModels.js');
+  if (fs.existsSync(fallbackPath)) {
+    try {
+      const code = fs.readFileSync(fallbackPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_AI_MODELS\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to parse initialAiModels.js' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/ai-models', (req, res) => {
+  const jsonPath = path.join(__dirname, 'data', 'aiModels.json');
+  const jsPath = path.join(__dirname, 'data', 'initialAiModels.js');
+  try {
+    const data = req.body;
+    if (Array.isArray(data)) {
+      fs.writeFileSync(jsonPath, JSON.stringify(data, null, 2), 'utf8');
+      fs.writeFileSync(jsPath, `window.PORTAL_DATA_AI_MODELS = ${JSON.stringify(data, null, 2)};\n`, 'utf8');
+      res.json({ success: true, count: data.length });
+    } else {
+      res.status(400).json({ success: false, message: 'Array expected' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/menu-config', (req, res) => {
   const filePath = path.join(__dirname, 'data', 'menuConfig.json');
   if (fs.existsSync(filePath)) {
@@ -463,8 +499,13 @@ function saveDebateLog(debateItem) {
     }
     if (!Array.isArray(existing)) existing = [];
     
-    // 동일 종목코드(item_code) 또는 id가 이미 존재하면 해당 항목을 최신으로 교체하고 맨 앞으로 이동
-    const idx = existing.findIndex(r => (r.item_code && r.item_code === debateItem.item_code) || r.id === debateItem.id);
+    // 동일 종목코드(item_code) 및 source_type이 일치하거나 id가 일치할 때만 갱신, 다르면 별도 보존
+    const incomingSource = debateItem.source_type || 'AUTO_SCOUT';
+    const idx = existing.findIndex(r => {
+      if (r.id === debateItem.id) return true;
+      const rSource = r.source_type || 'AUTO_SCOUT';
+      return r.item_code && r.item_code === debateItem.item_code && rSource === incomingSource;
+    });
     if (idx >= 0) {
       const prev = existing[idx];
       debateItem.created_at = prev.created_at || prev.timestamp || debateItem.timestamp;
@@ -566,43 +607,51 @@ function getCurrentMarketSession(nowDate = new Date()) {
   const min = kst.getMinutes();
   const timeNum = hour * 60 + min;
 
-  // 국장 시간대 (KST 평일)
+  // 국장 시간대 (KST 평일 08:00 ~ 18:00)
   // 장전: 08:00 ~ 09:00 (480 ~ 540)
+  // 정규장: 09:00 ~ 15:30 (540 ~ 930)
   // 장후: 15:30 ~ 18:00 (930 ~ 1080)
   const isKrPre = timeNum >= 480 && timeNum < 540;
+  const isKrRegular = timeNum >= 540 && timeNum < 930;
   const isKrPost = timeNum >= 930 && timeNum <= 1080;
 
-  if (isKrPre || isKrPost) {
+  if (isKrPre || isKrRegular || isKrPost) {
     if (isKoreanHoliday(kst)) {
       return { session: 'IDLE', market: 'NONE', reason: '국내 거래소 휴장일(공휴일/주말) 서브에이전트 휴식', kstTime: `${hour}:${min}` };
     }
+    const sessionType = isKrRegular ? 'KR_REGULAR' : (isKrPre ? 'KR_PRE' : 'KR_POST');
+    const sessionTitle = isKrRegular ? '🇰🇷 국내장 정규장 실시간 발굴 브리핑' : (isKrPre ? '🇰🇷 국내장 장전(Pre-Market) 브리핑' : '🇰🇷 국내장 장후(Post-Market) 마감 브리핑');
     return {
-      session: isKrPre ? 'KR_PRE' : 'KR_POST',
+      session: sessionType,
       market: 'KR',
-      title: isKrPre ? '🇰🇷 국내장 장전(Pre-Market) 브리핑' : '🇰🇷 국내장 장후(Post-Market) 마감 브리핑',
+      title: sessionTitle,
       kstTime: `${hour}:${min}`
     };
   }
 
-  // 미장 시간대 (KST 평일)
-  // 프리마켓/본장전: 21:00 ~ 23:30 (1260 ~ 1410)
-  // 장후/애프터마켓: 06:00 ~ 08:00 (360 ~ 480)
-  const isUsPre = timeNum >= 1260 && timeNum <= 1410;
+  // 미장 시간대 (KST 평일 18:00 ~ 익일 08:00)
+  // 프리마켓: 18:00 ~ 23:30 (1080 ~ 1410)
+  // 정규장: 23:30 ~ 06:00 (1410 ~ 1440 또는 0 ~ 360)
+  // 애프터마켓: 06:00 ~ 08:00 (360 ~ 480)
+  const isUsPre = timeNum >= 1080 && timeNum < 1410;
+  const isUsRegular = timeNum >= 1410 || timeNum < 360;
   const isUsPost = timeNum >= 360 && timeNum < 480;
 
-  if (isUsPre || isUsPost) {
+  if (isUsPre || isUsRegular || isUsPost) {
     if (isUsHoliday(kst)) {
       return { session: 'IDLE', market: 'NONE', reason: '미국 거래소 휴장일(공휴일/주말) 서브에이전트 휴식', kstTime: `${hour}:${min}` };
     }
+    const sessionType = isUsRegular ? 'US_REGULAR' : (isUsPre ? 'US_PRE' : 'US_POST');
+    const sessionTitle = isUsRegular ? '🇺🇸 미국장 정규장 실시간 발굴 브리핑' : (isUsPre ? '🇺🇸 미국장 프리마켓(Pre-Market) 브리핑' : '🇺🇸 미국장 애프터마켓(Post-Market) 마감 브리핑');
     return {
-      session: isUsPre ? 'US_PRE' : 'US_POST',
+      session: sessionType,
       market: 'US',
-      title: isUsPre ? '🇺🇸 미국장 프리마켓(Pre-Market) 브리핑' : '🇺🇸 미국장 애프터마켓(Post-Market) 마감 브리핑',
+      title: sessionTitle,
       kstTime: `${hour}:${min}`
     };
   }
 
-  return { session: 'IDLE', market: 'NONE', reason: '장전/장후 배치 운영 시간대 외(평일/야간 대기 모드)', kstTime: `${hour}:${min}` };
+  return { session: 'IDLE', market: 'NONE', reason: '정규/장전/장후 운영 시간대 외(주말/공휴일 대기 모드)', kstTime: `${hour}:${min}` };
 }
 
 // 🇺🇸 미국 주식 실시간 시세 및 SEC EDGAR 공시 수집 헬퍼
@@ -734,14 +783,27 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
   const session = getCurrentMarketSession(new Date());
   let targetMarket = requestedMarket || (isAutoTheme ? session.market : null);
 
-  // 미장(US) 후보군 또는 티커 매칭
-  const usCandidate = US_THEME_CANDIDATES.find(c =>
-    c.code.toUpperCase() === rawStock.toUpperCase() ||
-    c.name.toLowerCase().includes(rawStock.toLowerCase()) ||
+  // 미장(US) 후보군 또는 티커 매칭 (사용자 입력이 있을 때만 검색)
+  const usCandidate = (rawStock || resolvedName) ? US_THEME_CANDIDATES.find(c =>
+    (rawStock && c.code.toUpperCase() === rawStock.toUpperCase()) ||
+    (rawStock && c.name.toLowerCase().includes(rawStock.toLowerCase())) ||
     (resolvedName && c.name.toLowerCase().includes(resolvedName.toLowerCase()))
-  );
+  ) : null;
 
-  const isUsStock = (targetMarket === 'US' && isAutoTheme) || Boolean(usCandidate) || (/^[A-Z]{1,5}$/i.test(rawStock) && !defaultMap[rawStock]);
+  const isUsStock = isAutoTheme 
+    ? (targetMarket === 'US')
+    : (Boolean(usCandidate) || (/^[A-Z]{1,5}$/i.test(rawStock) && !defaultMap[rawStock]));
+
+  // 기존 토론 목록을 조회하여 아직 발굴되지 않은 신규 종목 우선 선정
+  let existingDebates = [];
+  try {
+    const debateLogPath = path.join(__dirname, 'data', 'stockDebateLogs.json');
+    if (fs.existsSync(debateLogPath)) {
+      existingDebates = JSON.parse(fs.readFileSync(debateLogPath, 'utf8'));
+    }
+  } catch (e) {}
+  if (!Array.isArray(existingDebates)) existingDebates = [];
+  const existingCodes = existingDebates.map(d => d.item_code);
 
   let realPrice = null;
   let realChangePct = null;
@@ -762,7 +824,11 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
     // 🇺🇸 미국 주식 (NYSE/NASDAQ & SEC EDGAR) 파이프라인
     // ==========================================
     if (isAutoTheme || (!rawStock && !resolvedName)) {
-      const chosen = usCandidate || US_THEME_CANDIDATES[Math.floor(Math.random() * US_THEME_CANDIDATES.length)];
+      const pool = US_THEME_CANDIDATES;
+      const unDebated = pool.filter(c => !existingCodes.includes(c.code));
+      const chosen = unDebated.length > 0
+        ? unDebated[Math.floor(Math.random() * unDebated.length)]
+        : pool[Math.floor(Math.random() * pool.length)];
       resolvedCode = chosen.code;
       resolvedName = chosen.name;
       cik = chosen.cik;
@@ -784,7 +850,11 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
     // 🇰🇷 국내 주식 (KOSPI/KOSDAQ & Open DART) 파이프라인
     // ==========================================
     if (isAutoTheme || (!rawStock && !resolvedName)) {
-      const candidate = KR_THEME_CANDIDATES[Math.floor(Math.random() * KR_THEME_CANDIDATES.length)];
+      const pool = KR_THEME_CANDIDATES;
+      const unDebated = pool.filter(c => !existingCodes.includes(c.code));
+      const candidate = unDebated.length > 0
+        ? unDebated[Math.floor(Math.random() * unDebated.length)]
+        : pool[Math.floor(Math.random() * pool.length)];
       resolvedCode = candidate.code;
       resolvedName = candidate.name;
       if (!customTopic) customTopic = candidate.topic;
@@ -1374,7 +1444,7 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
   if (fs.existsSync(pythonPath) && fs.existsSync(scriptPath)) {
     try {
       const cp = require('child_process');
-      const args = [scriptPath, '--stock', stock, '--sync'];
+      const args = [scriptPath, '--stock', stock, '--sync', '--source-type', 'USER_SUMMON'];
       if (topic) args.push('--topic', topic);
       
       cp.execFile(pythonPath, args, { cwd: path.dirname(scriptPath), encoding: 'utf8' }, (err, stdout, stderr) => {
@@ -2237,12 +2307,55 @@ const SYSTEM_AGENTS = [
     args: ['--interval', '60'],
     matchPattern: /서브주식에이전트_주린이[\\\/]+main\.py/i,
     description: '초보 투자자 눈높이의 쉬운 해설 및 안심 가이드'
+  },
+  {
+    id: 'ai_service_updater',
+    name: 'AI 서비스 정보 업데이트 에이전트',
+    category: 'core',
+    icon: '🤖',
+    cwd: MADANG6_BASE,
+    script: 'ai_service_updater.py',
+    args: ['--daemon'],
+    matchPattern: /ai_service_updater\.py/i,
+    description: 'AI 모델 정보 자동 점검, 웹 스크래핑/검증 및 Supabase 클라우드/텔레그램 실시간 동기화 데몬'
   }
 ];
 
-// OS 상의 python 프로세스 목록 조회 헬퍼
+const SUPABASE_REST_URL = process.env.SUPABASE_URL || 'https://vouwdahhvvfxlcpyywij.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvdXdkYWhodnZmeGxjcHl5d2lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMzM4NDEsImV4cCI6MjEwMjgwOTg0MX0.L4Jh3gNS3p21S3skGnP_r2ID6cuaQuuIPNoFSy-IETw';
+
+// 메모리 하트비트 캐시 (Cloud Run / 로컬 공용)
+const memoryHeartbeats = {};
+
+// Supabase 원격 에이전트 하트비트 조회 헬퍼
+async function getSupabaseAgentHeartbeats() {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    const resp = await fetch(`${SUPABASE_REST_URL}/rest/v1/agent_workflows?id=eq.system_agent_heartbeats&select=*`, {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (resp.ok) {
+      const rows = await resp.json();
+      if (Array.isArray(rows) && rows.length > 0 && rows[0].workflow_data) {
+        return rows[0].workflow_data;
+      }
+    }
+  } catch (e) {}
+  return {};
+}
+
+// OS 상의 python 프로세스 목록 조회 헬퍼 (Windows 로컬 전용)
 function getRunningPythonProcesses() {
   return new Promise((resolve) => {
+    if (process.platform !== 'win32') {
+      return resolve([]);
+    }
     const { exec } = require('child_process');
     const psCmd = 'powershell -NoProfile -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-CimInstance Win32_Process -Filter \\"Name = \'python.exe\'\\" | Select-Object ProcessId, CommandLine | ConvertTo-Json"';
     exec(psCmd, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
@@ -2258,18 +2371,85 @@ function getRunningPythonProcesses() {
   });
 }
 
-// 전체 에이전트 실시간 상태 조회 API
+// 에이전트 하트비트 수신 API
+app.post('/api/system/agents/heartbeat', async (req, res) => {
+  try {
+    const { id, pid, status, timestamp, details } = req.body || {};
+    if (!id) return res.status(400).json({ success: false, message: 'agent id required' });
+
+    const now = new Date().toISOString();
+    const hbData = {
+      id,
+      pid: pid || null,
+      status: status || 'running',
+      lastHeartbeat: timestamp || now,
+      details: details || {}
+    };
+
+    memoryHeartbeats[id] = hbData;
+
+    // Supabase agent_workflows에 비동기 업서트
+    try {
+      const currentSupabaseHb = await getSupabaseAgentHeartbeats();
+      currentSupabaseHb[id] = hbData;
+
+      fetch(`${SUPABASE_REST_URL}/rest/v1/agent_workflows`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({
+          id: 'system_agent_heartbeats',
+          title: 'System Agent Heartbeats',
+          workflow_data: currentSupabaseHb,
+          updated_at: now
+        })
+      }).catch(() => {});
+    } catch (e) {}
+
+    res.json({ success: true, agent: hbData });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 전체 에이전트 실시간 상태 조회 API (로컬 OS 프로세스 + Supabase 원격 하트비트 하이브리드)
 app.get('/api/system/agents', async (req, res) => {
   try {
-    const procs = await getRunningPythonProcesses();
+    const [procs, remoteHb] = await Promise.all([
+      getRunningPythonProcesses(),
+      getSupabaseAgentHeartbeats()
+    ]);
+
+    const nowMs = Date.now();
+    const HEARTBEAT_TTL_MS = 3 * 60 * 1000; // 3분 이내 하트비트 유효
+
     const result = SYSTEM_AGENTS.map(agent => {
-      // Find matching process
-      const match = procs.find(p => {
+      // 1. 로컬 OS 프로세스 매칭 확인
+      const procMatch = procs.find(p => {
         const cmd = p.CommandLine || '';
         if (agent.matchPattern.test(cmd)) return true;
         if (agent.cwd && cmd.includes(agent.cwd)) return true;
         return false;
       });
+
+      // 2. 원격/메모리 하트비트 확인
+      const hb = memoryHeartbeats[agent.id] || remoteHb[agent.id];
+      let isHbValid = false;
+      let hbPid = null;
+      if (hb && hb.lastHeartbeat) {
+        const hbTime = new Date(hb.lastHeartbeat).getTime();
+        if (nowMs - hbTime < HEARTBEAT_TTL_MS) {
+          isHbValid = true;
+          hbPid = hb.pid;
+        }
+      }
+
+      const isRunning = !!procMatch || isHbValid;
+      const finalPid = procMatch ? procMatch.ProcessId : hbPid;
 
       return {
         id: agent.id,
@@ -2277,9 +2457,11 @@ app.get('/api/system/agents', async (req, res) => {
         category: agent.category,
         icon: agent.icon,
         description: agent.description,
-        is_running: !!match,
-        pid: match ? match.ProcessId : null,
-        command: match ? match.CommandLine : null
+        is_running: isRunning,
+        pid: finalPid,
+        source: procMatch ? 'local_process' : (isHbValid ? 'cloud_heartbeat' : 'offline'),
+        lastHeartbeat: hb ? hb.lastHeartbeat : null,
+        command: procMatch ? procMatch.CommandLine : null
       };
     });
 
