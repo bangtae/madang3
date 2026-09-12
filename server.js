@@ -2331,7 +2331,7 @@ const memoryHeartbeats = {};
 async function getSupabaseAgentHeartbeats() {
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2500);
+    const timer = setTimeout(() => controller.abort(), 6000);
     const resp = await fetch(`${SUPABASE_REST_URL}/rest/v1/agent_workflows?id=eq.system_agent_heartbeats&select=*`, {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
@@ -2345,8 +2345,12 @@ async function getSupabaseAgentHeartbeats() {
       if (Array.isArray(rows) && rows.length > 0 && rows[0].workflow_data) {
         return rows[0].workflow_data;
       }
+    } else {
+      console.warn('[Supabase HB fetch status]:', resp.status);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('[Supabase HB error]:', e.message);
+  }
   return {};
 }
 
@@ -2425,7 +2429,7 @@ app.get('/api/system/agents', async (req, res) => {
     ]);
 
     const nowMs = Date.now();
-    const HEARTBEAT_TTL_MS = 3 * 60 * 1000; // 3분 이내 하트비트 유효
+    const HEARTBEAT_TTL_MS = 5 * 60 * 1000; // 5분 이내 하트비트 유효
 
     const result = SYSTEM_AGENTS.map(agent => {
       // 1. 로컬 OS 프로세스 매칭 확인
@@ -2442,7 +2446,7 @@ app.get('/api/system/agents', async (req, res) => {
       let hbPid = null;
       if (hb && hb.lastHeartbeat) {
         const hbTime = new Date(hb.lastHeartbeat).getTime();
-        if (nowMs - hbTime < HEARTBEAT_TTL_MS) {
+        if (Math.abs(nowMs - hbTime) < HEARTBEAT_TTL_MS) {
           isHbValid = true;
           hbPid = hb.pid;
         }
