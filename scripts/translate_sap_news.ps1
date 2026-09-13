@@ -8,7 +8,7 @@ Add-Type -AssemblyName System.Web
 $madang3Dir = "c:\Users\bangt\Downloads\madang3"
 $localNewsFile = Join-Path $madang3Dir "data\sapNews.json"
 $localJsFile = Join-Path $madang3Dir "data\initialSapNews.js"
-$agentDataNewsFile = "C:\Users\bangt\Downloads\madang6\sap-integration-agent\data\sapNews.json"
+$agentNewsFile = "C:\Users\bangt\Downloads\madang6\sap-integration-agent\sapNews.json"
 
 $supabaseUrl = "https://vouwdahhvvfxlcpyywij.supabase.co"
 $anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvdXdkYWhodnZmeGxjcHl5d2lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMzM4NDEsImV4cCI6MjEwMjgwOTg0MX0.L4Jh3gNS3p21S3skGnP_r2ID6cuaQuuIPNoFSy-IETw"
@@ -89,9 +89,9 @@ $jsContent = "// data/initialSapNews.js - Auto-updated by SAP Agent`nwindow.PORT
 Write-Host "Saved to $localJsFile"
 
 # 2. Sync to agent data file if exists
-if (Test-Path (Split-Path $agentDataNewsFile -Parent)) {
-    [System.IO.File]::WriteAllText($agentDataNewsFile, $jsonOut, $utf8NoBom)
-    Write-Host "Saved to $agentDataNewsFile"
+if (Test-Path (Split-Path $agentNewsFile -Parent)) {
+    [System.IO.File]::WriteAllText($agentNewsFile, $jsonOut, $utf8NoBom)
+    Write-Host "Saved to $agentNewsFile"
 }
 
 # 3. Sync to Supabase in batches of 40

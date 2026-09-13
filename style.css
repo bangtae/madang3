@@ -761,7 +761,9 @@ textarea:focus {
     scrollbar-width: none;
     -ms-overflow-style: none;
     flex: 1;
-    justify-content: center;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 4px;
   }
 
   .top-nav::-webkit-scrollbar {
@@ -1151,7 +1153,7 @@ textarea:focus {
 
   .top-nav {
     gap: 3px;
-    justify-content: center;
+    justify-content: flex-start;
   }
 
   .nav-top-btn {
@@ -5485,6 +5487,44 @@ input:disabled + .slider {
   .fact-check-shield-chip {
     font-size: 0.65rem !important;
     padding: 2px 5px !important;
+  }
+}
+
+/* ========================================================
+   배고픈투자씨 데일리 네이버 블로그 (Stock Blog) 스타일
+======================================================== */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-animation {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+.stock-blog-card {
+  position: relative;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.stock-blog-card:hover {
+  border-color: rgba(56, 189, 248, 0.5) !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.45) !important;
+}
+
+@media screen and (max-width: 640px) {
+  .stock-blog-grid-container {
+    grid-template-columns: 1fr !important;
   }
 }
 

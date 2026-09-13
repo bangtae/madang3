@@ -131,6 +131,12 @@
               <button class="nav-side-btn" data-side="stock-debate">
                 <span class="icon">🔥</span> AI 끝장 토론실
               </button>
+              <button class="nav-side-btn" data-side="stock-blog">
+                <span class="icon">📰</span> 배고픈투자씨 데일리
+              </button>
+              <button class="nav-side-btn" data-side="blogger-news">
+                <span class="icon">🌐</span> 방태 데일리 뉴스
+              </button>
             </li>
             <li class="menu-item hidden" id="side-menu-life">
               <button class="nav-side-btn active" data-side="monster-wave">
@@ -1176,6 +1182,150 @@
           </div>
         </section>
 
+        <!-- 뷰 10-4: 배고픈투자씨 데일리 네이버 블로그 최신글 -->
+        <section id="view-stock-blog" class="content-view hidden">
+          <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <h2 style="display: flex; align-items: center; gap: 10px; color: #f8fafc; margin: 0; font-size: 1.6rem; font-weight: 800;">
+                  📰 배고픈투자씨 데일리 증시분위기
+                </h2>
+                <span class="pulse-live-tag" style="background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px;">실시간 연동</span>
+                <span id="stock-blog-total-badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.35); padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">최신 50건</span>
+              </div>
+              <p style="color: #94a3b8; font-size: 0.92rem; margin: 0; line-height: 1.5;">
+                네이버 블로그 <a href="https://blog.naver.com/food-bang" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: underline; font-weight: 600;">배고픈투자씨 (food-bang)</a>의 데일리 시황, 미국 금리·유가 동향, 반도체·AI 전력 수혜주 등 최신 분석글을 실시간으로 확인하세요.
+              </p>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span id="stock-blog-last-sync" style="color: #64748b; font-size: 0.82rem;">동기화: 확인 중...</span>
+              <button type="button" id="btn-stock-blog-refresh" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; cursor: pointer;" title="네이버 블로그 최신글 실시간 새로고침">
+                <span class="refresh-icon">🔄</span> 새로고침
+              </button>
+              <a href="https://blog.naver.com/food-bang" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                <span>블로그 원문 홈</span> ↗
+              </a>
+            </div>
+          </div>
+
+          <!-- 필터 & 검색 바 -->
+          <div class="stock-blog-toolbar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 12px 16px; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px;">
+            <div id="stock-blog-category-chips" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="category-chip active" data-category="ALL" style="padding: 5px 14px; border-radius: 16px; font-size: 0.82rem; cursor: pointer; border: 1px solid #38bdf8; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 600;">전체보기</button>
+            </div>
+            <div style="flex: 1; max-width: 320px; min-width: 200px;">
+              <input type="text" id="stock-blog-search-input" class="form-input form-input-sm" style="width: 100%; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem;" placeholder="🔍 제목, 키워드(유가, 반도체 등) 검색..." />
+            </div>
+          </div>
+
+          <!-- 로딩 스피너 및 빈 결과 상태 -->
+          <div id="stock-blog-loading" style="display: none; text-align: center; padding: 60px 20px; color: #94a3b8;">
+            <div class="spinner" style="display: inline-block; width: 36px; height: 36px; border: 3px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+            <p style="margin-top: 14px; font-size: 0.95rem;">네이버 블로그에서 최신 글을 불러오는 중입니다...</p>
+          </div>
+          <div id="stock-blog-empty" style="display: none; text-align: center; padding: 60px 20px; color: #94a3b8;">
+            <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">📭</span>
+            <p style="font-size: 1rem; color: #cbd5e1; font-weight: 600;">검색 결과 또는 등록된 글이 없습니다.</p>
+          </div>
+
+          <!-- 블로그 포스트 카드 그리드 -->
+          <div id="stock-blog-grid" class="stock-blog-grid-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px;">
+            <!-- 동적 렌더링 영역 -->
+          </div>
+        </section>
+
+        <!-- 뷰 10-5: 방태 데일리 뉴스요약 (Blogger API v3) -->
+        <section id="view-blogger-news" class="content-view hidden">
+          <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <h2 style="display: flex; align-items: center; gap: 10px; color: #f8fafc; margin: 0; font-size: 1.6rem; font-weight: 800;">
+                  🌐 방태 데일리 뉴스요약
+                </h2>
+                <span id="blogger-auth-badge" class="badge" style="background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.4); padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px;">상태 확인 중...</span>
+                <span id="blogger-news-total-badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.35); padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">Google Blogger API v3</span>
+              </div>
+              <p style="color: #94a3b8; font-size: 0.92rem; margin: 0; line-height: 1.5;">
+                구글 블로그 <a href="https://bangtae.blogspot.com/" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: underline; font-weight: 600;">방태 데일리 뉴스요약 (bangtae.blogspot.com)</a>의 매일 테마별 거시경제·투자 분석·AI·반도체 기사 요약을 Google OAuth 2.0 및 Blogger API v3로 실시간 연동합니다.
+              </p>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span id="blogger-news-last-sync" style="color: #64748b; font-size: 0.82rem;">동기화: 확인 중...</span>
+              <button type="button" id="btn-blogger-news-refresh" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; cursor: pointer;" title="Blogger API 최신글 실시간 새로고침">
+                <span class="refresh-icon">🔄</span> 새로고침
+              </button>
+              <a href="https://bangtae.blogspot.com/" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                <span>블로그 원문 홈</span> ↗
+              </a>
+            </div>
+          </div>
+
+          <!-- OAuth 미연동 시 안내 및 연동 카드 -->
+          <div id="blogger-oauth-connect-card" style="display: none; background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(234, 179, 8, 0.4); border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);">
+            <div style="display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
+              <div style="font-size: 2.2rem; line-height: 1;">🔐</div>
+              <div style="flex: 1; min-width: 260px;">
+                <h3 style="margin: 0 0 6px 0; color: #f8fafc; font-size: 1.15rem; font-weight: 700;">
+                  Google OAuth 2.0 계정 연동 안내
+                </h3>
+                <p style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.6; margin: 0 0 16px 0;">
+                  Blogger API v3를 통한 비공개/공개 게시글 보안 조회를 위해 1회성 구글 권한 승인이 필요합니다.<br>
+                  승인 완료 시 영구 Refresh Token이 안전하게 저장되어 이후 로그인 없이 24시간 실시간 API 동기화가 유지됩니다.
+                </p>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                  <button type="button" id="btn-blogger-google-login" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #4285F4, #1a73e8); cursor: pointer;">
+                    <span style="background: #fff; color: #4285F4; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900;">G</span>
+                    Google 계정으로 연동하기
+                  </button>
+                  <button type="button" id="btn-blogger-toggle-code" class="btn btn-secondary btn-sm" style="padding: 7px 12px; border-radius: 6px; cursor: pointer;">
+                    🔑 승인 코드 직접 입력 (폴백)
+                  </button>
+                </div>
+
+                <!-- 수동 코드 입력 폼 (접이식) -->
+                <div id="blogger-manual-code-wrap" style="display: none; margin-top: 18px; padding: 14px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px;">
+                  <label for="blogger-oauth-code-input" style="display: block; color: #94a3b8; font-size: 0.82rem; margin-bottom: 6px;">
+                    Google 승인 후 브라우저 URL의 <code>?code=...</code> 값을 복사하여 아래에 입력하세요:
+                  </label>
+                  <div style="display: flex; gap: 8px;">
+                    <input type="text" id="blogger-oauth-code-input" class="form-input form-input-sm" style="flex: 1;" placeholder="4/0AWtgzh..." />
+                    <button type="button" id="btn-blogger-submit-code" class="btn btn-primary btn-sm" style="padding: 6px 14px; white-space: nowrap;">
+                      토큰 발급
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 필터 & 검색 바 -->
+          <div class="stock-blog-toolbar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 12px 16px; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px;">
+            <div id="blogger-news-category-chips" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="category-chip active" data-label="ALL" style="padding: 5px 14px; border-radius: 16px; font-size: 0.82rem; cursor: pointer; border: 1px solid #38bdf8; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 600;">전체보기</button>
+            </div>
+            <div style="flex: 1; max-width: 320px; min-width: 200px;">
+              <input type="text" id="blogger-news-search-input" class="form-input form-input-sm" style="width: 100%; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem;" placeholder="🔍 제목, 키워드(거시경제, 반도체 등) 검색..." />
+            </div>
+          </div>
+
+          <!-- 로딩 스피너 및 빈 결과 상태 -->
+          <div id="blogger-news-loading" style="display: none; text-align: center; padding: 60px 20px; color: #94a3b8;">
+            <div class="spinner" style="display: inline-block; width: 36px; height: 36px; border: 3px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+            <p style="margin-top: 14px; font-size: 0.95rem;">Google Blogger API에서 최신 글을 불러오는 중입니다...</p>
+          </div>
+          <div id="blogger-news-empty" style="display: none; text-align: center; padding: 60px 20px; color: #94a3b8;">
+            <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">📭</span>
+            <p style="font-size: 1rem; color: #cbd5e1; font-weight: 600;">등록된 글이 없거나 연동 대기 중입니다.</p>
+          </div>
+
+          <!-- 블로그 포스트 카드 그리드 -->
+          <div id="blogger-news-grid" class="stock-blog-grid-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px;">
+            <!-- 동적 렌더링 영역 -->
+          </div>
+        </section>
+
         <section id="view-monster-wave" class="content-view hidden">
           <div class="monster-wave-wrapper" style="width: 100%; height: 100%; min-height: 650px; display: flex; flex-direction: column; background: #070a14; border-radius: 12px; overflow: hidden; border: 1px solid rgba(99, 102, 241, 0.25);">
             <!-- 상단 게임 툴바 -->
@@ -1644,41 +1794,43 @@
 
 
   <!-- 순서대로 스크립트 로드 (file:// 로컬 파일 모드 100% 지원) -->
-  <script src="data/initialApis.js?v=2.3"></script>
-  <script src="data/initialAiModels.js?v=2.3"></script>
-  <script src="data/initialAiTerms.js?v=2.3"></script>
-  <script src="data/initialSapTerms.js?v=2.3"></script>
-  <script src="data/initialStockTemp.js?v=2.3"></script>
-  <script src="data/initialKrxStockMap.js?v=2.3"></script>
-  <script src="data/initialStockDebateLogs.js?v=2.3"></script>
-  <script src="data/initialSapNews.js?v=2.3"></script>
-  <script src="data/initialSapKnowledge.js?v=2.3"></script>
+  <script src="data/initialApis.js?v=2.4"></script>
+  <script src="data/initialAiModels.js?v=2.4"></script>
+  <script src="data/initialAiTerms.js?v=2.4"></script>
+  <script src="data/initialSapTerms.js?v=2.4"></script>
+  <script src="data/initialStockTemp.js?v=2.4"></script>
+  <script src="data/initialKrxStockMap.js?v=2.4"></script>
+  <script src="data/initialStockDebateLogs.js?v=2.4"></script>
+  <script src="data/initialSapNews.js?v=2.4"></script>
+  <script src="data/initialSapKnowledge.js?v=2.4"></script>
   <!-- Supabase JS Client SDK CDN (무료 클라우드 DB 연동) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app/core/config.js?v=2.3"></script>
-  <script src="app/models/apiModel.js?v=2.3"></script>
-  <script src="app/models/aiModel.js?v=2.3"></script>
-  <script src="app/models/aiTermModel.js?v=2.3"></script>
-  <script src="app/models/sapTermModel.js?v=2.3"></script>
-  <script src="app/models/sapSuiteModel.js?v=2.3"></script>
-  <script src="app/models/ipModel.js?v=2.3"></script>
-  <script src="app/models/stockTempModel.js?v=2.3"></script>
-  <script src="app/models/stockDebateModel.js?v=2.3"></script>
-  <script src="app/models/threadsAgentModel.js?v=2.3"></script>
-  <script src="app/utils/xlsx.full.min.js?v=2.3"></script>
-  <script src="app/utils/excelHelper.js?v=2.3"></script>
-  <script src="app/utils/downloadHelper.js?v=2.3"></script>
-  <script src="app/views/mindmapView.js?v=2.3"></script>
-  <script src="app/views/agentBuilderView.js?v=2.3"></script>
-  <script src="app/views/techStackView.js?v=2.3"></script>
-  <script src="app/views/stockTempView.js?v=2.3"></script>
-  <script src="app/views/stockDebateView.js?v=2.3"></script>
-  <script src="app/views/threadsAgentView.js?v=2.3"></script>
-  <script src="app/views/sapSuiteView.js?v=2.3"></script>
-  <script src="app/views/monsterDefenseView.js?v=2.3"></script>
-  <script src="app/views/uiView.js?v=2.3"></script>
-  <script src="app/controllers/appController.js?v=2.3"></script>
-  <script src="app/main.js?v=2.3"></script>
+  <script src="app/core/config.js?v=2.4"></script>
+  <script src="app/models/apiModel.js?v=2.4"></script>
+  <script src="app/models/aiModel.js?v=2.4"></script>
+  <script src="app/models/aiTermModel.js?v=2.4"></script>
+  <script src="app/models/sapTermModel.js?v=2.4"></script>
+  <script src="app/models/sapSuiteModel.js?v=2.4"></script>
+  <script src="app/models/ipModel.js?v=2.4"></script>
+  <script src="app/models/stockTempModel.js?v=2.4"></script>
+  <script src="app/models/stockDebateModel.js?v=2.4"></script>
+  <script src="app/models/threadsAgentModel.js?v=2.4"></script>
+  <script src="app/utils/xlsx.full.min.js?v=2.4"></script>
+  <script src="app/utils/excelHelper.js?v=2.4"></script>
+  <script src="app/utils/downloadHelper.js?v=2.4"></script>
+  <script src="app/views/mindmapView.js?v=2.4"></script>
+  <script src="app/views/agentBuilderView.js?v=2.4"></script>
+  <script src="app/views/techStackView.js?v=2.4"></script>
+  <script src="app/views/stockTempView.js?v=2.4"></script>
+  <script src="app/views/stockDebateView.js?v=2.4"></script>
+  <script src="app/views/stockBlogView.js?v=2.4"></script>
+  <script src="app/views/bloggerNewsView.js?v=2.4"></script>
+  <script src="app/views/threadsAgentView.js?v=2.4"></script>
+  <script src="app/views/sapSuiteView.js?v=2.4"></script>
+  <script src="app/views/monsterDefenseView.js?v=2.4"></script>
+  <script src="app/views/uiView.js?v=2.4"></script>
+  <script src="app/controllers/appController.js?v=2.4"></script>
+  <script src="app/main.js?v=2.4"></script>
 
 </body>
 </html>

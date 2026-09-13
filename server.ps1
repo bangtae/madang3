@@ -62,6 +62,306 @@ function Get-GeminiApiKey {
     return $null
 }
 
+$stockBlogDataFile = Join-Path $dataDir "stockBlog.json"
+$stockBlogCacheData = $null
+$stockBlogCacheTime = [DateTime]::MinValue
+
+function Get-EnvValue([string]$keyName, [string]$defaultValue = "") {
+    if ([System.Environment]::GetEnvironmentVariable($keyName)) {
+        return [System.Environment]::GetEnvironmentVariable($keyName)
+    }
+    $candidateFiles = @()
+    if ($PSScriptRoot) { $candidateFiles += (Join-Path $PSScriptRoot ".env") }
+    if ($script:root) { $candidateFiles += (Join-Path $script:root ".env") }
+    $candidateFiles += (Join-Path (Get-Location) ".env")
+    $candidateFiles += "C:\Users\bangt\Downloads\madang3\.env"
+
+    foreach ($envFile in $candidateFiles) {
+        if ($envFile -and (Test-Path $envFile)) {
+            try {
+                $lines = [System.IO.File]::ReadAllLines($envFile, [System.Text.Encoding]::UTF8)
+                foreach ($line in $lines) {
+                    if ($line -match "^\s*$keyName\s*=\s*(.+)$") {
+                        $v = $matches[1].Trim().Trim('"').Trim("'")
+                        if ($v) { return $v }
+                    }
+                }
+            } catch {}
+        }
+    }
+    return $defaultValue
+}
+
+function Get-StockBlogPosts([bool]$forceRefresh = $false) {
+    $now = [DateTime]::UtcNow
+    if (-not $forceRefresh -and $null -ne $script:stockBlogCacheData -and (($now - $script:stockBlogCacheTime).TotalMinutes -lt 10)) {
+        return $script:stockBlogCacheData
+    }
+
+    $clientId = Get-EnvValue "NAVER_CLIENT_ID" "xQmsSXkkF6EMM8wRnbb2"
+    $clientSecret = Get-EnvValue "NAVER_CLIENT_SECRET" "sJH2ymerHP"
+    $blogId = Get-EnvValue "NAVER_BLOG_ID" "food-bang"
+
+    $items = @()
+    $blogTitle = "배고픈투자씨의 데일리 증시분위기"
+    $blogUrl = "https://blog.naver.com/$blogId"
+    $usedSource = "rss"
+    $apiStatus = "OK"
+
+    # 1. Primary: Naver Official RSS Feed (100% accurate food-bang posts)
+    try {
+        $rssUrl = "https://rss.blog.naver.com/$blogId.xml"
+        $rawRss = (Invoke-WebRequest -Uri $rssUrl -UseBasicParsing -TimeoutSec 10).Content
+        [xml]$xml = $rawRss
+        $channel = $xml.rss.channel
+        if ($channel.title) {
+            $blogTitle = if ($channel.title.'#cdata-section') { $channel.title.'#cdata-section' } else { $channel.title.InnerText }
+        }
+        if ($channel.link) {
+            $blogUrl = if ($channel.link.'#cdata-section') { $channel.link.'#cdata-section' } else { $channel.link.InnerText }
+        }
+
+        foreach ($item in $channel.item) {
+            $title = if ($item.title.'#cdata-section') { $item.title.'#cdata-section' } else { $item.title.InnerText }
+            $link = if ($item.link.'#cdata-section') { $item.link.'#cdata-section' } else { $item.link.InnerText }
+            $pubDate = $item.pubDate
+            $category = if ($item.category.'#cdata-section') { $item.category.'#cdata-section' } else { $item.category.InnerText }
+            $desc = if ($item.description.'#cdata-section') { $item.description.'#cdata-section' } else { $item.description.InnerText }
+            
+            $cleanDesc = $desc -replace '<[^>]+>', ' ' -replace '&quot;', '"' -replace '&amp;', '&' -replace '&lt;', '<' -replace '&gt;', '>' -replace '\s+', ' '
+            $cleanDesc = $cleanDesc.Trim()
+
+            $formattedDate = ""
+            try {
+                $dt = [DateTime]::Parse($pubDate)
+                $formattedDate = $dt.ToString("yyyy.MM.dd HH:mm")
+            } catch {
+                $formattedDate = $pubDate
+            }
+
+            $items += [PSCustomObject]@{
+                title = $title
+                link = $link
+                pubDate = $pubDate
+                formattedDate = $formattedDate
+                category = if ($category) { $category } else { "증시분위기" }
+                description = if ($cleanDesc.Length -gt 250) { $cleanDesc.Substring(0, 250) + "..." } else { $cleanDesc }
+                author = "배고픈투자씨"
+            }
+        }
+    }
+    catch {
+        Write-Host " [Stock Blog RSS Fetch Error] $_" -ForegroundColor Yellow
+        $apiStatus = "RSS Error: " + $_.Exception.Message
+    }
+
+    # 2. Check Naver Open API Status
+    $naverApiStatus = "Not invoked"
+    if ($clientId -and $clientSecret) {
+        try {
+            $encodedQ = [System.Uri]::EscapeDataString("food-bang")
+            $headers = @{ "X-Naver-Client-Id" = $clientId; "X-Naver-Client-Secret" = $clientSecret }
+            $apiRes = Invoke-RestMethod -Uri "https://openapi.naver.com/v1/search/blog.json?query=$encodedQ&display=5" -Headers $headers -TimeoutSec 5 -ErrorAction Stop
+            $naverApiStatus = "OK (Search API Active)"
+        }
+        catch {
+            $naverApiStatus = "Scope Error 024 or Authentication failed: " + $_.Exception.Message
+        }
+    }
+
+    $resultObj = [PSCustomObject]@{
+        success = ($items.Count -gt 0)
+        blogId = $blogId
+        blogTitle = $blogTitle
+        blogUrl = $blogUrl
+        lastUpdated = [DateTime]::UtcNow.ToString("o")
+        lastUpdatedKst = [DateTime]::UtcNow.AddHours(9).ToString("yyyy-MM-dd HH:mm:ss")
+        source = $usedSource
+        apiStatus = $apiStatus
+        naverApiStatus = $naverApiStatus
+        itemsCount = $items.Count
+        items = $items
+    }
+
+    $jsonResult = $resultObj | ConvertTo-Json -Depth 5
+    if ($items.Count -gt 0) {
+        $script:stockBlogCacheData = $jsonResult
+        $script:stockBlogCacheTime = $now
+    }
+    return $jsonResult
+}
+
+$googleTokensFile = Join-Path $dataDir "google_tokens.json"
+$bloggerCacheData = $null
+$bloggerCacheTime = [DateTime]::MinValue
+
+function Get-GoogleTokens {
+    if (Test-Path $googleTokensFile) {
+        try {
+            $raw = [System.IO.File]::ReadAllText($googleTokensFile, [System.Text.Encoding]::UTF8)
+            if (-not [string]::IsNullOrWhiteSpace($raw)) {
+                return ($raw | ConvertFrom-Json)
+            }
+        } catch {}
+    }
+    return $null
+}
+
+function Save-GoogleTokens($tokensObj) {
+    try {
+        if (-not (Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
+        $existing = Get-GoogleTokens
+        $ht = @{}
+        if ($existing) {
+            foreach ($prop in $existing.PSObject.Properties) { $ht[$prop.Name] = $prop.Value }
+        }
+        foreach ($prop in $tokensObj.PSObject.Properties) { $ht[$prop.Name] = $prop.Value }
+        $ht["updated_at"] = [DateTime]::UtcNow.ToString("o")
+        $json = $ht | ConvertTo-Json -Depth 3
+        [System.IO.File]::WriteAllText($googleTokensFile, $json, $Utf8NoBom)
+        return $ht
+    } catch {
+        Write-Host " [Save-GoogleTokens Error] $_" -ForegroundColor Red
+        return $null
+    }
+}
+
+function Get-ValidGoogleAccessToken {
+    $tokens = Get-GoogleTokens
+    if (-not $tokens) { return $null }
+
+    $nowSec = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    if ($tokens.access_token -and $tokens.expiry_date) {
+        $expSec = [int64]($tokens.expiry_date / 1000)
+        if (($expSec - 60) -gt $nowSec) {
+            return $tokens.access_token
+        }
+    }
+
+    if ($tokens.refresh_token) {
+        $clientId = Get-EnvValue "GOOGLE_CLIENT_ID" ""
+        $clientSecret = Get-EnvValue "GOOGLE_CLIENT_SECRET" ""
+        try {
+            $body = @{
+                client_id = $clientId
+                client_secret = $clientSecret
+                refresh_token = $tokens.refresh_token
+                grant_type = "refresh_token"
+            }
+            $res = Invoke-RestMethod -Uri "https://oauth2.googleapis.com/token" -Method POST -Body $body -TimeoutSec 10
+            if ($res.access_token) {
+                $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                $expIn = if ($res.expires_in) { [int]$res.expires_in } else { 3600 }
+                $saveObj = [PSCustomObject]@{
+                    access_token = $res.access_token
+                    expiry_date = ($nowMs + ($expIn * 1000))
+                }
+                Save-GoogleTokens $saveObj
+                return $res.access_token
+            }
+        } catch {
+            Write-Host " [Google Token Refresh Error] $_" -ForegroundColor Red
+        }
+    }
+
+    return $tokens.access_token
+}
+
+function Get-BloggerPosts([bool]$forceRefresh = $false) {
+    $now = [DateTime]::UtcNow
+    if (-not $forceRefresh -and $null -ne $script:bloggerCacheData -and (($now - $script:bloggerCacheTime).TotalMinutes -lt 10)) {
+        return $script:bloggerCacheData
+    }
+
+    $blogId = Get-EnvValue "BLOGGER_BLOG_ID" "5167925743659719913"
+    $accessToken = Get-ValidGoogleAccessToken
+
+    if (-not $accessToken) {
+        $resObj = [PSCustomObject]@{
+            success = $false
+            connected = $false
+            message = "Google OAuth 2.0 계정 연동이 필요합니다."
+            items = @()
+        }
+        return ($resObj | ConvertTo-Json -Compress)
+    }
+
+    try {
+        $headers = @{
+            "Authorization" = "Bearer $accessToken"
+            "Accept" = "application/json"
+        }
+        $url = "https://www.googleapis.com/blogger/v3/blogs/$blogId/posts?maxResults=25&fetchBodies=true&fetchImages=true"
+        $raw = Invoke-RestMethod -Uri $url -Headers $headers -TimeoutSec 15
+        
+        $items = @()
+        foreach ($post in $raw.items) {
+            $content = $post.content
+            $cleanContent = $content -replace '<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', '' -replace '<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>', '' -replace '<[^>]+>', ' ' -replace '&quot;', '"' -replace '&amp;', '&' -replace '&lt;', '<' -replace '&gt;', '>' -replace '\s+', ' '
+            $cleanContent = $cleanContent.Trim()
+
+            $formattedDate = $post.published
+            try {
+                $dt = [DateTime]::Parse($post.published)
+                $formattedDate = $dt.ToString("yyyy.MM.dd HH:mm")
+            } catch {}
+
+            $imgList = @()
+            if ($post.images) {
+                foreach ($im in $post.images) { $imgList += $im.url }
+            }
+
+            $labels = @()
+            if ($post.labels) {
+                foreach ($lb in $post.labels) { $labels += $lb }
+            }
+            if ($labels.Count -eq 0) { $labels = @("뉴스요약") }
+
+            $items += [PSCustomObject]@{
+                id = $post.id
+                title = $post.title
+                url = $post.url
+                published = $post.published
+                formattedDate = $formattedDate
+                updated = $post.updated
+                labels = $labels
+                author = if ($post.author.displayName) { $post.author.displayName } else { "방태" }
+                description = if ($cleanContent.Length -gt 280) { $cleanContent.Substring(0, 280) + "..." } else { $cleanContent }
+                images = $imgList
+            }
+        }
+
+        $resObj = [PSCustomObject]@{
+            success = $true
+            connected = $true
+            blogId = $blogId
+            blogTitle = "방태 데일리 뉴스요약"
+            blogUrl = "https://bangtae.blogspot.com/"
+            lastUpdated = [DateTime]::UtcNow.ToString("o")
+            lastUpdatedKst = [DateTime]::UtcNow.AddHours(9).ToString("yyyy-MM-dd HH:mm:ss")
+            itemsCount = $items.Count
+            items = $items
+        }
+
+        $jsonResult = $resObj | ConvertTo-Json -Depth 5
+        if ($items.Count -gt 0) {
+            $script:bloggerCacheData = $jsonResult
+            $script:bloggerCacheTime = $now
+        }
+        return $jsonResult
+    }
+    catch {
+        Write-Host " [Blogger API Call Error] $_" -ForegroundColor Red
+        $errObj = [PSCustomObject]@{
+            success = $false
+            connected = $true
+            error = $_.Exception.Message
+            items = @()
+        }
+        return ($errObj | ConvertTo-Json -Compress)
+    }
+}
+
 $telegramConfigFile = Join-Path $dataDir "telegramConfig.json"
 $script:telegramAlertCooldown = @{}
 $script:telegramLastUpdateId = 0
@@ -735,6 +1035,145 @@ while ($true) {
                     }
                 }
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/stock-blog") {
+            if ($method -eq "GET") {
+                $isRefresh = ($parts[1] -match 'refresh=true' -or $parts[1] -match 'refresh=1')
+                $blogJson = Get-StockBlogPosts -forceRefresh $isRefresh
+                Send-JsonResponse $stream $corsHeaders $blogJson
+            }
+            else {
+                Send-JsonResponse $stream $corsHeaders '{"error":"Method not allowed"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/auth/google/url") {
+            $clientId = Get-EnvValue "GOOGLE_CLIENT_ID" ""
+            $redirectUri = "http://localhost:8080/api/auth/google/callback"
+            if ($parts[1] -match 'redirect_uri=([^&]+)') {
+                $redirectUri = [System.Uri]::UnescapeDataString($matches[1])
+            }
+            $encClientId = [System.Uri]::EscapeDataString($clientId)
+            $encRedirect = [System.Uri]::EscapeDataString($redirectUri)
+            $encScope = [System.Uri]::EscapeDataString("https://www.googleapis.com/auth/blogger.readonly")
+            $authUrl = "https://accounts.google.com/o/oauth2/v2/auth?client_id=$encClientId&redirect_uri=$encRedirect&response_type=code&scope=$encScope&access_type=offline&prompt=consent"
+            $resJson = [PSCustomObject]@{
+                url = $authUrl
+                redirect_uri = $redirectUri
+                client_id = $clientId
+            } | ConvertTo-Json -Compress
+            Send-JsonResponse $stream $corsHeaders $resJson
+        }
+        elseif ($urlPath -eq "/api/auth/google/callback") {
+            $rawQuery = if ($parts[1].Contains("?")) { $parts[1].Substring($parts[1].IndexOf("?") + 1) } else { "" }
+            $code = ""
+            if ($rawQuery -match 'code=([^&]+)') {
+                $code = [System.Uri]::UnescapeDataString($matches[1])
+            }
+            if ($code) {
+                $clientId = Get-EnvValue "GOOGLE_CLIENT_ID" ""
+                $clientSecret = Get-EnvValue "GOOGLE_CLIENT_SECRET" ""
+                $redirectUri = "http://localhost:8080/api/auth/google/callback"
+                try {
+                    $tokenBody = @{
+                        code = $code
+                        client_id = $clientId
+                        client_secret = $clientSecret
+                        redirect_uri = $redirectUri
+                        grant_type = "authorization_code"
+                    }
+                    $tRes = Invoke-RestMethod -Uri "https://oauth2.googleapis.com/token" -Method POST -Body $tokenBody -TimeoutSec 15
+                    if ($tRes.access_token) {
+                        $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                        $expIn = if ($tRes.expires_in) { [int]$tRes.expires_in } else { 3600 }
+                        $saveObj = [PSCustomObject]@{
+                            access_token = $tRes.access_token
+                            refresh_token = $tRes.refresh_token
+                            expiry_date = $nowMs + ($expIn * 1000)
+                            scope = $tRes.scope
+                            updated_at = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
+                        }
+                        Save-GoogleTokens $saveObj
+                        $rfParam = if ($tRes.refresh_token) { "&rf=" + [System.Uri]::EscapeDataString($tRes.refresh_token) } else { "" }
+                        Send-Redirect $stream "/?auth=success$rfParam#blogger-news"
+                    }
+                    else {
+                        Send-Redirect $stream "/?auth=failed#blogger-news"
+                    }
+                }
+                catch {
+                    Send-Redirect $stream "/?auth=failed#blogger-news"
+                }
+            }
+            else {
+                Send-Redirect $stream "/?auth=error#blogger-news"
+            }
+        }
+        elseif ($urlPath -eq "/api/auth/google/code") {
+            if ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                $code = ""
+                $redirectUri = "http://localhost:8080/api/auth/google/callback"
+                if ($headerBodySplit.Length -eq 2 -and -not [string]::IsNullOrWhiteSpace($headerBodySplit[1])) {
+                    try {
+                        $bodyObj = $headerBodySplit[1] | ConvertFrom-Json
+                        if ($bodyObj.code) { $code = $bodyObj.code.Trim() }
+                        if ($bodyObj.redirect_uri) { $redirectUri = $bodyObj.redirect_uri.Trim() }
+                    } catch {}
+                }
+                if ($code) {
+                    $clientId = Get-EnvValue "GOOGLE_CLIENT_ID" ""
+                    $clientSecret = Get-EnvValue "GOOGLE_CLIENT_SECRET" ""
+                    try {
+                        $tokenBody = @{
+                            code = $code
+                            client_id = $clientId
+                            client_secret = $clientSecret
+                            redirect_uri = $redirectUri
+                            grant_type = "authorization_code"
+                        }
+                        $tRes = Invoke-RestMethod -Uri "https://oauth2.googleapis.com/token" -Method POST -Body $tokenBody -TimeoutSec 15
+                        if ($tRes.access_token) {
+                            $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                            $expIn = if ($tRes.expires_in) { [int]$tRes.expires_in } else { 3600 }
+                            $saveObj = [PSCustomObject]@{
+                                access_token = $tRes.access_token
+                                refresh_token = $tRes.refresh_token
+                                expiry_date = ($nowMs + ($expIn * 1000))
+                                scope = $tRes.scope
+                            }
+                            Save-GoogleTokens $saveObj
+                            $script:bloggerCacheData = $null
+                            Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"Google OAuth 토큰이 등록되었습니다."}'
+                        } else {
+                            Send-JsonResponse $stream $corsHeaders '{"success":false,"error":"Token exchange failed"}'
+                        }
+                    } catch {
+                        Send-JsonResponse $stream $corsHeaders (@{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress)
+                    }
+                } else {
+                    Send-JsonResponse $stream $corsHeaders '{"success":false,"error":"인증 코드가 필요합니다."}'
+                }
+            }
+        }
+        elseif ($urlPath -eq "/api/auth/google/status") {
+            $tokens = Get-GoogleTokens
+            $connected = [bool]($tokens -and ($tokens.access_token -or $tokens.refresh_token))
+            $hasRt = [bool]($tokens -and $tokens.refresh_token)
+            $res = [PSCustomObject]@{
+                connected = $connected
+                hasRefreshToken = $hasRt
+                updated_at = if ($tokens.updated_at) { $tokens.updated_at } else { $null }
+            } | ConvertTo-Json -Compress
+            Send-JsonResponse $stream $corsHeaders $res
+        }
+        elseif ($urlPath -eq "/api/blogger-posts") {
+            if ($method -eq "GET") {
+                $isRefresh = ($parts[1] -match 'refresh=true' -or $parts[1] -match 'refresh=1')
+                $postsJson = Get-BloggerPosts -forceRefresh $isRefresh
+                Send-JsonResponse $stream $corsHeaders $postsJson
+            } else {
+                Send-JsonResponse $stream $corsHeaders '{"error":"Method not allowed"}'
             }
         }
         elseif ($urlPath -eq "/api/stock-council-reports") {

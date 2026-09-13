@@ -20,7 +20,7 @@ if ($LASTEXITCODE -eq 0) {
 
 Write-Host "App Engine deploy output: $deployRes"
 Write-Host "[2/2] Attempting GCP Cloud Run Source Deployment..."
-$cloudRunCmd = "gcloud run deploy portal-bang --source . --region=$region --project=$project --allow-unauthenticated --quiet"
+$cloudRunCmd = "gcloud run deploy madang3 --source . --region=$region --project=$project --allow-unauthenticated --quiet"
 cmd /c $cloudRunCmd
 
 if ($LASTEXITCODE -eq 0) {

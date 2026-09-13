@@ -11,6 +11,7 @@ const fs = require('fs');
 const telegramBot = require('./app/utils/telegramBotHelper');
 
 const app = express();
+app.set('trust proxy', true);
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const dataDir = path.join(__dirname, 'data');
 const allowedIpsFile = path.join(dataDir, 'allowed_ips.json');
@@ -344,6 +345,497 @@ app.post('/api/stock-temp', (req, res) => {
     res.json({ success: true, count: Array.isArray(data) ? data.length : 0 });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ==========================================
+// 배고픈투자씨 블로그 (Stock Blog) RSS & Naver Open API
+// ==========================================
+let cachedStockBlogData = null;
+let stockBlogCacheTime = 0;
+
+function getEnvVal(key, fallback = '') {
+  if (process.env[key]) return process.env[key];
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      const content = fs.readFileSync(envPath, 'utf8');
+      for (const line of content.split('\n')) {
+        const match = line.match(new RegExp(`^\\s*${key}\\s*=\\s*(.+)$`));
+        if (match) {
+          const val = match[1].trim().replace(/^["']|["']$/g, '');
+          if (val) return val;
+        }
+      }
+    } catch (e) {}
+  }
+  return fallback;
+}
+
+app.get('/api/stock-blog', async (req, res) => {
+  const isRefresh = req.query.refresh === 'true' || req.query.refresh === '1';
+  const now = Date.now();
+
+  if (!isRefresh && cachedStockBlogData && (now - stockBlogCacheTime < 10 * 60 * 1000)) {
+    return res.json({ ...cachedStockBlogData, cached: true });
+  }
+
+  const clientId = getEnvVal('NAVER_CLIENT_ID', 'xQmsSXkkF6EMM8wRnbb2');
+  const clientSecret = getEnvVal('NAVER_CLIENT_SECRET', 'sJH2ymerHP');
+  const blogId = getEnvVal('NAVER_BLOG_ID', 'food-bang');
+
+  let items = [];
+  let blogTitle = '배고픈투자씨의 데일리 증시분위기';
+  let blogUrl = `https://blog.naver.com/${blogId}`;
+  let apiStatus = 'OK';
+  let naverApiStatus = 'Not invoked';
+
+  try {
+    const rssUrl = `https://rss.blog.naver.com/${blogId}.xml`;
+    const resp = await fetch(rssUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const xml = await resp.text();
+
+    const titleMatch = xml.match(/<channel>[\s\S]*?<title>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/title>/i);
+    if (titleMatch) blogTitle = (titleMatch[1] || titleMatch[2] || '').trim();
+
+    const linkMatch = xml.match(/<channel>[\s\S]*?<link>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/link>/i);
+    if (linkMatch) blogUrl = (linkMatch[1] || linkMatch[2] || '').trim();
+
+    const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+    let match;
+    while ((match = itemRegex.exec(xml)) !== null) {
+      const itemContent = match[1];
+      const getTag = (tag) => {
+        const m = itemContent.match(new RegExp(`<${tag}>(?:<\\!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([\\s\\S]*?))<\\/${tag}>`, 'i'));
+        return m ? (m[1] !== undefined ? m[1] : m[2]).trim() : '';
+      };
+      const rawTitle = getTag('title');
+      const rawLink = getTag('link');
+      const rawPubDate = getTag('pubDate');
+      const rawCat = getTag('category');
+      const rawDesc = getTag('description');
+
+      let cleanDesc = rawDesc.replace(/<[^>]+>/g, ' ')
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      let formattedDate = rawPubDate;
+      try {
+        const d = new Date(rawPubDate);
+        if (!isNaN(d.getTime())) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const h = String(d.getHours()).padStart(2, '0');
+          const min = String(d.getMinutes()).padStart(2, '0');
+          formattedDate = `${y}.${m}.${day} ${h}:${min}`;
+        }
+      } catch (e) {}
+
+      items.push({
+        title: rawTitle,
+        link: rawLink,
+        pubDate: rawPubDate,
+        formattedDate: formattedDate,
+        category: rawCat || '증시분위기',
+        description: cleanDesc.length > 250 ? cleanDesc.slice(0, 250) + '...' : cleanDesc,
+        author: '배고픈투자씨'
+      });
+    }
+  } catch (err) {
+    console.error('[Stock Blog RSS Error]:', err);
+    apiStatus = `RSS Error: ${err.message}`;
+  }
+
+  // Check Naver Open API Status
+  if (clientId && clientSecret) {
+    try {
+      const naverRes = await fetch(`https://openapi.naver.com/v1/search/blog.json?query=${encodeURIComponent('food-bang')}&display=5`, {
+        headers: {
+          'X-Naver-Client-Id': clientId,
+          'X-Naver-Client-Secret': clientSecret
+        }
+      });
+      if (naverRes.ok) {
+        naverApiStatus = 'OK (Search API Active)';
+      } else {
+        const errJson = await naverRes.json().catch(() => ({}));
+        naverApiStatus = `Scope Error ${errJson.errorCode || naverRes.status}: ${errJson.errorMessage || naverRes.statusText}`;
+      }
+    } catch (e) {
+      naverApiStatus = `Naver API error: ${e.message}`;
+    }
+  }
+
+  const result = {
+    success: items.length > 0,
+    blogId,
+    blogTitle,
+    blogUrl,
+    lastUpdated: new Date().toISOString(),
+    lastUpdatedKst: new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).format(new Date()),
+    source: 'rss',
+    apiStatus,
+    naverApiStatus,
+    itemsCount: items.length,
+    items,
+    cached: false
+  };
+
+  if (items.length > 0) {
+    cachedStockBlogData = result;
+    stockBlogCacheTime = now;
+  }
+
+  res.json(result);
+});
+
+// ==========================================
+// Google OAuth 2.0 & Blogger API v3 연동
+// ==========================================
+function getEnvVal(key, defVal = '') {
+  if (process.env[key]) return process.env[key];
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      const content = fs.readFileSync(envPath, 'utf8');
+      for (const line of content.split('\n')) {
+        const match = line.match(new RegExp(`^\\s*${key}\\s*=\\s*(.+)$`));
+        if (match) {
+          const val = match[1].trim().replace(/^["']|["']$/g, '');
+          if (val) return val;
+        }
+      }
+    } catch (e) {}
+  }
+  return defVal;
+}
+
+const googleTokensFile = path.join(dataDir, 'google_tokens.json');
+let cachedBloggerPosts = null;
+let bloggerPostsCacheTime = 0;
+
+function getGoogleTokens() {
+  if (fs.existsSync(googleTokensFile)) {
+    try {
+      const raw = fs.readFileSync(googleTokensFile, 'utf8').replace(/^\uFEFF/, '').trim();
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+  }
+  return null;
+}
+
+function saveGoogleTokens(tokens) {
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    let existing = getGoogleTokens() || {};
+    const merged = { ...existing, ...tokens, updated_at: new Date().toISOString() };
+    fs.writeFileSync(googleTokensFile, JSON.stringify(merged, null, 2), 'utf8');
+    return merged;
+  } catch (e) {
+    console.error('[Google Tokens Save Error]:', e);
+    return tokens;
+  }
+}
+
+function getGoogleRedirectUri(req) {
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const proto = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol;
+  const host = req.headers['x-forwarded-host'] || req.get('host') || 'madang3-264643074286.asia-northeast3.run.app';
+  const finalProto = (host.includes('.run.app') || host.includes('madang3.com') || proto === 'https') ? 'https' : proto;
+  return `${finalProto}://${host}/api/auth/google/callback`;
+}
+
+async function getValidGoogleAccessToken(clientRefreshToken = null) {
+  let tokens = getGoogleTokens() || {};
+  if (!tokens.refresh_token && clientRefreshToken) {
+    tokens.refresh_token = clientRefreshToken;
+    saveGoogleTokens(tokens);
+  }
+  if (!tokens.access_token && !tokens.refresh_token) return null;
+
+  const now = Date.now();
+  if (tokens.access_token && tokens.expiry_date && (tokens.expiry_date - 60000 > now)) {
+    return tokens.access_token;
+  }
+
+  if (tokens.refresh_token) {
+    const clientId = getEnvVal('GOOGLE_CLIENT_ID');
+    const clientSecret = getEnvVal('GOOGLE_CLIENT_SECRET');
+
+    try {
+      const resp = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: tokens.refresh_token,
+          grant_type: 'refresh_token'
+        })
+      });
+      const data = await resp.json();
+      if (data.access_token) {
+        tokens.access_token = data.access_token;
+        tokens.expiry_date = now + ((data.expires_in || 3600) * 1000);
+        saveGoogleTokens(tokens);
+        return tokens.access_token;
+      } else {
+        console.error('[Google Token Refresh Failed]:', data);
+      }
+    } catch (e) {
+      console.error('[Google Token Refresh Error]:', e);
+    }
+  }
+
+  return tokens.access_token || null;
+}
+
+// 1. Google OAuth URL 생성
+app.get('/api/auth/google/url', (req, res) => {
+  const clientId = getEnvVal('GOOGLE_CLIENT_ID');
+  const redirectUri = req.query.redirect_uri || getGoogleRedirectUri(req);
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'https://www.googleapis.com/auth/blogger.readonly',
+    access_type: 'offline',
+    prompt: 'consent'
+  });
+
+  res.json({
+    url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+    redirect_uri: redirectUri,
+    client_id: clientId
+  });
+});
+
+// 2. Google OAuth Callback (리디렉트)
+app.get('/api/auth/google/callback', async (req, res) => {
+  const code = req.query.code;
+  const error = req.query.error;
+
+  if (error || !code) {
+    return res.redirect('/?auth=error&msg=' + encodeURIComponent(error || 'No code returned') + '#blogger-news');
+  }
+
+  const clientId = getEnvVal('GOOGLE_CLIENT_ID');
+  const clientSecret = getEnvVal('GOOGLE_CLIENT_SECRET');
+  const redirectUri = getGoogleRedirectUri(req);
+
+  try {
+    const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      })
+    });
+    const tokenData = await tokenResp.json();
+    if (tokenData.access_token) {
+      const now = Date.now();
+      const tokenObj = {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expiry_date: now + ((tokenData.expires_in || 3600) * 1000),
+        scope: tokenData.scope
+      };
+      saveGoogleTokens(tokenObj);
+      cachedBloggerPosts = null;
+      const rfParam = tokenData.refresh_token ? `&rf=${encodeURIComponent(tokenData.refresh_token)}` : '';
+      return res.redirect(`/?auth=success${rfParam}#blogger-news`);
+    } else {
+      console.error('[Google Token Exchange Failed]:', tokenData);
+      const errMsg = tokenData.error_description || tokenData.error || 'Token exchange failed';
+      return res.redirect('/?auth=failed&msg=' + encodeURIComponent(errMsg) + '#blogger-news');
+    }
+  } catch (e) {
+    return res.redirect('/?auth=failed&msg=' + encodeURIComponent(e.message) + '#blogger-news');
+  }
+});
+
+// 3. 수동 인증 코드 교환 엔드포인트
+app.post('/api/auth/google/code', async (req, res) => {
+  const code = (req.body?.code || '').trim();
+  const redirectUri = req.body?.redirect_uri || getGoogleRedirectUri(req);
+
+  if (!code) {
+    return res.status(400).json({ success: false, error: '인증 코드가 필요합니다.' });
+  }
+
+  const clientId = getEnvVal('GOOGLE_CLIENT_ID');
+  const clientSecret = getEnvVal('GOOGLE_CLIENT_SECRET');
+
+  try {
+    const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      })
+    });
+    const tokenData = await tokenResp.json();
+    if (tokenData.access_token) {
+      const now = Date.now();
+      const tokenObj = {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expiry_date: now + ((tokenData.expires_in || 3600) * 1000),
+        scope: tokenData.scope
+      };
+      saveGoogleTokens(tokenObj);
+      cachedBloggerPosts = null;
+      res.json({ success: true, refresh_token: tokenData.refresh_token, message: 'Google OAuth 토큰이 성공적으로 등록되었습니다.' });
+    } else {
+      res.status(400).json({ success: false, error: tokenData.error_description || tokenData.error });
+    }
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// 4. Google OAuth 상태 확인
+app.get('/api/auth/google/status', (req, res) => {
+  let tokens = getGoogleTokens();
+  const clientRefreshToken = req.headers['x-google-refresh-token'] || req.query.refresh_token;
+  if (!tokens?.refresh_token && clientRefreshToken) {
+    tokens = saveGoogleTokens({ refresh_token: clientRefreshToken });
+  }
+  const connected = !!(tokens && (tokens.access_token || tokens.refresh_token));
+  res.json({
+    connected,
+    hasRefreshToken: !!(tokens && tokens.refresh_token),
+    updated_at: tokens?.updated_at || null
+  });
+});
+
+// 5. Blogger API v3 게시글 목록 조회
+app.get('/api/blogger-posts', async (req, res) => {
+  const isRefresh = req.query.refresh === 'true' || req.query.refresh === '1';
+  const clientRefreshToken = req.headers['x-google-refresh-token'] || req.query.refresh_token || null;
+  const now = Date.now();
+
+  if (!isRefresh && cachedBloggerPosts && (now - bloggerPostsCacheTime < 10 * 60 * 1000)) {
+    return res.json({ ...cachedBloggerPosts, cached: true });
+  }
+
+  const blogId = getEnvVal('BLOGGER_BLOG_ID', '5167925743659719913');
+  const accessToken = await getValidGoogleAccessToken(clientRefreshToken);
+
+  if (!accessToken) {
+    return res.json({
+      success: false,
+      connected: false,
+      message: 'Google OAuth 2.0 계정 연동이 필요합니다.',
+      items: []
+    });
+  }
+
+  try {
+    const bloggerUrl = `https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts?maxResults=25&fetchBodies=true&fetchImages=true`;
+    const bRes = await fetch(bloggerUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!bRes.ok) {
+      const errBody = await bRes.json().catch(() => ({}));
+      return res.status(bRes.status).json({
+        success: false,
+        connected: true,
+        error: errBody.error?.message || `Blogger API Error (${bRes.status})`,
+        items: []
+      });
+    }
+
+    const bData = await bRes.json();
+    const rawItems = bData.items || [];
+
+    const items = rawItems.map(post => {
+      let cleanContent = (post.content || '')
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      let formattedDate = post.published || '';
+      try {
+        const d = new Date(post.published);
+        if (!isNaN(d.getTime())) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const h = String(d.getHours()).padStart(2, '0');
+          const min = String(d.getMinutes()).padStart(2, '0');
+          formattedDate = `${y}.${m}.${day} ${h}:${min}`;
+        }
+      } catch (e) {}
+
+      return {
+        id: post.id,
+        title: post.title,
+        url: post.url,
+        published: post.published,
+        formattedDate,
+        updated: post.updated,
+        labels: post.labels || ['뉴스요약'],
+        author: post.author?.displayName || '방태',
+        description: cleanContent.length > 280 ? cleanContent.slice(0, 280) + '...' : cleanContent,
+        images: (post.images || []).map(img => img.url)
+      };
+    });
+
+    const result = {
+      success: true,
+      connected: true,
+      blogId,
+      blogTitle: '방태 데일리 뉴스요약',
+      blogUrl: 'https://bangtae.blogspot.com/',
+      lastUpdated: new Date().toISOString(),
+      lastUpdatedKst: new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }).format(new Date()),
+      itemsCount: items.length,
+      items,
+      cached: false
+    };
+
+    if (items.length > 0) {
+      cachedBloggerPosts = result;
+      bloggerPostsCacheTime = now;
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('[Blogger API Error]:', err);
+    res.status(500).json({ success: false, error: err.message, items: [] });
   }
 });
 

@@ -1,5 +1,14 @@
 [
     {
+        "id":  "sap_news_0603daf0",
+        "title":  "SAP PO 런타임 및 크기 조정 분석기 구축 - SAP Cloud Connector+Integration Suite+HANA Cloud+IE MCP",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/build-a-sap-po-runtime-amp-sizing-analyzer-sap-cloud-connector-integration/ba-p/14484156",
+        "category":  "Migration",
+        "summary":  "SAP PO 런타임 및 크기 조정 분석기 구축 SAP Cloud Connector + Integration Suite + HANA Cloud + Integration Cell MCP 온프레미스 SAP 프로세스 오케스트레이션 통계에서 재사용 가능한 MCP 템플릿까지...",
+        "published_at":  "2026-09-13T01:19:12Z"
+    },
+    {
         "id":  "sap_news_8408c2f7",
         "title":  "SAP Extended Warehouse Management FAQ 시리즈: 퍼블릭 클라우드를 위한 배송 인터페이스 확장성",
         "source":  "SAP Community",
@@ -104,7 +113,7 @@
         "source":  "SAP Community (Q\u0026A)",
         "source_url":  "https://community.sap.com/t5/technology-q-a/mcp-server-authentication-policy-fails-with-quot-invalid-authentication/qaq-p/14482218",
         "category":  "Migration",
-        "summary":  "AI 에이전트 소비를 위한 MCP 도구로 작동하는 iFlow를 노출하기 위해 SAP Integration Suite 평가판(Integration Cell)에 MCP 서버를 구축하고 있습니다. 설정: - ​​iFlow 배포 및 작동(Po를 통해 확인됨...",
+        "summary":  "AI 에이전트 소비를 위한 MCP 도구로 작동하는 iFlow를 노출하기 위해 SAP Integration Suite 평가판(Integration Cell)에 MCP 서버를 구축하고 있습니다. 설정: - ​​iFlow 배포 및 작동(Po를 통해 확인...",
         "published_at":  "2026-09-09T11:49:27Z"
     },
     {
@@ -118,7 +127,7 @@
     },
     {
         "id":  "sap_news_bb1c094f",
-        "title":  "기본 인증에서 보안 인증으로 Oauth 2.0 자격 증명 기반 인증을 사용하도록 전환합니다.",
+        "title":  "Oauth 2.0 자격 증명 기반 인증을 기본 인증에서 보안 인증으로 전환합니다.",
         "source":  "SAP Community (Q\u0026A)",
         "source_url":  "https://community.sap.com/t5/technology-q-a/switch-to-use-oauth-2-0-credentials-based-authentication-from-basic/qaq-p/14482787",
         "category":  "Q\u0026A / Troubleshooting",
@@ -212,7 +221,7 @@
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/enterprise-resource-planning-blog-posts-by-sap/sap-s-4hana-cloud-public-edition-handling-missing-public-apis-as-a-partner/ba-p/14480965",
         "category":  "Migration",
-        "summary":  "SAP S/4HANA Cloud Public Edition: 파트너로서 누락된 공용 API 처리 - 실용 가이드 소개 SAP S/4HANA Cloud Public Edition 구현 중에 파트너는 때때로...",
+        "summary":  "SAP S/4HANA Cloud Public Edition: 파트너로서 누락된 공용 API 처리 - 실용 가이드 소개 SAP S/4HANA Cloud Public Edition을 구현하는 동안 파트너는 때때로...",
         "published_at":  "2026-09-07T14:17:00Z"
     },
     {
@@ -356,7 +365,7 @@
         "source":  "SAP Community (Q\u0026A)",
         "source_url":  "https://community.sap.com/t5/technology-q-a/integration-cell-runtime-in-sap-integration-suite/qaq-p/14453568",
         "category":  "Q\u0026A / Troubleshooting",
-        "summary":  "Integration Cell Runtime과 관련하여 다음 질문에 대한 도움을 주실 수 있습니까? Integration Cell Runtime/구성을 일부 표준 라이센스로 사용할 수 있습니까?",
+        "summary":  "Integration Cell Runtime과 관련하여 다음 질문에 대해 도움을 주실 수 있습니까? Integration Cell Runtime/구성을 일부 표준 라이센스로 사용할 수 있습니까?",
         "published_at":  "2026-07-31T19:05:05Z"
     },
     {
@@ -577,11 +586,11 @@
     },
     {
         "id":  "sap_news_2ebe1e03",
-        "title":  "하위 계정 간 이벤트 중심 아키텍처 모범 사례(클라우드 통합에 대한 이벤트 메시)",
+        "title":  "하위 계정 간 이벤트 기반 아키텍처 모범 사례(클라우드 통합에 대한 이벤트 메시)",
         "source":  "SAP Community (Q\u0026A)",
         "source_url":  "https://community.sap.com/t5/technology-q-a/best-practices-for-cross-subaccount-event-driven-architecture-event-mesh-to/qaq-p/14466650",
         "category":  "Migration",
-        "summary":  "전문가 여러분, 안녕하세요. 저는 SAP BTP에서 이벤트 기반 아키텍처 환경을 설계하고 있으며 시나리오에 대한 모범 사례, 잠재적 위험 또는 대체 접근 방식에 대한 피드백을 보내주시면 감사하겠습니다. ...",
+        "summary":  "전문가 여러분, 안녕하세요. 저는 SAP BTP에서 이벤트 중심 아키텍처 환경을 설계하고 있으며 시나리오에 대한 모범 사례, 잠재적 위험 또는 대체 접근 방식에 대한 피드백을 보내주시면 감사하겠습니다. ...",
         "published_at":  "2026-08-18T17:30:40Z"
     },
     {
@@ -599,7 +608,7 @@
         "source":  "SAP Community (Q\u0026A)",
         "source_url":  "https://community.sap.com/t5/technology-q-a/need-configuration-and-implementation-suggestion/qaq-p/14468451",
         "category":  "Migration",
-        "summary":  "안녕하세요 팀, 현재 통합 제품군을 사용하여 알림을 받기 위한 사용자 정의 빌드 통합을 구축했지만 API 관리 + ANS 또는 ...을 사용하는 표준 SAP 접근 방식을 더 탐구하고 싶습니다.",
+        "summary":  "팀 안녕하세요. 현재 통합 제품군을 사용하여 알림을 받기 위한 사용자 지정 빌드 통합을 구축했지만 API 관리 + ANS 또는 ...을 사용하는 표준 SAP 접근 방식을 더 탐구하고 싶습니다.",
         "published_at":  "2026-08-20T10:50:52Z"
     },
     {
@@ -617,7 +626,7 @@
         "source":  "SAP Community (Q\u0026A)",
         "source_url":  "https://community.sap.com/t5/technology-q-a/issues-with-ms-sharepoint-adapter/qaq-p/14471048",
         "category":  "Migration",
-        "summary":  "안녕하세요. CPI 메시지 모니터링에서 Sharepoint 어댑터와 관련된 많은 문제에 직면해 있습니다. 문제: 파일 누락으로 인해 모든 대체 메시지가 실패합니다. 오류: DriveItem 체크인 실패...",
+        "summary":  "안녕하세요, CPI 메시지 모니터링에서 Sharepoint 어댑터와 관련된 많은 문제에 직면해 있습니다. 문제: 파일 누락으로 인해 모든 대체 메시지가 실패합니다. 오류: DriveItem 체크인 실패...",
         "published_at":  "2026-08-24T15:23:51Z"
     },
     {
@@ -631,7 +640,7 @@
     },
     {
         "id":  "sap_news_3ab5b207",
-        "title":  "오류 220012(교차 하위 계정 설정)로 인해 클라우드 통합에 대한 이벤트 메시 AMQP 연결 실패",
+        "title":  "오류 220012(교차 하위 계정 설정)로 인해 이벤트 메시와 클라우드 통합 AMQP 연결이 실패함",
         "source":  "SAP Community (Q\u0026A)",
         "source_url":  "https://community.sap.com/t5/technology-q-a/event-mesh-to-cloud-integration-amqp-connection-failing-with-error-220012/qaq-p/14473242",
         "category":  "Migration",
@@ -775,7 +784,7 @@
     },
     {
         "id":  "sap_news_cae9a287",
-        "title":  "SAP BTP에서 전자 선하 증권 설계 - 청사진(3부 중 2부)",
+        "title":  "SAP BTP에서 전자 선하증권 설계 - 청사진(3부 중 2부)",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/architecting-electronic-bill-of-lading-on-sap-btp-blueprint-part-2-of-3/ba-p/14352463",
         "category":  "Migration",
@@ -838,7 +847,7 @@
     },
     {
         "id":  "sap_news_3efe0d02",
-        "title":  "ATUL 아키텍처 #2 — 이벤트 중심 유틸리티: SAP BTP에서 실시간 흐름 설계",
+        "title":  "ATUL 아키텍처 #2 - 이벤트 중심 유틸리티: SAP BTP에서 실시간 흐름 설계",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/sap-for-utilities-blog-posts/atul-architecture-2-event-driven-utilities-designing-real-time-flows-on-sap/ba-p/14392712",
         "category":  "Best Practice",
@@ -883,11 +892,11 @@
     },
     {
         "id":  "sap_news_3547c910",
-        "title":  "ATUL 아키텍처 #4 — 그리드 운영을 위한 SAP BTP의 AI",
+        "title":  "ATUL 아키텍처 #4 - 그리드 운영을 위한 SAP BTP의 AI",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/sap-for-utilities-blog-posts/atul-architecture-4-ai-on-sap-btp-for-grid-operations/ba-p/14419316",
         "category":  "Best Practice",
-        "summary":  "ATUL 아키텍처 #4 — 그리드 운영을 위한 SAP BTP의 AI SAP 프로세스 내에서 AI가 실행 가능해지는 방법 1. 소개 유틸리티는 막대한 양의 작업을 생성합니다...",
+        "summary":  "ATUL 아키텍처 #4 — 그리드 운영을 위한 SAP BTP의 AI SAP 프로세스 내에서 AI가 실행 가능해지는 방법 1. 소개 유틸리티는 엄청난 양의 작업을 생성합니다...",
         "published_at":  "2026-06-17T09:21:39Z"
     },
     {
@@ -1067,7 +1076,7 @@
         "source":  "SAP Community (Migration)",
         "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/partnering-for-progress-accelerate-your-move-to-sap-integration-suite/ba-p/14271374",
         "category":  "Migration",
-        "summary":  "SAP의 Migration Factory 프로그램을 처음 시작했을 때 저는 많은 조직이 직면하고 있는 변화가 얼마나 큰지 금방 깨달았습니다. 수년간 SAP 프로세스 통합(PI)과 SAP 프로세스...",
+        "summary":  "SAP의 Migration Factory 프로그램을 처음 시작했을 때 저는 많은 조직이 얼마나 큰 변화에 직면하고 있는지 금방 깨달았습니다. 수년간 SAP 프로세스 통합(PI)과 SAP 프로세스...",
         "published_at":  "2025-11-17T20:08:53Z"
     },
     {
@@ -1355,7 +1364,7 @@
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/integrating-groq-ai-with-sap-cloud-integration-cpi-calling-an-ai-api-and/ba-p/14463798",
         "category":  "Migration",
-        "summary":  "소개 Generative AI는 현대 통합 아키텍처의 중요한 부분이 되고 있습니다. SAP Integration Suite – CPI(클라우드 통합)는 엔터프라이즈 애플리케이션 간의 오케스트레이션 레이어 역할을 할 수 있습니다.",
+        "summary":  "소개 Generative AI는 현대 통합 아키텍처의 중요한 부분이 되고 있습니다. SAP Integration Suite – CPI(클라우드 통합)는 엔터프라이즈 앱 간의 오케스트레이션 레이어 역할을 할 수 있습니다.",
         "published_at":  "2026-08-20T09:53:20Z"
     },
     {
@@ -1495,20 +1504,20 @@
     },
     {
         "id":  "sap_news_2e262658",
-        "title":  "SAP MCP 게이트웨이를 통한 타사 사용자 지정 에이전트 보안 - OWASP API 보안 상위 10개 적용",
+        "title":  "SAP MCP 게이트웨이로 타사 사용자 지정 에이전트 보안 – OWASP API 보안 상위 10개 적용",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/securing-3rd-party-custom-agents-with-sap-mcp-gateway-applying-the-owasp/ba-p/14472033",
         "category":  "Release",
-        "summary":  "AI 에이전트는 점점 더 질문에 답하는 것에서 조치를 취하는 것으로 옮겨가고 있습니다. 에이전트는 비즈니스 데이터를 검색하고, 주문을 생성하고, 비즈니스 객체를 업데이트하고, 통합 흐름을 트리거하거나...",
+        "summary":  "AI 에이전트는 점점 더 질문에 답하는 것에서 행동을 취하는 것으로 옮겨가고 있습니다. 에이전트는 비즈니스 데이터를 검색하고, 주문을 생성하고, 비즈니스 객체를 업데이트하고, 통합 흐름을 트리거하거나...",
         "published_at":  "2026-08-25T16:18:24Z"
     },
     {
         "id":  "sap_news_9cb164a7",
-        "title":  "두 번째 문서 AI 워크숍에서 거버넌스에 대해 가르쳐준 내용",
+        "title":  "두 번째 문서 AI 워크샵을 통해 거버넌스에 대해 배운 내용",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/enterprise-resource-planning-blog-posts-by-members/what-a-second-document-ai-workshop-taught-me-about-governance/ba-p/14472036",
         "category":  "Blog",
-        "summary":  "며칠 전 우리는 SAP와 함께 주최한 SAP Document AI 워크숍 2차 요약을 발표했습니다. 에너지, 제조, 건설, 식품, 가전 분야에서 약 50명이 합류했습니다.",
+        "summary":  "며칠 전 우리는 SAP와 함께 주최한 SAP Document AI 워크숍의 두 번째 에디션 요약을 발표했습니다. 에너지, 제조, 건설, 식품, 가전 분야에서 약 50명이 합류했습니다.",
         "published_at":  "2026-08-25T16:32:20Z"
     },
     {
@@ -1531,7 +1540,7 @@
     },
     {
         "id":  "sap_news_e73d41d1",
-        "title":  "CPI 메시지 매핑 노드 함수(formatByExample)의 대기열 불일치 오류 문제 해결",
+        "title":  "CPI 메시지 매핑 노드 함수의 대기열 불일치 오류 문제 해결(formatByExample)",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/troubleshooting-queue-mismatch-error-in-cpi-message-mapping-nodefunction/ba-p/14472443",
         "category":  "Migration",
@@ -1594,7 +1603,7 @@
     },
     {
         "id":  "sap_news_a751e64d",
-        "title":  "관리되는 SAP 클라우드 통합 제공 흐름 설정 — 이제 오픈 소스",
+        "title":  "관리되는 SAP 클라우드 통합 제공 흐름 설정 - 이제 오픈 소스",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/integration-blog-posts/set-up-a-governed-sap-cloud-integration-delivery-flow-now-open-source/ba-p/14478314",
         "category":  "Release",

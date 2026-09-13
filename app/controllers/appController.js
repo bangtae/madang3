@@ -10,8 +10,12 @@ window.AppController = {
     const initialTarget = (window.location.hash || '').replace('#', '').trim() 
       || sessionStorage.getItem('madang_current_view');
 
-    if (initialTarget && initialTarget !== 'dashboard') {
-      this.navigateToView(initialTarget, false);
+    try {
+      if (initialTarget && initialTarget !== 'dashboard') {
+        this.navigateToView(initialTarget, false);
+      }
+    } catch (err) {
+      console.error('[AppController] Initial route error:', err);
     }
     document.documentElement.removeAttribute('data-pre-view');
 
@@ -1270,6 +1274,8 @@ window.AppController = {
       'sap-suite': 'work',
       'stock-temp': 'invest',
       'stock-debate': 'invest',
+      'stock-blog': 'invest',
+      'blogger-news': 'invest',
       'monster-wave': 'life',
       'monster-defense': 'life',
       'threads-agent': 'admin',
@@ -1406,6 +1412,10 @@ window.AppController = {
       if (viewStockTemp) viewStockTemp.classList.add('hidden');
       const viewStockDebate = document.getElementById('view-stock-debate');
       if (viewStockDebate) viewStockDebate.classList.add('hidden');
+      const viewStockBlog = document.getElementById('view-stock-blog');
+      if (viewStockBlog) viewStockBlog.classList.add('hidden');
+      const viewBloggerNews = document.getElementById('view-blogger-news');
+      if (viewBloggerNews) viewBloggerNews.classList.add('hidden');
       if (viewThreadsAgent) viewThreadsAgent.classList.add('hidden');
       if (viewMonsterDefense) viewMonsterDefense.classList.add('hidden');
       if (viewMonsterWave) viewMonsterWave.classList.add('hidden');
@@ -1444,6 +1454,20 @@ window.AppController = {
         window.StockDebateModel.loadDebates().then(() => {
           window.StockDebateView.render();
         });
+      }
+    } else if (sideView === 'stock-blog') {
+      const viewStockBlog = document.getElementById('view-stock-blog');
+      if (viewStockBlog) viewStockBlog.classList.remove('hidden');
+      if (window.StockBlogView) {
+        window.StockBlogView.init();
+        window.StockBlogView.loadPosts();
+      }
+    } else if (sideView === 'blogger-news') {
+      const viewBloggerNews = document.getElementById('view-blogger-news');
+      if (viewBloggerNews) viewBloggerNews.classList.remove('hidden');
+      if (window.BloggerNewsView) {
+        window.BloggerNewsView.init();
+        window.BloggerNewsView.loadPosts();
       }
     } else if (sideView === 'dashboard') {
       if (viewDashboard) viewDashboard.classList.remove('hidden');
@@ -1569,6 +1593,10 @@ window.AppController = {
       } catch (e) {}
     }
     this.menuConfig = [
+      { id: "stock-temp", name: "K증시 온도", icon: "☀️", category: "invest", statCardId: "card-stat-stock-temp", guest: true, admin: true, description: "일별 K증시 호재 vs 악재 감정 지수 및 분위기 실시간 요약" },
+      { id: "stock-debate", name: "AI 끝장 토론실", icon: "🔥", category: "invest", statCardId: "card-stat-stock-debate", guest: true, admin: true, description: "서브에이전트 5인의 실시간 격론 및 상호 반박 끝장 토론 피드" },
+      { id: "stock-blog", name: "배고픈투자씨 데일리", icon: "📰", category: "invest", statCardId: "card-stat-stock-blog", guest: true, admin: true, description: "배고픈투자씨 네이버 블로그 최신 증시분위기 리포트 및 게시글 실시간 연동" },
+      { id: "blogger-news", name: "방태 데일리 뉴스", icon: "🌐", category: "invest", statCardId: "card-stat-blogger-news", guest: true, admin: true, description: "구글 Blogger API v3 기반 bangtae.blogspot.com 데일리 뉴스요약 연동" },
       { id: "api-info", name: "API 정보", icon: "📚", category: "main", statCardId: "card-stat-apis", guest: true, admin: true, description: "API 정보 목록 및 세부 개발 명세 조회" },
       { id: "ai-models", name: "AI 서비스 정보", icon: "🤖", category: "ai", statCardId: "card-stat-ai-services", guest: true, admin: true, description: "최신 AI 모델 및 서비스 정보 목록 조회" },
       { id: "ai-terms", name: "AI 용어 & 마인드맵", icon: "🧠", category: "ai", statCardId: "card-stat-ai-terms", guest: true, admin: true, description: "AI 관련 기술 개념 및 마인드맵 학습" },
@@ -1904,9 +1932,10 @@ window.AppController = {
     const filtered = models.filter(item => {
       const matchCategory = (categoryVal === 'ALL' || item.category === categoryVal);
       const tagsStr = Array.isArray(item.tags) ? item.tags.join(' ') : (item.tags || '');
+      const similarStr = Array.isArray(item.similarModels) ? item.similarModels.join(' ') : (item.similarModels || '');
       const searchTarget = [
         item.title, item.developer, item.summary, item.country,
-        item.similarModels, item.garageIdeas, item.quickStart,
+        similarStr, item.garageIdeas, item.quickStart,
         item.pricing, item.serviceUrl, tagsStr
       ].filter(Boolean).join(' ').toLowerCase();
 
@@ -1948,7 +1977,7 @@ window.AppController = {
           document.getElementById('input-ai-quickstart').value = targetModel.quickStart || '';
           document.getElementById('input-ai-pricing').value = targetModel.pricing || '';
           if (document.getElementById('input-ai-country')) document.getElementById('input-ai-country').value = targetModel.country || '🇺🇸 미국';
-          if (document.getElementById('input-ai-similar')) document.getElementById('input-ai-similar').value = targetModel.similarModels || '';
+          if (document.getElementById('input-ai-similar')) document.getElementById('input-ai-similar').value = Array.isArray(targetModel.similarModels) ? targetModel.similarModels.join(', ') : (targetModel.similarModels || '');
           document.getElementById('input-ai-docs-url').value = targetModel.docsUrl || targetModel.serviceUrl || '';
 
           const formCard = document.querySelector('#view-ai-models .form-card');

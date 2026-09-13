@@ -550,7 +550,7 @@ window.UiView = {
 
           ${model.similarModels ? `
           <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px; background: rgba(30, 41, 59, 0.5); padding: 6px 10px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.05);">
-            <span style="color:#a7f3d0; font-weight:600;">🔄 유사/경쟁 AI 모델:</span> ${this.escapeHtml(model.similarModels)}
+            <span style="color:#a7f3d0; font-weight:600;">🔄 유사/경쟁 AI 모델:</span> ${this.escapeHtml(Array.isArray(model.similarModels) ? model.similarModels.join(', ') : model.similarModels)}
           </div>
           ` : ''}
 
@@ -1034,7 +1034,11 @@ window.UiView = {
   },
 
   escapeHtml(str) {
-    if (!str) return '';
+    if (!str && str !== 0) return '';
+    if (typeof str !== 'string') {
+      if (Array.isArray(str)) str = str.join(', ');
+      else str = String(str);
+    }
     return str.replace(/[&<>"']/g, match => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     })[match]);
