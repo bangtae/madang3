@@ -30,6 +30,8 @@ $sapNewsDataFile = Join-Path $dataDir "sapNews.json"
 $sapNewsJsFile = Join-Path $dataDir "initialSapNews.js"
 $sapKnowledgeDataFile = Join-Path $dataDir "sapKnowledge.json"
 $sapKnowledgeJsFile = Join-Path $dataDir "initialSapKnowledge.js"
+$githubTrendingDataFile = Join-Path $dataDir "githubTrending.json"
+$githubTrendingJsFile = Join-Path $dataDir "initialGithubTrending.js"
 
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
@@ -366,6 +368,7 @@ $telegramConfigFile = Join-Path $dataDir "telegramConfig.json"
 $script:telegramAlertCooldown = @{}
 $script:telegramLastUpdateId = 0
 $telegramPollSw = [System.Diagnostics.Stopwatch]::StartNew()
+$agentHeartbeatSw = [System.Diagnostics.Stopwatch]::StartNew()
 
 function Get-TelegramConfig {
     $botToken = ""
@@ -787,6 +790,15 @@ while ($true) {
                 $telegramPollSw.Restart()
                 Check-TelegramCallbackUpdates
             }
+            if ($agentHeartbeatSw.ElapsedMilliseconds -gt 30000) {
+                $agentHeartbeatSw.Restart()
+                $syncScript = "C:\Users\bangt\Downloads\madang6\agent_heartbeat_sync.py"
+                if (Test-Path $syncScript) {
+                    $pySyncExe = "C:\Users\bangt\Downloads\madang6\newsfilter_threads_agent\.venv\Scripts\python.exe"
+                    if (-not (Test-Path $pySyncExe)) { $pySyncExe = "python" }
+                    Start-Process -FilePath $pySyncExe -ArgumentList "`"$syncScript`" --once" -WorkingDirectory "C:\Users\bangt\Downloads\madang6" -WindowStyle Hidden
+                }
+            }
             Start-Sleep -Milliseconds 20
             continue
         }
@@ -1032,6 +1044,118 @@ while ($true) {
                     $postData = $headerBodySplit[1]
                     if (-not [string]::IsNullOrWhiteSpace($postData)) {
                         [System.IO.File]::WriteAllText($stockTempDataFile, $postData, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/sap-news") {
+            if ($method -eq "GET") {
+                if (Test-Path $sapNewsDataFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($sapNewsDataFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                }
+                elseif (Test-Path $sapNewsJsFile) {
+                    $rawText = [System.IO.File]::ReadAllText($sapNewsJsFile, [System.Text.Encoding]::UTF8)
+                    $cleanJson = $rawText -replace '^window\.PORTAL_DATA_SAP_NEWS\s*=\s*', '' -replace ';\s*$', ''
+                    Send-JsonResponse $stream $corsHeaders $cleanJson
+                }
+                else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($sapNewsDataFile, $postData, $Utf8NoBom)
+                        $jsContent = "// data/initialSapNews.js - Auto-updated by SAP Agent`nwindow.PORTAL_DATA_SAP_NEWS = $postData;`n"
+                        [System.IO.File]::WriteAllText($sapNewsJsFile, $jsContent, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/sap-knowledge") {
+            if ($method -eq "GET") {
+                if (Test-Path $sapKnowledgeDataFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($sapKnowledgeDataFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                }
+                elseif (Test-Path $sapKnowledgeJsFile) {
+                    $rawText = [System.IO.File]::ReadAllText($sapKnowledgeJsFile, [System.Text.Encoding]::UTF8)
+                    $cleanJson = $rawText -replace '^window\.PORTAL_DATA_SAP_KNOWLEDGE\s*=\s*', '' -replace ';\s*$', ''
+                    Send-JsonResponse $stream $corsHeaders $cleanJson
+                }
+                else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($sapKnowledgeDataFile, $postData, $Utf8NoBom)
+                        $jsContent = "// data/initialSapKnowledge.js - Auto-updated by SAP Agent`nwindow.PORTAL_DATA_SAP_KNOWLEDGE = $postData;`n"
+                        [System.IO.File]::WriteAllText($sapKnowledgeJsFile, $jsContent, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/github-trending") {
+            if ($method -eq "GET") {
+                if (Test-Path $githubTrendingDataFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($githubTrendingDataFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                }
+                elseif (Test-Path $githubTrendingJsFile) {
+                    $rawText = [System.IO.File]::ReadAllText($githubTrendingJsFile, [System.Text.Encoding]::UTF8)
+                    $cleanJson = $rawText -replace '^window\.PORTAL_DATA_GITHUB_TRENDING\s*=\s*', '' -replace ';\s*$', ''
+                    Send-JsonResponse $stream $corsHeaders $cleanJson
+                }
+                else {
+                    Send-JsonResponse $stream $corsHeaders '{"repositories":[],"proposals":[]}'
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($githubTrendingDataFile, $postData, $Utf8NoBom)
+                        $jsContent = "// data/initialGithubTrending.js - Auto-updated`nwindow.PORTAL_DATA_GITHUB_TRENDING = $postData;`n"
+                        [System.IO.File]::WriteAllText($githubTrendingJsFile, $jsContent, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/sap-terms") {
+            if ($method -eq "GET") {
+                if (Test-Path $sapTermDataFile) {
+                    $jsonBytes = [System.IO.File]::ReadAllBytes($sapTermDataFile)
+                    Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
+                }
+                elseif (Test-Path $sapTermJsFile) {
+                    $rawText = [System.IO.File]::ReadAllText($sapTermJsFile, [System.Text.Encoding]::UTF8)
+                    $cleanJson = $rawText -replace '^window\.PORTAL_DATA_SAP_TERMS\s*=\s*', '' -replace ';\s*$', ''
+                    Send-JsonResponse $stream $corsHeaders $cleanJson
+                }
+                else {
+                    Send-JsonResponse $stream $corsHeaders "[]"
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($sapTermDataFile, $postData, $Utf8NoBom)
+                        $jsContent = "window.PORTAL_DATA_SAP_TERMS = $postData;`n"
+                        [System.IO.File]::WriteAllText($sapTermJsFile, $jsContent, $Utf8NoBom)
                     }
                 }
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
@@ -2482,30 +2606,37 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
             if (-not (Test-Path $pyExe)) { $pyExe = "python" }
 
             $agentDefs = @(
-                @{ id = "threads"; name = "Threads AI 뉴스 에이전트"; category = "main"; icon = "📰"; cwd = (Join-Path $madang6Dir "newsfilter_threads_agent"); script = "main.py"; args = @(); pattern = "newsfilter_threads_agent" },
-                @{ id = "sap"; name = "SAP Integration Suite 에이전트"; category = "main"; icon = "⚙️"; cwd = (Join-Path $madang6Dir "sap-integration-agent"); script = "main.py"; args = @(); pattern = "sap-integration-agent" },
-                @{ id = "supervisor"; name = "AI 통합 감독관 (Supervisor)"; category = "main"; icon = "🛡️"; cwd = (Join-Path $madang6Dir "agent_supervisor"); script = "main.py"; args = @(); pattern = "agent_supervisor" },
-                @{ id = "lead_orchestrator"; name = "메인 주식 총괄 에이전트 (Lead)"; category = "stock_lead"; icon = "📈"; cwd = (Join-Path $madang6Dir "메인주식총괄에이전트"); script = "main.py"; args = @("--interval", "60"); pattern = "메인주식총괄에이전트" },
+                @{ id = "threads"; name = "Threads AI 뉴스 에이전트"; category = "threads"; icon = "🤖"; cwd = (Join-Path $madang6Dir "newsfilter_threads_agent"); script = "main.py"; args = @(); pattern = "(newsfilter_threads_agent[\\/]+main\.py|main\.py)"; exclude = "agent_supervisor|sap-integration-agent|메인주식|서브주식|ai_service_updater" },
+                @{ id = "sap"; name = "SAP Integration Suite 에이전트"; category = "sap"; icon = "⚡"; cwd = (Join-Path $madang6Dir "sap-integration-agent"); script = "main.py"; args = @(); pattern = "sap-integration-agent" },
+                @{ id = "supervisor"; name = "AI 통합 감독관 (Supervisor)"; category = "core"; icon = "🛡️"; cwd = (Join-Path $madang6Dir "agent_supervisor"); script = "main.py"; args = @(); pattern = "agent_supervisor" },
+                @{ id = "lead_orchestrator"; name = "메인 주식 총괄 에이전트 (Lead)"; category = "stock_lead"; icon = "🎯"; cwd = (Join-Path $madang6Dir "메인주식총괄에이전트"); script = "main.py"; args = @("--interval", "60"); pattern = "메인주식총괄에이전트" },
                 @{ id = "sub_danka"; name = "단가 분석 에이전트"; category = "sub_council"; icon = "⚖️"; cwd = (Join-Path $madang6Dir "서브주식에이전트_단가"); script = "main.py"; args = @("--stock", "005930"); pattern = "서브주식에이전트_단가" },
                 @{ id = "sub_growth"; name = "성장론자 에이전트"; category = "sub_council"; icon = "🚀"; cwd = (Join-Path $madang6Dir "서브주식에이전트_성장론자"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_성장론자" },
                 @{ id = "sub_cautious"; name = "신중론자 에이전트"; category = "sub_council"; icon = "🛡️"; cwd = (Join-Path $madang6Dir "서브주식에이전트_신중론자"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_신중론자" },
                 @{ id = "sub_technical"; name = "기술적분석가 에이전트"; category = "sub_council"; icon = "📊"; cwd = (Join-Path $madang6Dir "서브주식에이전트_기술적분석가"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_기술적분석가" },
                 @{ id = "sub_jurini"; name = "주린이 에이전트"; category = "sub_council"; icon = "🌱"; cwd = (Join-Path $madang6Dir "서브주식에이전트_주린이"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_주린이" },
-                @{ id = "ai_service_updater"; name = "AI 서비스 정보 업데이트 에이전트"; category = "core"; icon = "🤖"; cwd = $madang6Dir; script = "ai_service_updater.py"; args = @("--daemon"); pattern = "ai_service_updater" }
+                @{ id = "ai_service_updater"; name = "AI 서비스 정보 업데이트 에이전트"; category = "core"; icon = "🤖"; cwd = $madang6Dir; script = "ai_service_updater.py"; args = @("--daemon"); pattern = "ai_service_updater\.py" }
             )
 
             $procs = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "python*" } | Select-Object ProcessId, CommandLine)
 
             if ($urlPath -eq "/api/system/agents" -and $method -eq "GET") {
                 $agentList = @()
+                $usedPids = [System.Collections.Generic.HashSet[int]]::new()
                 foreach ($def in $agentDefs) {
-                    $matchProc = $procs | Where-Object {
-                        $cmd = $_.CommandLine
-                        if (-not $cmd) { return $false }
-                        if ($cmd -like "*$($def.pattern)*") { return $true }
-                        if ($def.cwd -and ($cmd -like "*$($def.cwd)*")) { return $true }
-                        return $false
-                    } | Select-Object -First 1
+                    $matchProc = $null
+                    foreach ($p in $procs) {
+                        $procId = [int]$p.ProcessId
+                        if ($usedPids.Contains($procId)) { continue }
+                        $cmd = $p.CommandLine
+                        if (-not $cmd) { continue }
+                        if ($cmd -match $def.pattern) {
+                            if ($def.exclude -and ($cmd -match $def.exclude)) { continue }
+                            $matchProc = $p
+                            $null = $usedPids.Add($procId)
+                            break
+                        }
+                    }
                     $agentList += [PSCustomObject]@{
                         id         = $def.id
                         name       = $def.name
@@ -2525,6 +2656,11 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                 $jsonOut = $resObj | ConvertTo-Json -Depth 4
                 Send-JsonResponse $stream $corsHeaders $jsonOut
             }
+            elseif ($urlPath -eq "/api/system/agents/ai_service_updater/trigger" -and $method -eq "POST") {
+                $triggerScript = Join-Path $madang6Dir "ai_service_updater.py"
+                Start-Process -FilePath $pyExe -ArgumentList "`"$triggerScript`" --run-once" -WorkingDirectory $madang6Dir -WindowStyle Hidden
+                Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"AI 서비스 정보 업데이트 1회 팩트체크 및 갱신 작업을 백그라운드에서 기동했습니다."}'
+            }
             elseif ($urlPath -match "^/api/system/agents/([^/]+)/(start|stop)$" -and $method -eq "POST") {
                 $targetId = $Matches[1]
                 $targetAction = $Matches[2]
@@ -2533,7 +2669,7 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                     $subDefs = $agentDefs | Where-Object { $_.category -eq "sub_council" }
                     $actCount = 0
                     foreach ($sub in $subDefs) {
-                        $match = $procs | Where-Object { $_.CommandLine -like "*$($sub.pattern)*" } | Select-Object -First 1
+                        $match = $procs | Where-Object { $_.CommandLine -match $sub.pattern } | Select-Object -First 1
                         if ($targetAction -eq "start") {
                             if (-not $match) {
                                 $scriptPath = Join-Path $sub.cwd $sub.script
@@ -2558,7 +2694,15 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                         Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"에이전트를 찾을 수 없습니다."}'
                     }
                     else {
-                        $match = $procs | Where-Object { $_.CommandLine -like "*$($foundDef.pattern)*" } | Select-Object -First 1
+                        $match = $null
+                        foreach ($p in $procs) {
+                            $cmd = $p.CommandLine
+                            if ($cmd -match $foundDef.pattern) {
+                                if ($foundDef.exclude -and ($cmd -match $foundDef.exclude)) { continue }
+                                $match = $p
+                                break
+                            }
+                        }
                         if ($targetAction -eq "start") {
                             if ($match) {
                                 Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "이미 가동 중입니다. (PID: $($match.ProcessId))"; pid = $match.ProcessId } | ConvertTo-Json)

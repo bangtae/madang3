@@ -116,6 +116,17 @@ AGENTS = [
         "args": ["--interval", "60"],
         "pattern": "서브주식에이전트_주린이",
         "description": "초보 투자자 눈높이의 쉬운 해설 및 안심 가이드"
+    },
+    {
+        "id": "ai_service_updater",
+        "name": "AI 서비스 정보 업데이트 에이전트",
+        "category": "core",
+        "icon": "🤖",
+        "dir": MADANG6_BASE,
+        "script": "ai_service_updater.py",
+        "args": ["--daemon"],
+        "pattern": "ai_service_updater.py",
+        "description": "AI 모델 정보 자동 점검, 웹 스크래핑/검증 및 Supabase 클라우드/텔레그램 실시간 동기화 데몬"
     }
 ]
 

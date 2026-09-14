@@ -23,7 +23,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788849000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -59,7 +59,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788825600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -92,7 +92,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788739200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -125,7 +125,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788503400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -158,7 +158,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788480000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -189,7 +189,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788417000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -223,7 +223,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788393600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -254,7 +254,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788330600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -286,7 +286,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788307200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -315,7 +315,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788244200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -347,7 +347,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788220800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -373,7 +373,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788157800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -404,7 +404,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788134400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -436,7 +436,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1788071400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -464,7 +464,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787898600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -492,7 +492,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787898600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -525,7 +525,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787875200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -558,7 +558,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787875200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -589,7 +589,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787788800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -620,7 +620,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787788800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -649,7 +649,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787725800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -678,7 +678,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787725800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -713,7 +713,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787702400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -748,7 +748,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787702400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -774,7 +774,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787639400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -800,7 +800,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787639400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -834,7 +834,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787616000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -868,7 +868,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787616000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -896,7 +896,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787553000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -924,7 +924,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787553000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -955,7 +955,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787529600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -986,7 +986,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787529600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1015,7 +1015,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787270400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1044,7 +1044,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787270400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1072,7 +1072,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787207400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1100,7 +1100,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787207400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1133,7 +1133,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787184000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1166,7 +1166,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787184000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1195,7 +1195,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787121000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1227,7 +1227,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787121000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1256,7 +1256,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787121000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1288,7 +1288,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787097600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1317,7 +1317,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787034600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1346,7 +1346,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787034600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1378,7 +1378,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787011200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1410,7 +1410,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1787011200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1436,7 +1436,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786689000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1463,7 +1463,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786689000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1494,7 +1494,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786665600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1525,7 +1525,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786665600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1551,7 +1551,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786602600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1577,7 +1577,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786602600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1609,7 +1609,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786579200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1641,7 +1641,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786579200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1670,7 +1670,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786516200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1699,7 +1699,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786516200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1733,7 +1733,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786492800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1767,7 +1767,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786492800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1793,7 +1793,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786429800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1819,7 +1819,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786429800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1854,7 +1854,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786406400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1889,7 +1889,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786406400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1916,7 +1916,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786343400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1949,7 +1949,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1786320000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -1975,7 +1975,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1785997800000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2005,7 +2005,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1785974400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2034,7 +2034,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1785911400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2066,7 +2066,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1785888000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2092,7 +2092,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1785825000000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2126,7 +2126,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1785801600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2155,7 +2155,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1785738600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2187,7 +2187,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1785715200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2213,7 +2213,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1785479400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2246,7 +2246,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1785110400000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2275,7 +2275,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1784874600000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",
@@ -2309,7 +2309,7 @@ window.PORTAL_DATA_STOCK_TEMP = [
     "sortKey": 1784851200000,
     "factCheck": {
       "status": "VERIFIED_CLEAN",
-      "verifiedAt": "2026-09-08 19:05:08",
+      "verifiedAt": "2026-09-14 18:17:48",
       "verifier": "LeadStockAuditor",
       "accuracyScore": 100,
       "badge": "🛡️ [Fact-Checked: 100% 팩트 인증]",

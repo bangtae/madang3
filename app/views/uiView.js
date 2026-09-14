@@ -38,6 +38,13 @@ window.UiView = {
         : (window.PORTAL_DATA_SAP_NEWS ? window.PORTAL_DATA_SAP_NEWS.length : 0);
       totalSapSuiteEl.textContent = sNews;
     }
+    const totalGithubTrendingEl = document.getElementById('stat-total-github-trending');
+    if (totalGithubTrendingEl) {
+      const gRepos = (window.GithubTrendingModel && Array.isArray(window.GithubTrendingModel.repositories))
+        ? window.GithubTrendingModel.repositories.length
+        : (window.PORTAL_DATA_GITHUB_TRENDING && Array.isArray(window.PORTAL_DATA_GITHUB_TRENDING.repositories) ? window.PORTAL_DATA_GITHUB_TRENDING.repositories.length : 0);
+      totalGithubTrendingEl.textContent = gRepos;
+    }
 
 
     const categories = new Set(apis.map(item => item.category));

@@ -122,6 +122,9 @@
               <button class="nav-side-btn" data-side="sap-suite">
                 <span class="icon">⚡</span> SAP Integration Suite
               </button>
+              <button class="nav-side-btn" data-side="github-trending">
+                <span class="icon">🐙</span> GitHub 트렌딩 & 오픈소스
+              </button>
             </li>
 
             <li class="menu-item hidden" id="side-menu-invest">
@@ -259,6 +262,13 @@
               <div class="stat-info">
                 <span class="stat-label">SAP Suite 소식</span>
                 <span class="stat-value" id="stat-total-sap-suite">0</span>
+              </div>
+            </div>
+            <div class="stat-card stat-clickable" id="card-stat-github-trending" style="cursor: pointer;" title="클릭 시 GitHub 트렌딩 & 오픈소스 레이더로 이동">
+              <div class="stat-icon" style="background: rgba(147, 51, 234, 0.15); color: #c084fc;">🐙</div>
+              <div class="stat-info">
+                <span class="stat-label">GitHub 트렌딩</span>
+                <span class="stat-value" id="stat-total-github-trending">0</span>
               </div>
             </div>
           </div>
@@ -657,6 +667,11 @@
         <!-- 뷰: SAP Integration Suite 최신 소식 및 컨설팅/개발 도우미 -->
         <section id="view-sap-suite" class="content-view hidden">
           <!-- JS(SapSuiteView)로 동적 렌더링 됩니다 -->
+        </section>
+
+        <!-- 뷰: GitHub 트렌딩 & 오픈소스 레이더 (초보자 쉬운 해설 & 시스템 개선 제안) -->
+        <section id="view-github-trending" class="content-view hidden">
+          <!-- JS(GithubTrendingView)로 동적 렌더링 됩니다 -->
         </section>
 
         <!-- 뷰 7: Threads AI 에이전트 통합 대시보드 -->
@@ -1800,9 +1815,10 @@
   <script src="data/initialSapTerms.js?v=2.4"></script>
   <script src="data/initialStockTemp.js?v=2.4"></script>
   <script src="data/initialKrxStockMap.js?v=2.4"></script>
-  <script src="data/initialStockDebateLogs.js?v=2.4"></script>
+  <script src="data/initialStockDebateLogs.js?v=2.7"></script>
   <script src="data/initialSapNews.js?v=2.4"></script>
   <script src="data/initialSapKnowledge.js?v=2.4"></script>
+  <script src="data/initialGithubTrending.js?v=2.4"></script>
   <!-- Supabase JS Client SDK CDN (무료 클라우드 DB 연동) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app/core/config.js?v=2.4"></script>
@@ -1811,10 +1827,11 @@
   <script src="app/models/aiTermModel.js?v=2.4"></script>
   <script src="app/models/sapTermModel.js?v=2.4"></script>
   <script src="app/models/sapSuiteModel.js?v=2.4"></script>
+  <script src="app/models/githubTrendingModel.js?v=2.4"></script>
   <script src="app/models/ipModel.js?v=2.4"></script>
   <script src="app/models/stockTempModel.js?v=2.4"></script>
-  <script src="app/models/stockDebateModel.js?v=2.4"></script>
-  <script src="app/models/threadsAgentModel.js?v=2.4"></script>
+  <script src="app/models/stockDebateModel.js?v=2.7"></script>
+  <script src="app/models/threadsAgentModel.js?v=2.5"></script>
   <script src="app/utils/xlsx.full.min.js?v=2.4"></script>
   <script src="app/utils/excelHelper.js?v=2.4"></script>
   <script src="app/utils/downloadHelper.js?v=2.4"></script>
@@ -1822,15 +1839,16 @@
   <script src="app/views/agentBuilderView.js?v=2.4"></script>
   <script src="app/views/techStackView.js?v=2.4"></script>
   <script src="app/views/stockTempView.js?v=2.4"></script>
-  <script src="app/views/stockDebateView.js?v=2.4"></script>
+  <script src="app/views/stockDebateView.js?v=2.7"></script>
   <script src="app/views/stockBlogView.js?v=2.4"></script>
   <script src="app/views/bloggerNewsView.js?v=2.4"></script>
-  <script src="app/views/threadsAgentView.js?v=2.4"></script>
+  <script src="app/views/threadsAgentView.js?v=2.5"></script>
   <script src="app/views/sapSuiteView.js?v=2.4"></script>
+  <script src="app/views/githubTrendingView.js?v=2.4"></script>
   <script src="app/views/monsterDefenseView.js?v=2.4"></script>
   <script src="app/views/uiView.js?v=2.4"></script>
-  <script src="app/controllers/appController.js?v=2.4"></script>
-  <script src="app/main.js?v=2.4"></script>
+  <script src="app/controllers/appController.js?v=2.5"></script>
+  <script src="app/main.js?v=2.5"></script>
 
 </body>
 </html>

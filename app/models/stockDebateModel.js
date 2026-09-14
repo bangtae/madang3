@@ -5,6 +5,26 @@ window.StockDebateModel = {
   searchQuery: '',
   isTriggering: false,
 
+  parseDebateTime(item) {
+    if (!item) return 0;
+    const tStr = item.updated_at || item.timestamp || item.created_at || '';
+    if (!tStr) return 0;
+    // 1. Standard ISO or YYYY-MM-DD HH:mm:ss
+    let parsed = Date.parse(tStr.replace(' ', 'T'));
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+    // 2. Short format: "MM. DD. HH:mm" (e.g., "09. 09. 23:48")
+    const shortMatch = tStr.match(/(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{1,2}):(\d{1,2})/);
+    if (shortMatch) {
+      const year = new Date().getFullYear();
+      const month = parseInt(shortMatch[1], 10) - 1;
+      const day = parseInt(shortMatch[2], 10);
+      const hour = parseInt(shortMatch[3], 10);
+      const min = parseInt(shortMatch[4], 10);
+      return new Date(year, month, day, hour, min).getTime();
+    }
+    return 0;
+  },
+
   resolveStockCode(query) {
     if (!query || !query.trim()) return '';
     const q = query.trim();
@@ -36,7 +56,7 @@ window.StockDebateModel = {
 
     // 3. 대표 국장 종목 Fallback
     const defaultMap = {
-      '루닛': '328130', '삼성전자': '005930', 'SK하이닉스': '000660', '현대차': '005380',
+      '샌즈랩': '411080', '루닛': '328130', '삼성전자': '005930', 'SK하이닉스': '000660', '현대차': '005380',
       '현대자동차': '005380', '알테오젠': '196170', '두산에너빌리티': '034020', 'NAVER': '035420',
       '네이버': '035420', '카카오': '035720', 'HLB': '028300', '에코프로': '086520',
       '에코프로비엠': '247540', '삼천당제약': '000250', '리노공업': '058470', '하이브': '352820',
@@ -61,7 +81,7 @@ window.StockDebateModel = {
     if (usReverseMap[q.toUpperCase()]) return usReverseMap[q.toUpperCase()];
 
     const reverseMap = {
-      '005930': '삼성전자', '000660': 'SK하이닉스', '005380': '현대차', '196170': '알테오젠',
+      '411080': '샌즈랩', '005930': '삼성전자', '000660': 'SK하이닉스', '005380': '현대차', '196170': '알테오젠',
       '034020': '두산에너빌리티', '035420': 'NAVER', '035720': '카카오', '028300': 'HLB',
       '086520': '에코프로', '247540': '에코프로비엠', '000250': '삼천당제약', '058470': '리노공업',
       '352820': '하이브', '328130': '루닛', '042700': '한미반도체', '068270': '셀트리온',
@@ -142,7 +162,7 @@ window.StockDebateModel = {
         }
       } catch (e) {}
     } else {
-      // 서버에서 로드되었더라도, 로컬스토리지의 사용자 직접소집 항목이 서버 재시작으로 누락되지 않도록 병합 보존
+      // 서버에서 로드되었더라도, 로컬스토리지의 사용자 직접소집 항목이 서버 재시작으로 누락되지 않도록 병합 보존 (종목당 단 1건 유지)
       try {
         const local = localStorage.getItem('portal_stock_debate_logs');
         if (local) {
@@ -150,7 +170,7 @@ window.StockDebateModel = {
           if (Array.isArray(localItems)) {
             localItems.forEach(localItem => {
               if (localItem && localItem.source_type === 'USER_SUMMON') {
-                const exists = this.items.some(si => si.id === localItem.id);
+                const exists = this.items.some(si => si.id === localItem.id || (si.item_code && localItem.item_code && si.item_code === localItem.item_code));
                 if (!exists) {
                   this.items.unshift(localItem);
                 }
@@ -161,8 +181,21 @@ window.StockDebateModel = {
       } catch (e) {}
     }
 
-    // 1111 등 비정상 유령 데이터 영구 제거
-    this.items = (this.items || []).filter(d => d.item_code !== '1111' && d.stock_name !== '1111');
+    // 1111 등 비정상 유령 데이터 영구 제거 및 종목코드(item_code) 기준 엄격한 중복 제거 (최신 1건만 보존)
+    const seenCodes = new Set();
+    const uniqueItems = [];
+    (this.items || []).forEach(d => {
+      if (!d || d.item_code === '1111' || d.stock_name === '1111') return;
+      const codeKey = d.item_code || d.stock_name;
+      if (codeKey) {
+        if (seenCodes.has(codeKey)) return;
+        seenCodes.add(codeKey);
+      }
+      uniqueItems.push(d);
+    });
+    // 최신 발굴/소집 및 업데이트(updated_at/timestamp) 순으로 항상 상단 정렬 (최신순 내림차순)
+    uniqueItems.sort((a, b) => this.parseDebateTime(b) - this.parseDebateTime(a));
+    this.items = uniqueItems;
 
     // Cache locally
     try {
@@ -211,7 +244,7 @@ window.StockDebateModel = {
       // Stock & Source filter
       if (this.selectedStock && this.selectedStock !== 'all') {
         if (this.selectedStock === 'src:AUTO_SCOUT') {
-          const isAuto = item.source_type === 'AUTO_SCOUT' || (!item.source_type && item.item_code !== '000660');
+          const isAuto = item.source_type === 'AUTO_SCOUT' || item.source_type === 'SCOUT_COUNCIL' || (!item.source_type && item.item_code !== '000660');
           if (!isAuto) return false;
         } else if (this.selectedStock === 'src:USER_SUMMON') {
           const isUser = item.source_type === 'USER_SUMMON';
@@ -247,6 +280,10 @@ window.StockDebateModel = {
 
       return true;
     });
+
+    // 필터링된 목록도 항상 최신 등록/갱신순(updated_at/timestamp) 상단 정렬
+    filtered.sort((a, b) => this.parseDebateTime(b) - this.parseDebateTime(a));
+    return filtered;
   },
 
   async triggerDebate(stockQuery, customTopic = '') {
@@ -286,9 +323,11 @@ window.StockDebateModel = {
       if (res && res.ok) {
         const result = await res.json();
         if (result.debate && result.debate.id) {
-          const existingIdx = this.items.findIndex(d => d.id === result.debate.id);
-          if (existingIdx >= 0) this.items[existingIdx] = result.debate;
-          else this.items.unshift(result.debate);
+          const existingIdx = this.items.findIndex(d => d.id === result.debate.id || (d.item_code && result.debate.item_code && d.item_code === result.debate.item_code));
+          if (existingIdx >= 0) {
+            this.items.splice(existingIdx, 1);
+          }
+          this.items.unshift(result.debate);
 
           try {
             localStorage.setItem('portal_stock_debate_logs', JSON.stringify(this.items));

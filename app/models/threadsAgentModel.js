@@ -433,5 +433,16 @@ window.ThreadsAgentModel = {
     } catch (e) {
       return { success: false, message: e.message };
     }
+  },
+
+  async triggerAiServiceUpdate() {
+    try {
+      const res = await fetch('/api/system/agents/ai_service_updater/trigger', { method: 'POST' });
+      const data = await res.json();
+      await this.fetchSystemAgents();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
   }
 };

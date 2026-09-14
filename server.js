@@ -348,6 +348,156 @@ app.post('/api/stock-temp', (req, res) => {
   }
 });
 
+// SAP Integration Suite 뉴스 및 지식베이스 REST API
+app.get('/api/sap-news', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'sapNews.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const fallbackPath = path.join(__dirname, 'data', 'initialSapNews.js');
+  if (fs.existsSync(fallbackPath)) {
+    try {
+      const code = fs.readFileSync(fallbackPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_SAP_NEWS\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to parse initialSapNews.js' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/sap-news', (req, res) => {
+  const dataDir = path.join(__dirname, 'data');
+  const filePath = path.join(dataDir, 'sapNews.json');
+  const jsFilePath = path.join(dataDir, 'initialSapNews.js');
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    const data = req.body;
+    if (Array.isArray(data)) {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      fs.writeFileSync(jsFilePath, `// data/initialSapNews.js - Auto-updated by SAP Agent\nwindow.PORTAL_DATA_SAP_NEWS = ${JSON.stringify(data, null, 2)};\n`, 'utf8');
+      res.json({ success: true, count: data.length });
+    } else {
+      res.status(400).json({ success: false, message: 'Array expected' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/sap-knowledge', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'sapKnowledge.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const fallbackPath = path.join(__dirname, 'data', 'initialSapKnowledge.js');
+  if (fs.existsSync(fallbackPath)) {
+    try {
+      const code = fs.readFileSync(fallbackPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_SAP_KNOWLEDGE\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to parse initialSapKnowledge.js' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/sap-knowledge', (req, res) => {
+  const dataDir = path.join(__dirname, 'data');
+  const filePath = path.join(dataDir, 'sapKnowledge.json');
+  const jsFilePath = path.join(dataDir, 'initialSapKnowledge.js');
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    const data = req.body;
+    if (Array.isArray(data)) {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      fs.writeFileSync(jsFilePath, `// data/initialSapKnowledge.js - Auto-updated by SAP Agent\nwindow.PORTAL_DATA_SAP_KNOWLEDGE = ${JSON.stringify(data, null, 2)};\n`, 'utf8');
+      res.json({ success: true, count: data.length });
+    } else {
+      res.status(400).json({ success: false, message: 'Array expected' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GitHub 트렌딩 및 madang 시스템 연계 혁신 제안 REST API
+app.get('/api/github-trending', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'githubTrending.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const fallbackPath = path.join(__dirname, 'data', 'initialGithubTrending.js');
+  if (fs.existsSync(fallbackPath)) {
+    try {
+      const code = fs.readFileSync(fallbackPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_GITHUB_TRENDING\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to parse initialGithubTrending.js' });
+    }
+  }
+  res.json({ repositories: [], proposals: [] });
+});
+
+app.post('/api/github-trending', (req, res) => {
+  const dataDir = path.join(__dirname, 'data');
+  const filePath = path.join(dataDir, 'githubTrending.json');
+  const jsFilePath = path.join(dataDir, 'initialGithubTrending.js');
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    const data = req.body;
+    if (data && typeof data === 'object') {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      fs.writeFileSync(jsFilePath, `// data/initialGithubTrending.js - Auto-updated\nwindow.PORTAL_DATA_GITHUB_TRENDING = ${JSON.stringify(data, null, 2)};\n`, 'utf8');
+      res.json({ success: true, count: Array.isArray(data.repositories) ? data.repositories.length : 0 });
+    } else {
+      res.status(400).json({ success: false, message: 'Invalid payload' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/sap-terms', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'sapTerms.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const fallbackPath = path.join(__dirname, 'data', 'initialSapTerms.js');
+  if (fs.existsSync(fallbackPath)) {
+    try {
+      const code = fs.readFileSync(fallbackPath, 'utf8');
+      const jsonText = code.replace(/^window\.PORTAL_DATA_SAP_TERMS\s*=\s*/, '').replace(/;\s*$/, '');
+      return res.type('json').send(jsonText);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to parse initialSapTerms.js' });
+    }
+  }
+  res.json([]);
+});
+
+app.post('/api/sap-terms', (req, res) => {
+  const dataDir = path.join(__dirname, 'data');
+  const filePath = path.join(dataDir, 'sapTerms.json');
+  const jsFilePath = path.join(dataDir, 'initialSapTerms.js');
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    const data = req.body;
+    if (Array.isArray(data)) {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      fs.writeFileSync(jsFilePath, `window.PORTAL_DATA_SAP_TERMS = ${JSON.stringify(data, null, 2)};\n`, 'utf8');
+      res.json({ success: true, count: data.length });
+    } else {
+      res.status(400).json({ success: false, message: 'Array expected' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ==========================================
 // 배고픈투자씨 블로그 (Stock Blog) RSS & Naver Open API
 // ==========================================
@@ -904,6 +1054,24 @@ app.get('/api/stock-debates', (req, res) => {
   res.json([]);
 });
 
+function parseDebateTime(item) {
+  if (!item) return 0;
+  const tStr = item.updated_at || item.timestamp || item.created_at || '';
+  if (!tStr) return 0;
+  let parsed = Date.parse(tStr.replace(' ', 'T'));
+  if (!isNaN(parsed) && parsed > 0) return parsed;
+  const shortMatch = tStr.match(/(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{1,2}):(\d{1,2})/);
+  if (shortMatch) {
+    const year = new Date().getFullYear();
+    const month = parseInt(shortMatch[1], 10) - 1;
+    const day = parseInt(shortMatch[2], 10);
+    const hour = parseInt(shortMatch[3], 10);
+    const min = parseInt(shortMatch[4], 10);
+    return new Date(year, month, day, hour, min).getTime();
+  }
+  return 0;
+}
+
 app.post('/api/stock-debates', (req, res) => {
   const dataDir = path.join(__dirname, 'data');
   const filePath = path.join(dataDir, 'stockDebateLogs.json');
@@ -933,6 +1101,7 @@ app.post('/api/stock-debates', (req, res) => {
         existing.unshift(incoming);
       }
     }
+    existing.sort((a, b) => parseDebateTime(b) - parseDebateTime(a));
     fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), 'utf8');
     fs.writeFileSync(jsFilePath, `// data/initialStockDebateLogs.js\nwindow.PORTAL_DATA_STOCK_DEBATES = ${JSON.stringify(existing, null, 2)};\n`, 'utf8');
     res.json({ success: true, count: existing.length });
@@ -991,12 +1160,9 @@ function saveDebateLog(debateItem) {
     }
     if (!Array.isArray(existing)) existing = [];
     
-    // 동일 종목코드(item_code) 및 source_type이 일치하거나 id가 일치할 때만 갱신, 다르면 별도 보존
-    const incomingSource = debateItem.source_type || 'AUTO_SCOUT';
+    // 동일 종목코드(item_code) 또는 id가 일치할 때 항상 최신 토론으로 갱신 (종목당 단 1건 유지)
     const idx = existing.findIndex(r => {
-      if (r.id === debateItem.id) return true;
-      const rSource = r.source_type || 'AUTO_SCOUT';
-      return r.item_code && r.item_code === debateItem.item_code && rSource === incomingSource;
+      return r.id === debateItem.id || (r.item_code && debateItem.item_code && r.item_code === debateItem.item_code);
     });
     if (idx >= 0) {
       const prev = existing[idx];
@@ -1010,6 +1176,8 @@ function saveDebateLog(debateItem) {
       debateItem.updated_at = debateItem.timestamp;
     }
     existing.unshift(debateItem);
+
+    existing.sort((a, b) => parseDebateTime(b) - parseDebateTime(a));
 
     if (existing.length > 100) existing = existing.slice(0, 100);
 
@@ -3036,6 +3204,37 @@ app.post('/api/system/agents/:id/stop', async (req, res) => {
     res.json({ success: true, message: `[${agent.name}] 정지 완료 (PID: ${match.ProcessId})` });
   });
 });
+
+// AI 서비스 정보 업데이트 에이전트 1회 즉시 팩트체크/갱신 트리거 API
+app.post('/api/system/agents/ai_service_updater/trigger', async (req, res) => {
+  const { exec } = require('child_process');
+  const pyExe = fs.existsSync(PYTHON_PATH) ? PYTHON_PATH : 'python';
+  const triggerCmd = `powershell -NoProfile -Command "Start-Process -FilePath '${pyExe}' -ArgumentList 'ai_service_updater.py --run-once' -WorkingDirectory '${MADANG6_BASE}' -WindowStyle Hidden"`;
+
+  exec(triggerCmd, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: `트리거 기동 실패: ${err.message}` });
+    }
+    res.json({
+      success: true,
+      message: 'AI 서비스 정보 업데이트 1회 팩트체크 및 갱신 작업을 백그라운드에서 기동했습니다.'
+    });
+  });
+});
+
+// Windows 로컬 구동 시 Supabase 30초 주기 상시 하트비트 동기화 백그라운드 워커
+if (process.platform === 'win32') {
+  setInterval(() => {
+    try {
+      const syncScript = path.join(MADANG6_BASE, 'agent_heartbeat_sync.py');
+      if (fs.existsSync(syncScript)) {
+        const pyExe = fs.existsSync(PYTHON_PATH) ? PYTHON_PATH : 'python';
+        const { exec } = require('child_process');
+        exec(`"${pyExe}" "${syncScript}" --once`, { windowsHide: true }, () => {});
+      }
+    } catch(e) {}
+  }, 30000);
+}
 
 // 5대 주식 서브에이전트 일괄 제어 API
 app.post('/api/system/agents/sub_council_all/start', async (req, res) => {

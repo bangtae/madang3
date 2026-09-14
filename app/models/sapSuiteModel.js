@@ -60,9 +60,14 @@ window.SapSuiteModel = {
           .select('*')
           .order('published_at', { ascending: false });
         if (!error && Array.isArray(data) && data.length > 0) {
-          this.news = data;
-          this.cacheNews(data);
-          return this.news;
+          const hasKorean = data.some(item => /[\uac00-\ud7a3]/.test(item.title || ''));
+          if (hasKorean) {
+            this.news = data;
+            this.cacheNews(data);
+            return this.news;
+          } else {
+            console.warn('[SapSuiteModel] Supabase sap_news data is English-only, prioritizing Korean data files');
+          }
         }
       } catch (e) {
         console.warn('Supabase sap_news 로드 실패, REST/로컬 폴백 사용:', e);

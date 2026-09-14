@@ -128,6 +128,23 @@ window.StockDebateView = {
       });
     }
 
+    if (d.judge_decision) {
+      lines.push(`■ ⚖️ 메인 총괄 에이전트 최종 선정 심의표`);
+      lines.push(`• 채택: ${d.judge_decision.winner_persona || '성장론자'} 1픽 채택 (총점 ${d.judge_decision.winner_total_score || '-'}점 / 블로그시너지 +${d.judge_decision.winner_blog_bonus || 0}점)`);
+      lines.push(`• K-증시온도: ${d.judge_decision.k_stock_temp?.temp ?? 50}°C (${d.judge_decision.k_stock_temp?.status ?? '중립'})`);
+      if (Array.isArray(d.judge_decision.daily_themes)) {
+        lines.push(`• 데일리 블로그 테마: ${d.judge_decision.daily_themes.join(', ')}`);
+      }
+      if (Array.isArray(d.judge_decision.candidates_score_table)) {
+        lines.push(`• 서브에이전트 후보별 채점표:`);
+        d.judge_decision.candidates_score_table.forEach(r => {
+          lines.push(`  - [${r.persona_name}] ${r.stock_name}: 기본 ${r.base_priority}점 + 쟁점 ${r.dispute_score}점 + 블로그 ${r.blog_synergy_score}점 = 총점 ${r.total_score}점`);
+        });
+      }
+      lines.push(`• 선정 사유: ${d.judge_decision.winner_reason || '-'}`);
+      lines.push(``);
+    }
+
     lines.push(`■ ⚖️ 최종 의결 판정`);
     lines.push(`• 결과: ${d.action_title || '최종 의결'}`);
     lines.push(`• 5인 심의 종합 결론: ${d.verdict_summary || '-'}`);
@@ -580,9 +597,15 @@ window.StockDebateView = {
   buildDebateCardHtml(d, idx) {
     const isExpanded = this.isDebateExpanded(d.id, idx);
     const isUserSummon = d.source_type === 'USER_SUMMON';
-    const sourceBadgeHtml = isUserSummon
-      ? `<span class="debate-source-badge badge-user-summon" title="사용자가 직접 소집한 끝장 토론"><span class="source-icon">🔥</span> 사용자 즉시 소집</span>`
-      : `<span class="debate-source-badge badge-auto-scout" title="1시간 주기 AI 에이전트단 자동 발굴 종목"><span class="source-icon">🤖</span> AI 자동 발굴</span>`;
+    const isScoutCouncil = d.source_type === 'SCOUT_COUNCIL';
+    let sourceBadgeHtml = '';
+    if (isUserSummon) {
+      sourceBadgeHtml = `<span class="debate-source-badge badge-user-summon" title="사용자가 직접 소집한 끝장 토론"><span class="source-icon">🔥</span> 사용자 즉시 소집</span>`;
+    } else if (isScoutCouncil) {
+      sourceBadgeHtml = `<span class="debate-source-badge badge-scout-council" title="5대 서브에이전트 경쟁 발굴 후 메인총괄 최종 채택 안건"><span class="source-icon">⚖️</span> 5대 에이전트 심의발굴</span>`;
+    } else {
+      sourceBadgeHtml = `<span class="debate-source-badge badge-auto-scout" title="1시간 주기 AI 에이전트단 자동 발굴 종목"><span class="source-icon">🤖</span> AI 자동 발굴</span>`;
+    }
 
     const turns = d.turns || [];
     const heatBadge = `<span class="debate-heat-badge">🔥 EXTREME 난타전</span>`;
@@ -678,6 +701,67 @@ window.StockDebateView = {
             <div class="debate-news-row" style="margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #38bdf8; background: rgba(56, 189, 248, 0.08); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.25); min-width: 0; max-width: 100%;">
               <span style="font-weight: 700; flex-shrink: 0; color: #38bdf8;">${(d.news_headline.includes('KOSCOM') || d.news_headline.includes('공시') || d.news_headline.includes('전환') || d.news_headline.includes('상장') || d.news_headline.includes('DART') || d.news_headline.includes('SEC')) ? '📋 공식 전자공시 팩트:' : '🪙 실시간 수급 팩트:'}</span>
               <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e0f2fe; font-weight: 500; min-width: 0; flex: 1;">${d.news_headline}</span>
+            </div>` : ''}
+
+            ${d.judge_decision ? `
+            <div class="debate-judge-decision-box" style="margin-top: 8px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 41, 59, 0.8)); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 10px 14px; min-width: 0; max-width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 1.05rem;">⚖️</span>
+                  <strong style="color: #f59e0b; font-size: 0.88rem;">메인 총괄 에이전트 최종 선정 심의표</strong>
+                  <span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; padding: 2px 7px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; border: 1px solid rgba(245, 158, 11, 0.3);">
+                    ${d.judge_decision.winner_persona || '성장론자'} 1픽 채택 (총점: ${d.judge_decision.winner_total_score || '-'}점)
+                  </span>
+                </div>
+                <div style="font-size: 0.76rem; color: #94a3b8;">
+                  🌡️ K-증시온도: <strong style="color: #38bdf8;">${d.judge_decision.k_stock_temp?.temp ?? 50}°C (${d.judge_decision.k_stock_temp?.status ?? '중립'})</strong>
+                </div>
+              </div>
+
+              ${Array.isArray(d.judge_decision.daily_themes) && d.judge_decision.daily_themes.length > 0 ? `
+              <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span style="color: #94a3b8; font-weight: 600;">🌐 데일리 블로그 테마:</span>
+                ${d.judge_decision.daily_themes.map(t => `<span style="background: rgba(56, 189, 248, 0.12); color: #7dd3fc; padding: 1px 6px; border-radius: 3px; font-size: 0.72rem;">#${t}</span>`).join(' ')}
+              </div>` : ''}
+
+              ${Array.isArray(d.judge_decision.candidates_score_table) && d.judge_decision.candidates_score_table.length > 0 ? `
+              <div style="overflow-x: auto; margin-top: 4px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.76rem; text-align: center; color: #cbd5e1;">
+                  <thead>
+                    <tr style="background: rgba(0, 0, 0, 0.25); color: #94a3b8; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+                      <th style="padding: 5px 8px; text-align: left;">서브 에이전트</th>
+                      <th style="padding: 5px 8px; text-align: left;">발굴 종목</th>
+                      <th style="padding: 5px 6px;">기본점수</th>
+                      <th style="padding: 5px 6px;">쟁점가산</th>
+                      <th style="padding: 5px 6px;">블로그 시너지</th>
+                      <th style="padding: 5px 8px;">심의 총점</th>
+                      <th style="padding: 5px 8px; text-align: left;">발굴 사유 요약</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${d.judge_decision.candidates_score_table.map((row, rIdx) => {
+                      const isWinner = (row.stock_name === d.judge_decision.winner_stock || row.persona_name === d.judge_decision.winner_persona);
+                      const rowBg = isWinner ? 'background: rgba(245, 158, 11, 0.12); font-weight: 700;' : 'background: rgba(255, 255, 255, 0.02);';
+                      const star = isWinner ? '🏆 ' : '';
+                      return `
+                        <tr style="${rowBg} border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+                          <td style="padding: 5px 8px; text-align: left; color: ${isWinner ? '#fbbf24' : '#e2e8f0'};">${star}${row.persona_name}</td>
+                          <td style="padding: 5px 8px; text-align: left; color: ${isWinner ? '#38bdf8' : '#cbd5e1'}; font-weight: 600;">${row.stock_name} (${row.item_code})</td>
+                          <td style="padding: 5px 6px; color: #94a3b8;">${row.base_priority}점</td>
+                          <td style="padding: 5px 6px; color: #94a3b8;">+${row.dispute_score}점</td>
+                          <td style="padding: 5px 6px; color: ${row.blog_synergy_score > 0 ? '#34d399' : '#94a3b8'};">+${row.blog_synergy_score}점</td>
+                          <td style="padding: 5px 8px; color: ${isWinner ? '#fbbf24' : '#f1f5f9'}; font-size: 0.82rem;">${row.total_score}점</td>
+                          <td style="padding: 5px 8px; text-align: left; color: #94a3b8; font-size: 0.73rem; word-break: break-word;">${row.scout_reason}</td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>` : ''}
+
+              <div style="margin-top: 6px; font-size: 0.76rem; color: #cbd5e1; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 4px; border-left: 3px solid #f59e0b;">
+                🎯 <strong>선정 사유:</strong> ${d.judge_decision.winner_reason || ''}
+              </div>
             </div>` : ''}
 
             ${d.theme_report ? `

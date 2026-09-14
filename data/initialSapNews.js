@@ -1,6 +1,15 @@
 // data/initialSapNews.js - Auto-updated by SAP Agent
 window.PORTAL_DATA_SAP_NEWS = [
     {
+        "id":  "sap_news_6c86332a",
+        "title":  "SAP Cloud Integration의 표준 Kafka 어댑터에서 \"현재 스레드가 소유자가 아닙니다\" 예외",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/quot-current-thread-is-not-owner-quot-exceptions-with-the-standard-kafka/qaq-p/14484437",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "안녕하세요 여러분, 우리는 표준 Kafka 어댑터를 사용한 SAP 클라우드 통합에서 반복되는 문제를 조사하고 있으며 이 커뮤니티에서 통찰력을 얻으시면 대단히 감사하겠습니다. 2026년 8월부터 우리는 ...",
+        "published_at":  "2026-09-14T08:28:24Z"
+    },
+    {
         "id":  "sap_news_0603daf0",
         "title":  "SAP PO 런타임 및 크기 조정 분석기 구축 - SAP Cloud Connector+Integration Suite+HANA Cloud+IE MCP",
         "source":  "SAP Community",

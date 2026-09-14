@@ -75,7 +75,7 @@ window.ThreadsAgentView = {
     const sysAgents = model.systemAgents || [];
     const getAgent = (id) => sysAgents.find(a => a.id === id) || { id, is_running: false, pid: null };
 
-    // 9대 에이전트 인스턴스 매핑
+    // 10대 에이전트 인스턴스 매핑
     const agThreads = getAgent('threads');
     const agSap = getAgent('sap');
     const agSupervisor = getAgent('supervisor');
@@ -85,6 +85,7 @@ window.ThreadsAgentView = {
     const agCautious = getAgent('sub_cautious');
     const agTechnical = getAgent('sub_technical');
     const agJurini = getAgent('sub_jurini');
+    const agAiServiceUpdater = getAgent('ai_service_updater');
 
     const subCouncilList = [agDanka, agGrowth, agCautious, agTechnical, agJurini];
     const subCouncilRunningCount = subCouncilList.filter(a => a.is_running).length;
@@ -118,15 +119,26 @@ window.ThreadsAgentView = {
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
           <div>
             <h2>🤖 AI 에이전트 정보</h2>
-            <p>사내 9대 AI 에이전트의 실시간 가동 상태, Base URL, API 토큰 만료 정보 조회 및 온디맨드 분석·끝장 토론 실행</p>
+            <p>사내 10대 AI 에이전트의 실시간 가동 상태, Base URL, API 토큰 만료 정보 조회 및 온디맨드 분석·끝장 토론 실행</p>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <span id="system-agents-summary-pill" class="agent-badge badge-running" style="font-size: 0.85rem; padding: 6px 14px;">
-              🟢 9대 에이전트 중 <b>${model.systemAgentsSummary ? model.systemAgentsSummary.runningCount : 0}개</b> 가동 중
+              🟢 10대 에이전트 중 <b>${model.systemAgentsSummary ? model.systemAgentsSummary.runningCount : 0}개</b> 가동 중
             </span>
             <button type="button" id="btn-agent-refresh-view" class="btn btn-secondary btn-sm" style="padding: 6px 12px;">🔄 전체 새로고침</button>
           </div>
         </div>
+      </div>
+
+      <!-- 에이전트 바로가기 퀵 네비게이션 -->
+      <div class="agent-quick-nav-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; padding: 10px 14px; background: rgba(15, 23, 42, 0.6); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); align-items: center;">
+        <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">⚡ 바로가기:</span>
+        <a href="#card-threads-agent" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">1호 Threads</a>
+        <a href="#card-sap-agent" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">2호 SAP</a>
+        <a href="#card-supervisor-agent" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">3호 감독관</a>
+        <a href="#card-lead-agent" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">4호 메인주식</a>
+        <a href="#card-ai-service-updater-agent" class="btn btn-sm" style="font-size: 0.78rem; padding: 3px 10px; text-decoration: none; border: 1px solid rgba(56, 189, 248, 0.6); color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.15);">🤖 5호 AI Service Update Agent</a>
+        <a href="#card-sub-council-group" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">6호 5대 서브에이전트</a>
       </div>
 
       <!-- 모듈형 에이전트 카드 그리드 -->
@@ -324,13 +336,71 @@ window.ThreadsAgentView = {
           </div>
         </div>
 
-        <!-- 5호: 5대 주식 서브에이전트단 통합 모듈 카드 -->
+        <!-- 5호: AI 서비스 정보 업데이트 에이전트 (AI Service Update Agent) 카드 -->
+        <div class="card agent-card agent-module-card agent-card-wide" id="card-ai-service-updater-agent" style="grid-column: 1 / -1; border: 1.5px solid rgba(56, 189, 248, 0.45); background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.9)); box-shadow: 0 4px 20px rgba(56, 189, 248, 0.12);">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 12px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.6rem; padding: 6px; background: rgba(56, 189, 248, 0.15); border-radius: 8px;">🤖</span>
+                <div>
+                  <h3 class="card-title" style="margin: 0; font-size: 1.15rem; color: #38bdf8;">5호: AI 서비스 정보 업데이트 에이전트 (AI Service Update Agent)</h3>
+                  <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: #94a3b8;">
+                    포털 등록 AI 모델 9대 핵심 스펙 실시간 팩트체크, 웹 검증 및 Supabase 클라우드/텔레그램 동기화 데몬
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="ai-updater-card-badge" class="agent-badge ${agAiServiceUpdater.is_running ? 'badge-running' : 'badge-stopped'}" style="font-size: 0.85rem; padding: 6px 12px;">
+                ${agAiServiceUpdater.is_running ? `🟢 가동 중 (PID: ${agAiServiceUpdater.pid || '-'})` : '🔴 정지됨'}
+              </span>
+            </div>
+          </div>
+
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 14px; padding-top: 14px;">
+            <div class="agent-meta-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; background: rgba(15, 23, 42, 0.6); padding: 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.06);">
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 실행 스크립트</span>
+                <div style="font-size: 0.85rem; font-family: monospace; color: #38bdf8; margin-top: 3px;">ai_service_updater.py</div>
+              </div>
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 작업 디렉터리</span>
+                <div style="font-size: 0.85rem; font-family: monospace; color: #cbd5e1; margin-top: 3px;">C:\Users\bangt\Downloads\madang6</div>
+              </div>
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 실행 모드</span>
+                <div style="font-size: 0.85rem; color: #a3e635; margin-top: 3px;">1시간 주기 백그라운드 순회 / 온디맨드 1회 즉시 실행</div>
+              </div>
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 동기화 타겟</span>
+                <div style="font-size: 0.85rem; color: #facc15; margin-top: 3px;">Supabase ai_services & 텔레그램 실시간 리포트</div>
+              </div>
+            </div>
+
+            <!-- 제어 버튼 액션 바 -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <button type="button" id="btn-start-ai-updater" class="btn btn-primary btn-sm" ${agAiServiceUpdater.is_running ? 'disabled' : ''}>
+                ▶️ 데몬 가동
+              </button>
+              <button type="button" id="btn-stop-ai-updater" class="btn btn-outline btn-sm" ${!agAiServiceUpdater.is_running ? 'disabled' : ''}>
+                ⏹️ 데몬 정지
+              </button>
+              <button type="button" id="btn-trigger-ai-updater" class="btn btn-secondary btn-sm" style="background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; font-weight: 700;">
+                ⚡ 즉시 1회 팩트체크 & 업데이트 실행
+              </button>
+            </div>
+
+            <div id="ai-updater-action-status" class="debate-status-alert hidden" style="display: none; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem;"></div>
+          </div>
+        </div>
+
+        <!-- 6호: 5대 주식 서브에이전트단 통합 모듈 카드 -->
         <div class="card agent-card agent-module-card agent-card-wide" id="card-sub-council-group" style="grid-column: 1 / -1;">
           <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 1.5rem;">🏛️</span>
-                <h3 class="card-title" style="margin: 0;">5호: 5대 주식 서브에이전트단 정보 및 실행</h3>
+                <h3 class="card-title" style="margin: 0;">6호: 5대 주식 서브에이전트단 정보 및 끝장 토론</h3>
               </div>
               <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: #94a3b8;">
                 단가 · 성장론자 · 신중론자 · 기술적분석가 · 주린이 5인의 실시간 프로세스 상태 조회 및 온디맨드 심의 발주 · 끝장 토론 소집
@@ -439,7 +509,7 @@ window.ThreadsAgentView = {
     // 1. 전체 상단 뱃지 갱신
     const summaryPill = document.getElementById('system-agents-summary-pill');
     if (summaryPill && model.systemAgentsSummary) {
-      summaryPill.innerHTML = `🟢 9대 에이전트 중 <b>${model.systemAgentsSummary.runningCount}개</b> 가동 중`;
+      summaryPill.innerHTML = `🟢 10대 에이전트 중 <b>${model.systemAgentsSummary.runningCount}개</b> 가동 중`;
     }
 
     // 2. 개별 에이전트 뱃지 및 버튼 활성/비활성 상태 갱신
@@ -474,6 +544,14 @@ window.ThreadsAgentView = {
     if (councilOverallBadge) {
       councilOverallBadge.className = `agent-badge ${runningSubCount === 5 ? 'badge-running' : (runningSubCount > 0 ? 'badge-warning' : 'badge-stopped')}`;
       councilOverallBadge.textContent = runningSubCount === 5 ? '🟢 5인 전원 가동 중' : (runningSubCount > 0 ? `🟡 ${runningSubCount}/5인 가동 중` : '🔴 5인 전원 정지됨');
+    }
+
+    // 6. AI 서비스 업데이트 에이전트 카드 뱃지
+    const aiUpdaterAgent = getAgent('ai_service_updater');
+    const aiUpdaterBadge = document.getElementById('ai-updater-card-badge');
+    if (aiUpdaterBadge) {
+      aiUpdaterBadge.className = `agent-badge ${aiUpdaterAgent.is_running ? 'badge-running' : 'badge-stopped'}`;
+      aiUpdaterBadge.textContent = aiUpdaterAgent.is_running ? `🟢 가동 중 (PID: ${aiUpdaterAgent.pid || '-'})` : '🔴 정지됨';
     }
 
     // 6. 끝장 토론 통계 갱신
@@ -738,6 +816,61 @@ window.ThreadsAgentView = {
           btnAdminClearDebates.textContent = '🗑️ 끝장 토론 전체 비우기';
           alert('모든 끝장 토론 기록이 성공적으로 삭제되었습니다.');
         }
+      });
+    }
+
+    // --- 6호 AI 서비스 정보 업데이트 에이전트 제어 이벤트 ---
+    const showAiUpdaterStatus = (msg, isSuccess) => {
+      const statusBox = document.getElementById('ai-updater-action-status');
+      if (statusBox) {
+        statusBox.style.display = 'block';
+        statusBox.className = isSuccess ? 'debate-status-alert alert-success' : 'debate-status-alert alert-danger';
+        statusBox.style.backgroundColor = isSuccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+        statusBox.style.border = isSuccess ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)';
+        statusBox.style.color = isSuccess ? '#34d399' : '#f87171';
+        statusBox.innerHTML = `${isSuccess ? '✅' : '⚠️'} ${msg}`;
+        setTimeout(() => {
+          if (statusBox) statusBox.style.display = 'none';
+        }, 5000);
+      }
+    };
+
+    const btnStartAiUpdater = document.getElementById('btn-start-ai-updater');
+    if (btnStartAiUpdater) {
+      btnStartAiUpdater.addEventListener('click', async () => {
+        btnStartAiUpdater.disabled = true;
+        btnStartAiUpdater.textContent = '⏳ 기동 중...';
+        const res = await model.startSystemAgent('ai_service_updater');
+        showAiUpdaterStatus(res.message || 'AI 서비스 정보 업데이트 에이전트 기동 요청 완료', res.success !== false);
+        await this.renderMainView();
+      });
+    }
+
+    const btnStopAiUpdater = document.getElementById('btn-stop-ai-updater');
+    if (btnStopAiUpdater) {
+      btnStopAiUpdater.addEventListener('click', async () => {
+        btnStopAiUpdater.disabled = true;
+        btnStopAiUpdater.textContent = '⏳ 정지 중...';
+        const res = await model.stopSystemAgent('ai_service_updater');
+        showAiUpdaterStatus(res.message || 'AI 서비스 정보 업데이트 에이전트 정지 완료', res.success !== false);
+        await this.renderMainView();
+      });
+    }
+
+    const btnTriggerAiUpdater = document.getElementById('btn-trigger-ai-updater');
+    if (btnTriggerAiUpdater) {
+      btnTriggerAiUpdater.addEventListener('click', async () => {
+        btnTriggerAiUpdater.disabled = true;
+        btnTriggerAiUpdater.textContent = '⏳ 팩트체크/갱신 기동 중...';
+        const res = await model.triggerAiServiceUpdate();
+        showAiUpdaterStatus(res.message || '1회 즉시 팩트체크 및 업데이트 작업이 백그라운드에서 시작되었습니다.', res.success !== false);
+        setTimeout(async () => {
+          if (btnTriggerAiUpdater) {
+            btnTriggerAiUpdater.disabled = false;
+            btnTriggerAiUpdater.textContent = '⚡ 즉시 1회 팩트체크 & 업데이트 실행';
+          }
+          await this.renderMainView();
+        }, 1500);
       });
     }
 

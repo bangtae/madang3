@@ -41,6 +41,12 @@ window.AppController = {
     if (window.SapSuiteView) {
       window.SapSuiteView.init();
     }
+    if (window.GithubTrendingModel) {
+      await window.GithubTrendingModel.init();
+    }
+    if (window.GithubTrendingView) {
+      window.GithubTrendingView.init();
+    }
 
     // 기본 대시보드 뷰일 때만 refreshAllViews() 수행 (다른 화면일 때 깜빡임 차단)
     if (!initialTarget || initialTarget === 'dashboard') {
@@ -308,6 +314,14 @@ window.AppController = {
       cardStatSapSuite.addEventListener('click', () => {
         this.switchTopNav('work');
         this.switchSideNav('sap-suite');
+      });
+    }
+
+    const cardStatGithubTrending = document.getElementById('card-stat-github-trending');
+    if (cardStatGithubTrending) {
+      cardStatGithubTrending.addEventListener('click', () => {
+        this.switchTopNav('work');
+        this.switchSideNav('github-trending');
       });
     }
 
@@ -1272,6 +1286,7 @@ window.AppController = {
       'agent-builder': 'agent-builder',
       'sap-terms': 'work',
       'sap-suite': 'work',
+      'github-trending': 'work',
       'stock-temp': 'invest',
       'stock-debate': 'invest',
       'stock-blog': 'invest',
@@ -1382,6 +1397,7 @@ window.AppController = {
     const viewAiTerms = document.getElementById('view-ai-terms');
     const viewSapTerms = document.getElementById('view-sap-terms');
     const viewSapSuite = document.getElementById('view-sap-suite');
+    const viewGithubTrending = document.getElementById('view-github-trending');
     const viewAgentBuilder = document.getElementById('view-agent-builder');
     const viewIpWhitelist = document.getElementById('view-ip-whitelist');
     const viewIpBlacklist = document.getElementById('view-ip-blacklist');
@@ -1401,6 +1417,7 @@ window.AppController = {
       if (viewAiTerms) viewAiTerms.classList.add('hidden');
       if (viewSapTerms) viewSapTerms.classList.add('hidden');
       if (viewSapSuite) viewSapSuite.classList.add('hidden');
+      if (viewGithubTrending) viewGithubTrending.classList.add('hidden');
       if (viewAgentBuilder) viewAgentBuilder.classList.add('hidden');
 
       if (viewIpWhitelist) viewIpWhitelist.classList.add('hidden');
@@ -1506,6 +1523,16 @@ window.AppController = {
           window.SapSuiteView.render();
         });
       }
+    } else if (sideView === 'github-trending') {
+      if (viewGithubTrending) viewGithubTrending.classList.remove('hidden');
+      if (window.GithubTrendingView) {
+        window.GithubTrendingView.init();
+      }
+      if (window.GithubTrendingModel && window.GithubTrendingView) {
+        window.GithubTrendingModel.loadData().then(() => {
+          window.GithubTrendingView.render();
+        });
+      }
     } else if (sideView === 'agent-builder') {
 
       if (viewAgentBuilder) viewAgentBuilder.classList.remove('hidden');
@@ -1602,6 +1629,7 @@ window.AppController = {
       { id: "ai-terms", name: "AI 용어 & 마인드맵", icon: "🧠", category: "ai", statCardId: "card-stat-ai-terms", guest: true, admin: true, description: "AI 관련 기술 개념 및 마인드맵 학습" },
       { id: "sap-terms", name: "SAP 용어 & 마인드맵", icon: "🏢", category: "work", statCardId: "card-stat-sap-terms", guest: true, admin: true, description: "SAP ERP 코어 모듈 및 기술 용어 마인드맵" },
       { id: "sap-suite", name: "SAP Integration Suite", icon: "⚡", category: "work", statCardId: "card-stat-sap-suite", guest: true, admin: true, description: "SAP Cloud Integration 최신 소식 및 Groovy/iFlow 컨설팅·개발 도우미" },
+      { id: "github-trending", name: "GitHub 트렌딩 & 오픈소스 레이더", icon: "🐙", category: "work", statCardId: "card-stat-github-trending", guest: true, admin: true, description: "GitHub 최근 인기 급상승 오픈소스 랭킹, 초보자용 활용 가이드 및 madang 시스템 연계 개선 제안" },
       { id: "agent-builder", name: "AI 에이전트 Builder", icon: "🧩", category: "ai", guest: true, admin: true, description: "자원 조합 및 시스템 워크플로우 설계도 생성" },
 
       { id: "ip-whitelist", name: "IP 화이트리스트", icon: "🛡️", category: "admin", guest: false, admin: true, description: "접속 허용 IP 주소 관리" },
