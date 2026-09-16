@@ -1,0 +1,36 @@
+{
+  "currentPosition": {
+    "stockName": "두산에너빌리티",
+    "itemCode": "034020",
+    "market": "KR",
+    "currency": "KRW",
+    "status": "FILLED",
+    "quantity": 1,
+    "entryPrice": 86400,
+    "averagePrice": 86400,
+    "currentPrice": 86400,
+    "totalInvestedKrw": 86400,
+    "unrealizedPnl": 0,
+    "returnPct": 0.0,
+    "targetPrice": 99360,
+    "stopLossPrice": 82080,
+    "targetPriceKrw": 99360,
+    "stopLossPriceKrw": 82080,
+    "orderId": "gFtzcABZuVp4o",
+    "debateId": "debate-20260914-153401-034020",
+    "debateSummary": "두산에너빌리티 원전/SMR 모멘텀 및 실적 턴어라운드 AI 끝장토론 매수 의결",
+    "startedAt": "2026-09-14T23:30:00.000Z",
+    "filledAt": "2026-09-14T23:30:00.000Z",
+    "lastUpdatedAt": "2026-09-15T05:30:00.000Z",
+    "note": "토스증권 실계좌 보유 잔고 동기화 (두산에너빌리티 1주 보유 중)"
+  },
+  "history": [],
+  "stats": {
+    "totalTrades": 0,
+    "winTrades": 0,
+    "lossTrades": 0,
+    "winRate": 0,
+    "totalProfitKrw": 0
+  },
+  "lastCheckAt": "2026-09-15T05:30:00.000Z"
+}

@@ -1,6 +1,141 @@
 // data/initialSapNews.js - Auto-updated by SAP Agent
 window.PORTAL_DATA_SAP_NEWS = [
     {
+        "id":  "sap_news_2cc03a21",
+        "title":  "SAP의 실시간 데이터 복제 옵션: 목록 범위를 좁히는 네 가지 질문",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/real-time-data-replication-options-in-sap-four-questions-that-narrow-the/ba-p/14484923",
+        "category":  "Blog",
+        "summary":  "먼저 답변하십시오. SAP의 \"실시간 복제\"는 여러 브랜드가 제공하는 하나의 기능이 아닙니다. 그것은 완전히 다른 모양을 가진 일련의 메커니즘이며, 모양에 따라 복사본이 무엇을 할 수 있고 무엇을 만들 수 있는지가 결정됩니다.",
+        "published_at":  "2026-09-16T08:02:04Z"
+    },
+    {
+        "id":  "sap_news_ba03617f",
+        "title":  "SAP Integration Suite Free 이전에 통합 흐름, 매핑 및 보안 자료를 백업하는 방법",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/how-to-back-up-integration-flows-mappings-and-security-material-before-sap/qaq-p/14485742",
+        "category":  "Migration",
+        "summary":  "안녕하세요. SAP Integration Suite Free Tier 구독(글로벌 계정)이 90일 만료에 가까워지고 있습니다. SAP Store Support는 만료로 인해 청구가 발생하지 않는다는 것을 확인했지만...",
+        "published_at":  "2026-09-16T02:34:03Z"
+    },
+    {
+        "id":  "sap_news_e3edeb97",
+        "title":  "SAP DMS에서 CPI-IS 페이로드 및 로그를 다운로드하는 사용자 정의 UI 기반 앱",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/custom-ui-based-app-to-download-cpi-is-payloads-and-logs-from-sap-dms/ba-p/14485541",
+        "category":  "Migration",
+        "summary":  "이 블로그에 대해 자세히 알아보기 전에 Bhavesh Kuntilal https://www.sprintegrate.com/cpi/sap-cpi-archive-mpls-to-sap-btp-...의 아래 두 가지 멋진 블로그를 살펴보는 것이 좋습니다.",
+        "published_at":  "2026-09-15T15:38:16Z"
+    },
+    {
+        "id":  "sap_news_f15c677a",
+        "title":  "활성 SAP 클라우드 통합 아티팩트를 MS SharePoint Online에 리포지토리로 내보내는 BTP 앱",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/btp-app-to-export-active-sap-cloud-integration-artifacts-to-ms-sharepoint/ba-p/14485607",
+        "category":  "Migration",
+        "summary":  "소개 SAP Cloud Integration 패키지에는 다양한 속도로 발전하는 여러 아티팩트 유형이 포함되는 경우가 많습니다. 팀은 재작업을 위해 선택한 활성 아티팩트의 읽기 가능하고 패키지로 구성된 사본이 필요할 수 있습니다.",
+        "published_at":  "2026-09-15T17:13:37Z"
+    },
+    {
+        "id":  "sap_news_77ffd3ab",
+        "title":  "SAP Integration Suite를 갖춘 노코드 MCP 서버: REST API에서 AI 에이전트까지",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/no-code-mcp-servers-with-sap-integration-suite-from-rest-api-to-ai-agent/ba-p/14485647",
+        "category":  "Migration",
+        "summary":  "공개: 이 블로그 게시물은 GenAI의 도움으로 작성되었습니다. 아키텍처, 구현 선택 사항 및 문제 해결 참고 사항은 실습 테스트를 기반으로 합니다. 소개 SAP 통합 솔루션",
+        "published_at":  "2026-09-15T21:01:59Z"
+    },
+    {
+        "id":  "sap_news_ccdc1aff",
+        "title":  "SAP BTP Integation Suite의 MCP 서버 자세히 살펴보기",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/a-closer-look-to-the-mcp-server-of-sap-btp-integation-suite/ba-p/14485318",
+        "category":  "Blog",
+        "summary":  "1. MCP 서버와 AI APP, LLM(Large Language Model)의 관계 MCP 서버는 SAP 인터페이스의 특별한 요약에 불과합니다. 지능이 전혀 없습니다. AI앱은...",
+        "published_at":  "2026-09-15T09:04:53Z"
+    },
+    {
+        "id":  "sap_news_86a156f8",
+        "title":  "SAP BTP에서 SAP Integration Suite용 모듈형 유틸리티 포털 구축",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/building-a-modular-utilities-portal-for-sap-integration-suite-on-sap-btp/ba-p/14485084",
+        "category":  "Migration",
+        "summary":  "소개 통합 팀은 반복되는 운영 작업에 대해 유용한 스크립트와 보고서를 작성하는 경우가 많습니다. 컬렉션이 늘어남에 따라 별도의 URL, 인증 규칙 및 배포 프로세스가 ...",
+        "published_at":  "2026-09-15T07:10:40Z"
+    },
+    {
+        "id":  "sap_news_eac140f6",
+        "title":  "SEO에서 MEO까지: SAP Commerce Cloud를 위한 Joule 지원 API 계층 설계",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/from-seo-to-meo-designing-joule-ready-api-layers-for-sap-commerce-cloud/ba-p/14479755",
+        "category":  "Migration",
+        "summary":  "수년 동안 디지털 상거래 팀은 쇼핑객과 검색 엔진이라는 두 가지 주요 소비자를 위해 매장을 최적화해 왔습니다. 구매자는 시각적 탐색, 제품 페이지, 장바구니 및 결제 기능을 받습니다.",
+        "published_at":  "2026-09-15T07:21:57Z"
+    },
+    {
+        "id":  "sap_news_a4825efe",
+        "title":  "ABAP 프로그램에서 iFlow 호출",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/invoke-an-iflow-from-abap-program/ba-p/14483622",
+        "category":  "Migration",
+        "summary":  "소개 SAP XI(PI/PO) 개발자와 ABAP 개발자는 SAP 인터페이스를 구축하는 편리하고 확립된 방법인 ABAP 프록시 덕분에 전통적으로 쉽게 협업해 왔습니다. 그러나 언제...",
+        "published_at":  "2026-09-15T07:52:22Z"
+    },
+    {
+        "id":  "sap_news_c647eb3b",
+        "title":  "다른 테넌트로 이동하기 전에 SAP Cloud 통합 iFlow에서 변경된 사항을 확인하세요.",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/see-what-changed-in-an-sap-cloud-integration-iflow-before-moving-it-to/ba-p/14485026",
+        "category":  "Blog",
+        "summary":  "하나의 SAP Cloud Integration 테넌트에서 다른 테넌트로 iFlow를 이동하기 전에 대상에서 변경되는 사항을 어떻게 확인합니까? 버전 번호를 비교하시겠습니까? 두 개의 디자인 타임 테넌트 측면을 엽니다.",
+        "published_at":  "2026-09-15T06:10:17Z"
+    },
+    {
+        "id":  "sap_news_29827311",
+        "title":  "Edge 노드 문제 추가(Edge Integration Cell)",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/adding-an-edge-node-issue-edge-integration-cell/qaq-p/14483871",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "처음으로 Edge Integration Cell에 대한 새 노드를 설정하려고 합니다. 무슨 이유인지 \"1단계: 엣지 노드 세부 정보\"를 완료했는데 \"다음\" 버튼이 보이지 않아서 더 이상 진행할 수 없습니다...",
+        "published_at":  "2026-09-11T19:16:09Z"
+    },
+    {
+        "id":  "sap_news_e8b0fabc",
+        "title":  "통합 셀 프로비저닝이 진행 중이며 최대 30분이 걸릴 수 있습니다.",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/enterprise-resource-planning-q-a/integration-cell-provisioning-is-in-progress-and-may-take-up-to-30-minutes/qaq-p/14484198",
+        "category":  "Best Practice",
+        "summary":  "안녕하세요 여러분, 이 작업은 24시간 이상 걸렸습니다. 이것은 예상된 것입니까, 아니면 취소해야 합니까? 우리가 무엇을 해야 하는지 안내해주실 수 있나요? 감사합니다.",
+        "published_at":  "2026-09-13T11:37:01Z"
+    },
+    {
+        "id":  "sap_news_d4919c65",
+        "title":  "SAP API Management 인바운드 API - 사용자 정의 도메인 및 인증서 관리",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-api-management-inbound-apis-custom-domain-and-certificate-management/qaq-p/14483797",
+        "category":  "Migration",
+        "summary":  "안녕하세요. SAP API Management를 통해 노출되는 인바운드 API용 커스텀 도메인을 사용하고 있습니다. 사용자 정의 도메인과 연결된 SSL/TLS 인증서에는 정기적인 갱신과 인증서 유효성 검사가 필요합니다.",
+        "published_at":  "2026-09-11T14:17:35Z"
+    },
+    {
+        "id":  "sap_news_c8cb19d1",
+        "title":  "[정보요청] Integration Suite의 AS2 어댑터",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/request-for-information-as2-adapter-in-integration-suite/qaq-p/14483914",
+        "category":  "Migration",
+        "summary":  "안녕하세요. HTTP(사용자 이름/비밀번호 인증)를 통해 연결하려는 외부 공급업체와의 기존 AS2 통신이 있습니다. 그들은 AS2 COM을 전환한다고 통보했습니다.",
+        "published_at":  "2026-09-12T05:02:03Z"
+    },
+    {
+        "id":  "sap_news_307062c7",
+        "title":  "통합 제품군을 활성화할 수 없습니다.",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/unable-activate-integration-suite/qaq-p/14484176",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "활성화 방법 좀 알려주세요... 5시간도 넘게 지났는데 거기에서 멈췄거든요",
+        "published_at":  "2026-09-13T06:53:53Z"
+    },
+    {
         "id":  "sap_news_6c86332a",
         "title":  "SAP Cloud Integration의 표준 Kafka 어댑터에서 \"현재 스레드가 소유자가 아닙니다\" 예외",
         "source":  "SAP Community (Q\u0026A)",

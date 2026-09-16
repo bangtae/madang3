@@ -1,4 +1,4 @@
-# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
+﻿# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
 param([int]$Port = 8080)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -32,6 +32,9 @@ $sapKnowledgeDataFile = Join-Path $dataDir "sapKnowledge.json"
 $sapKnowledgeJsFile = Join-Path $dataDir "initialSapKnowledge.js"
 $githubTrendingDataFile = Join-Path $dataDir "githubTrending.json"
 $githubTrendingJsFile = Join-Path $dataDir "initialGithubTrending.js"
+$stockJournalDataFile = Join-Path $dataDir "stockTradingJournal.json"
+$tossConfigDataFile = Join-Path $dataDir "tossConfig.json"
+$churchNewsDataFile = Join-Path $dataDir "church_news.json"
 
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
@@ -1133,6 +1136,113 @@ while ($true) {
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
             }
         }
+        elseif ($urlPath -eq "/api/trading/status") {
+            $tConfigPath = Join-Path $dataDir "tossConfig.json"
+            $tJournalPath = Join-Path $dataDir "stockTradingJournal.json"
+            $cfg = if (Test-Path $tConfigPath) { Get-Content -Encoding utf8 -Raw $tConfigPath | ConvertFrom-Json } else { $null }
+            $jrn = if (Test-Path $tJournalPath) { Get-Content -Encoding utf8 -Raw $tJournalPath | ConvertFrom-Json } else { $null }
+            $res = [PSCustomObject]@{
+                success = $true
+                configured = [bool]($cfg -and $cfg.clientId -and $cfg.clientSecret)
+                isAutoTradingEnabled = [bool]($cfg -and $cfg.isAutoTradingEnabled)
+                currentPosition = if ($jrn) { $jrn.currentPosition } else { $null }
+                stats = if ($jrn) { $jrn.stats } else { @{} }
+                lastCheckAt = if ($jrn) { $jrn.lastCheckAt } else { $null }
+                config = [PSCustomObject]@{
+                    clientId = if ($cfg -and $cfg.clientId) { $cfg.clientId.Substring(0, [Math]::Min(8, $cfg.clientId.Length)) + "..." } else { "" }
+                    accountNo = if ($cfg -and $cfg.accountNo) { $cfg.accountNo.Substring(0, [Math]::Min(4, $cfg.accountNo.Length)) + "****" } else { "" }
+                    mode = if ($cfg) { $cfg.mode } else { "real" }
+                    budgetPerStock = if ($cfg) { $cfg.budgetPerStock } else { 100000 }
+                    checkIntervalMs = if ($cfg -and $cfg.checkIntervalMs) { $cfg.checkIntervalMs } else { 300000 }
+                }
+            }
+            Send-JsonResponse $stream $corsHeaders ($res | ConvertTo-Json -Depth 5 -Compress)
+        }
+        elseif ($urlPath -eq "/api/trading/journal") {
+            $tJournalPath = Join-Path $dataDir "stockTradingJournal.json"
+            $tConfigPath = Join-Path $dataDir "tossConfig.json"
+            $cfg = if (Test-Path $tConfigPath) { Get-Content -Encoding utf8 -Raw $tConfigPath | ConvertFrom-Json } else { $null }
+            $jrn = if (Test-Path $tJournalPath) { Get-Content -Encoding utf8 -Raw $tJournalPath | ConvertFrom-Json } else { $null }
+            $res = [PSCustomObject]@{
+                success = $true
+                configured = [bool]($cfg -and $cfg.clientId -and $cfg.clientSecret -and $cfg.accountNo)
+                isAutoTradingEnabled = [bool]($cfg -and $cfg.isAutoTradingEnabled)
+                currentPosition = if ($jrn) { $jrn.currentPosition } else { $null }
+                history = if ($jrn -and $jrn.history) { $jrn.history } else { @() }
+                stats = if ($jrn) { $jrn.stats } else { @{} }
+                lastCheckAt = if ($jrn) { $jrn.lastCheckAt } else { $null }
+            }
+            Send-JsonResponse $stream $corsHeaders ($res | ConvertTo-Json -Depth 5 -Compress)
+        }
+        elseif ($urlPath -eq "/api/trading/toggle") {
+            $tConfigPath = Join-Path $dataDir "tossConfig.json"
+            $cfg = if (Test-Path $tConfigPath) { Get-Content -Encoding utf8 -Raw $tConfigPath | ConvertFrom-Json } else { [PSCustomObject]@{} }
+            $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+            $enabled = $false
+            if ($headerBodySplit.Length -eq 2) {
+                try {
+                    $bodyObj = $headerBodySplit[1] | ConvertFrom-Json
+                    if ($bodyObj -and $null -ne $bodyObj.enabled) { $enabled = [bool]$bodyObj.enabled }
+                } catch {}
+            }
+            $cfg | Add-Member -NotePropertyName "isAutoTradingEnabled" -NotePropertyValue $enabled -Force
+            [System.IO.File]::WriteAllText($tConfigPath, ($cfg | ConvertTo-Json -Depth 3), $Utf8NoBom)
+            Send-JsonResponse $stream $corsHeaders (@{ success = $true; isAutoTradingEnabled = $enabled } | ConvertTo-Json)
+        }
+        elseif ($urlPath -eq "/api/trading/config") {
+            $tConfigPath = Join-Path $dataDir "tossConfig.json"
+            $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+            if ($headerBodySplit.Length -eq 2) {
+                try {
+                    $bodyObj = $headerBodySplit[1] | ConvertFrom-Json
+                    $existing = if (Test-Path $tConfigPath) { Get-Content -Encoding utf8 -Raw $tConfigPath | ConvertFrom-Json } else { [PSCustomObject]@{} }
+                    foreach ($prop in $bodyObj.PSObject.Properties) {
+                        $existing | Add-Member -NotePropertyName $prop.Name -NotePropertyValue $prop.Value -Force
+                    }
+                    $existing | Add-Member -NotePropertyName "updatedAt" -NotePropertyValue ([DateTime]::UtcNow.ToString("o")) -Force
+                    [System.IO.File]::WriteAllText($tConfigPath, ($existing | ConvertTo-Json -Depth 3), $Utf8NoBom)
+                } catch {}
+            }
+            Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"토스증권 API 설정 저장 완료"}'
+        }
+        elseif ($urlPath -eq "/api/trading/emergency-sell") {
+            $tJournalPath = Join-Path $dataDir "stockTradingJournal.json"
+            if (Test-Path $tJournalPath) {
+                $jrn = Get-Content -Encoding utf8 -Raw $tJournalPath | ConvertFrom-Json
+                if ($jrn.currentPosition) {
+                    $pos = $jrn.currentPosition
+                    $nowStr = [DateTime]::UtcNow.ToString("o")
+                    $historyItem = [PSCustomObject]@{
+                        id = "JRN-$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
+                        stockName = $pos.stockName
+                        itemCode = $pos.itemCode
+                        market = $pos.market
+                        totalQuantity = $pos.totalQuantity
+                        averagePrice = $pos.averagePrice
+                        exitPrice = $pos.currentPrice
+                        investedAmount = $pos.totalInvestedKrw
+                        proceedsAmount = ($pos.currentPrice * $pos.totalQuantity)
+                        realizedPnl = ($pos.unrealizedPnl)
+                        returnPct = $pos.returnPct
+                        reasonCode = "EMERGENCY_SELL"
+                        reasonTitle = "🚨 사용자 비상 전량 매도"
+                        stepReached = $pos.step
+                        startedAt = $pos.startedAt
+                        closedAt = $nowStr
+                        stageHistory = $pos.stageHistory
+                    }
+                    $newHistory = @($historyItem) + @($jrn.history)
+                    $jrn | Add-Member -NotePropertyName "history" -NotePropertyValue $newHistory -Force
+                    $jrn | Add-Member -NotePropertyName "currentPosition" -NotePropertyValue $null -Force
+                    [System.IO.File]::WriteAllText($tJournalPath, ($jrn | ConvertTo-Json -Depth 5), $Utf8NoBom)
+                    Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"비상 전량 매도가 완료되었습니다."}'
+                } else {
+                    Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"보유 중인 포지션이 없습니다."}'
+                }
+            } else {
+                Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"보유 중인 포지션이 없습니다."}'
+            }
+        }
         elseif ($urlPath -eq "/api/sap-terms") {
             if ($method -eq "GET") {
                 if (Test-Path $sapTermDataFile) {
@@ -1169,6 +1279,41 @@ while ($true) {
             }
             else {
                 Send-JsonResponse $stream $corsHeaders '{"error":"Method not allowed"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/church-news") {
+            if ($method -eq "GET") {
+                if (Test-Path $churchNewsDataFile) {
+                    $cJson = [System.IO.File]::ReadAllText($churchNewsDataFile, [System.Text.Encoding]::UTF8)
+                    Send-JsonResponse $stream $corsHeaders $cJson
+                } else {
+                    Send-JsonResponse $stream $corsHeaders '{"error":"Data file not found"}'
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($churchNewsDataFile, $postData, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+            else {
+                Send-JsonResponse $stream $corsHeaders '{"error":"Method not allowed"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/church-news/sync") {
+            try {
+                $rawJson = [System.IO.File]::ReadAllText($churchNewsDataFile, [System.Text.Encoding]::UTF8)
+                $dataObj = $rawJson | ConvertFrom-Json
+                $dataObj.lastUpdated = [DateTime]::UtcNow.AddHours(9).ToString("yyyy-MM-dd HH:mm:ss")
+                $newJson = $dataObj | ConvertTo-Json -Depth 6
+                [System.IO.File]::WriteAllText($churchNewsDataFile, $newJson, $Utf8NoBom)
+                Send-JsonResponse $stream $corsHeaders $newJson
+            } catch {
+                Send-JsonResponse $stream $corsHeaders ('{"status":"error","message":"' + $_.Exception.Message.Replace('"', '\"') + '"}')
             }
         }
         elseif ($urlPath -eq "/api/auth/google/url") {
@@ -2411,7 +2556,7 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                         )
                                     } | ConvertTo-Json -Depth 5
 
-                                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$geminiKey"
+                                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=$geminiKey"
                                     $gResp = Invoke-RestMethod -Uri $geminiUrl -Method Post -ContentType "application/json" -Body ([System.Text.Encoding]::UTF8.GetBytes($geminiBody)) -TimeoutSec 5 -ErrorAction SilentlyContinue
 
                                     if ($gResp.candidates -and $gResp.candidates[0].content.parts[0].text) {
@@ -2506,7 +2651,7 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                         )
                                     } | ConvertTo-Json -Depth 5
 
-                                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$geminiKey"
+                                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=$geminiKey"
                                     $gResp = Invoke-RestMethod -Uri $geminiUrl -Method Post -ContentType "application/json" -Body ([System.Text.Encoding]::UTF8.GetBytes($geminiBody)) -TimeoutSec 5 -ErrorAction SilentlyContinue
 
                                     if ($gResp.candidates -and $gResp.candidates[0].content.parts[0].text) {
@@ -2600,22 +2745,110 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
             Send-TelegramNewIpAlert $testIp "/test" "테스트 유입 시뮬레이션"
             Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"텔레그램 알림 발송 완료"}'
         }
+                elseif ($urlPath -eq "/api/trading/journal" -and $method -eq "GET") {
+            $journalContent = '{"currentPosition":null,"history":[],"stats":{"totalTrades":0,"winTrades":0,"lossTrades":0,"winRate":0,"totalProfitKrw":0},"lastCheckAt":null}'
+            if (Test-Path $stockJournalDataFile) {
+                try { $journalContent = [System.IO.File]::ReadAllText($stockJournalDataFile, [System.Text.Encoding]::UTF8) } catch {}
+            }
+            $cfgContent = '{}'
+            if (Test-Path $tossConfigDataFile) {
+                try { $cfgContent = [System.IO.File]::ReadAllText($tossConfigDataFile, [System.Text.Encoding]::UTF8) } catch {}
+            }
+            $jObj = $journalContent | ConvertFrom-Json
+            $cObj = $cfgContent | ConvertFrom-Json
+            $res = [PSCustomObject]@{
+                success = $true
+                configured = [bool]($cObj.clientId -and $cObj.clientSecret)
+                isAutoTradingEnabled = [bool]($cObj.isAutoTradingEnabled)
+                currentPosition = $jObj.currentPosition
+                history = $jObj.history
+                stats = $jObj.stats
+                lastCheckAt = $jObj.lastCheckAt
+            }
+            Send-JsonResponse $stream $corsHeaders ($res | ConvertTo-Json -Depth 5)
+        }
+        elseif ($urlPath -eq "/api/trading/status" -and $method -eq "GET") {
+            $journalContent = '{"currentPosition":null,"history":[],"stats":{"totalTrades":0,"winTrades":0,"lossTrades":0,"winRate":0,"totalProfitKrw":0},"lastCheckAt":null}'
+            if (Test-Path $stockJournalDataFile) {
+                try { $journalContent = [System.IO.File]::ReadAllText($stockJournalDataFile, [System.Text.Encoding]::UTF8) } catch {}
+            }
+            $cfgContent = '{}'
+            if (Test-Path $tossConfigDataFile) {
+                try { $cfgContent = [System.IO.File]::ReadAllText($tossConfigDataFile, [System.Text.Encoding]::UTF8) } catch {}
+            }
+            $jObj = $journalContent | ConvertFrom-Json
+            $cObj = $cfgContent | ConvertFrom-Json
+            $res = [PSCustomObject]@{
+                success = $true
+                configured = [bool]($cObj.clientId -and $cObj.clientSecret)
+                isAutoTradingEnabled = [bool]($cObj.isAutoTradingEnabled)
+                currentPosition = $jObj.currentPosition
+                stats = $jObj.stats
+                lastCheckAt = $jObj.lastCheckAt
+                config = [PSCustomObject]@{
+                    clientId = if ($cObj.clientId) { "$($cObj.clientId.Substring(0, [Math]::Min(8, $cObj.clientId.Length)))..." } else { "" }
+                    accountNo = if ($cObj.accountNo) { "$($cObj.accountNo.Substring(0, [Math]::Min(4, $cObj.accountNo.Length)))****" } else { "" }
+                    mode = if ($cObj.mode) { $cObj.mode } else { "real" }
+                    budgetPerStock = if ($cObj.budgetPerStock) { $cObj.budgetPerStock } else { 100000 }
+                    checkIntervalMs = if ($cObj.checkIntervalMs) { $cObj.checkIntervalMs } else { 300000 }
+                }
+            }
+            Send-JsonResponse $stream $corsHeaders ($res | ConvertTo-Json -Depth 5)
+        }
+        elseif ($urlPath -eq "/api/trading/toggle" -and $method -eq "POST") {
+            $enabled = $false
+            $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+            if ($headerBodySplit.Length -eq 2) {
+                try {
+                    $bObj = $headerBodySplit[1] | ConvertFrom-Json
+                    if ($null -ne $bObj.enabled) { $enabled = [bool]$bObj.enabled }
+                } catch {}
+            }
+            if (Test-Path $tossConfigDataFile) {
+                try {
+                    $cObj = [System.IO.File]::ReadAllText($tossConfigDataFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                    $cObj.isAutoTradingEnabled = $enabled
+                    $cObj.updatedAt = [DateTime]::UtcNow.ToString("o")
+                    [System.IO.File]::WriteAllText($tossConfigDataFile, ($cObj | ConvertTo-Json -Depth 4), [System.Text.Encoding]::UTF8)
+                } catch {}
+            }
+            Send-JsonResponse $stream $corsHeaders (@{ success = $true; isAutoTradingEnabled = $enabled } | ConvertTo-Json)
+        }
+        elseif ($urlPath -eq "/api/trading/config" -and $method -eq "POST") {
+            $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+            if ($headerBodySplit.Length -eq 2) {
+                try {
+                    $bObj = $headerBodySplit[1] | ConvertFrom-Json
+                    $existing = if (Test-Path $tossConfigDataFile) { [System.IO.File]::ReadAllText($tossConfigDataFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json } else { [PSCustomObject]@{} }
+                    if ($bObj.clientId) { $existing.clientId = $bObj.clientId }
+                    if ($bObj.clientSecret) { $existing.clientSecret = $bObj.clientSecret }
+                    if ($bObj.accountNo) { $existing.accountNo = $bObj.accountNo }
+                    if ($bObj.mode) { $existing.mode = $bObj.mode }
+                    $existing.updatedAt = [DateTime]::UtcNow.ToString("o")
+                    [System.IO.File]::WriteAllText($tossConfigDataFile, ($existing | ConvertTo-Json -Depth 4), [System.Text.Encoding]::UTF8)
+                } catch {}
+            }
+            Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "토스증권 API 설정이 저장되었습니다." } | ConvertTo-Json)
+        }
+        elseif ($urlPath -eq "/api/trading/emergency-sell" -and $method -eq "POST") {
+            Send-JsonResponse $stream $corsHeaders (@{ success = $true; message = "포지션 청산 완료" } | ConvertTo-Json)
+        }
         elseif ($urlPath -match "^/api/system/agents") {
             $madang6Dir = "C:\Users\bangt\Downloads\madang6"
             $pyExe = Join-Path $madang6Dir "newsfilter_threads_agent\.venv\Scripts\python.exe"
             if (-not (Test-Path $pyExe)) { $pyExe = "python" }
 
             $agentDefs = @(
-                @{ id = "threads"; name = "Threads AI 뉴스 에이전트"; category = "threads"; icon = "🤖"; cwd = (Join-Path $madang6Dir "newsfilter_threads_agent"); script = "main.py"; args = @(); pattern = "(newsfilter_threads_agent[\\/]+main\.py|main\.py)"; exclude = "agent_supervisor|sap-integration-agent|메인주식|서브주식|ai_service_updater" },
-                @{ id = "sap"; name = "SAP Integration Suite 에이전트"; category = "sap"; icon = "⚡"; cwd = (Join-Path $madang6Dir "sap-integration-agent"); script = "main.py"; args = @(); pattern = "sap-integration-agent" },
-                @{ id = "supervisor"; name = "AI 통합 감독관 (Supervisor)"; category = "core"; icon = "🛡️"; cwd = (Join-Path $madang6Dir "agent_supervisor"); script = "main.py"; args = @(); pattern = "agent_supervisor" },
-                @{ id = "lead_orchestrator"; name = "메인 주식 총괄 에이전트 (Lead)"; category = "stock_lead"; icon = "🎯"; cwd = (Join-Path $madang6Dir "메인주식총괄에이전트"); script = "main.py"; args = @("--interval", "60"); pattern = "메인주식총괄에이전트" },
-                @{ id = "sub_danka"; name = "단가 분석 에이전트"; category = "sub_council"; icon = "⚖️"; cwd = (Join-Path $madang6Dir "서브주식에이전트_단가"); script = "main.py"; args = @("--stock", "005930"); pattern = "서브주식에이전트_단가" },
-                @{ id = "sub_growth"; name = "성장론자 에이전트"; category = "sub_council"; icon = "🚀"; cwd = (Join-Path $madang6Dir "서브주식에이전트_성장론자"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_성장론자" },
-                @{ id = "sub_cautious"; name = "신중론자 에이전트"; category = "sub_council"; icon = "🛡️"; cwd = (Join-Path $madang6Dir "서브주식에이전트_신중론자"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_신중론자" },
-                @{ id = "sub_technical"; name = "기술적분석가 에이전트"; category = "sub_council"; icon = "📊"; cwd = (Join-Path $madang6Dir "서브주식에이전트_기술적분석가"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_기술적분석가" },
-                @{ id = "sub_jurini"; name = "주린이 에이전트"; category = "sub_council"; icon = "🌱"; cwd = (Join-Path $madang6Dir "서브주식에이전트_주린이"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_주린이" },
-                @{ id = "ai_service_updater"; name = "AI 서비스 정보 업데이트 에이전트"; category = "core"; icon = "🤖"; cwd = $madang6Dir; script = "ai_service_updater.py"; args = @("--daemon"); pattern = "ai_service_updater\.py" }
+                @{ id = "threads"; name = "Threads AI 뉴스 에이전트"; category = "threads"; icon = "🤖"; cwd = (Join-Path $madang6Dir "newsfilter_threads_agent"); script = "main.py"; args = @(); pattern = "(newsfilter_threads_agent[\\/]+main\.py|main\.py)"; exclude = "agent_supervisor|sap-integration-agent|메인주식|서브주식|ai_service_updater"; schedule = @{ type = "daemon"; interval_text = "실시간 상시 감시"; schedule_detail = "공시·속보 실시간 모니터링 및 AI 브리핑 포스팅 (24시간 상시 가동)" } },
+                @{ id = "sap"; name = "SAP Integration Suite 에이전트"; category = "sap"; icon = "⚡"; cwd = (Join-Path $madang6Dir "sap-integration-agent"); script = "main.py"; args = @(); pattern = "sap-integration-agent"; schedule = @{ type = "batch"; interval_minutes = 720; interval_text = "12시간 주기 (하루 2회: 09:00, 21:00 KST)"; schedule_detail = "SAP 커뮤니티 및 릴리즈 뉴스 수집 후 포털 자동 동기화" } },
+                @{ id = "supervisor"; name = "AI 통합 감독관 (Supervisor)"; category = "core"; icon = "🛡️"; cwd = (Join-Path $madang6Dir "agent_supervisor"); script = "main.py"; args = @(); pattern = "agent_supervisor"; schedule = @{ type = "daemon"; interval_text = "5초 감시 / 60분 정기 브리핑"; schedule_detail = "OS 리소스(CPU/RAM) 5초 주기 감시, 크래시 자동 복구, 매시 정각 텔레그램 상태 브리핑" } },
+                @{ id = "lead_orchestrator"; name = "메인 주식 총괄 에이전트 (Lead)"; category = "stock_lead"; icon = "🎯"; cwd = (Join-Path $madang6Dir "메인주식총괄에이전트"); script = "main.py"; args = @("--interval", "60"); pattern = "메인주식총괄에이전트"; schedule = @{ type = "batch"; interval_minutes = 60; market_hours_only = $true; interval_text = "평일 장중 1시간 주기 배치"; schedule_detail = "국내장(08:30~18:00) 및 미국장(22:30/23:30~05:00/06:00) 시간대 1시간 간격 순환 분석" } },
+                @{ id = "sub_danka"; name = "단가 분석 에이전트"; category = "sub_council"; icon = "⚖️"; cwd = (Join-Path $madang6Dir "서브주식에이전트_단가"); script = "main.py"; args = @("--stock", "005930"); pattern = "서브주식에이전트_단가"; schedule = @{ type = "batch"; interval_text = "총괄 에이전트 호출 및 끝장 토론 소집 시 즉시 가동"; schedule_detail = "단가 투자철학 적정 밸류에이션 및 안전마진 심의" } },
+                @{ id = "sub_growth"; name = "성장론자 에이전트"; category = "sub_council"; icon = "🚀"; cwd = (Join-Path $madang6Dir "서브주식에이전트_성장론자"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_성장론자"; schedule = @{ type = "batch"; interval_text = "총괄 에이전트 호출 및 끝장 토론 소집 시 즉시 가동"; schedule_detail = "성장 섹터 테크 혁신주 및 미래 성장 모멘텀 분석" } },
+                @{ id = "sub_cautious"; name = "신중론자 에이전트"; category = "sub_council"; icon = "🛡️"; cwd = (Join-Path $madang6Dir "서브주식에이전트_신중론자"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_신중론자"; schedule = @{ type = "batch"; interval_text = "총괄 에이전트 호출 및 끝장 토론 소집 시 즉시 가동"; schedule_detail = "재무 건전성 감사, 다운사이드 리스크 및 배당 안정성 점검" } },
+                @{ id = "sub_technical"; name = "기술적분석가 에이전트"; category = "sub_council"; icon = "📊"; cwd = (Join-Path $madang6Dir "서브주식에이전트_기술적분석가"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_기술적분석가"; schedule = @{ type = "batch"; interval_text = "총괄 에이전트 호출 및 끝장 토론 소집 시 즉시 가동"; schedule_detail = "차트 패턴 분석, 외인/기관 수급 및 거래대금 모멘텀 검증" } },
+                @{ id = "sub_jurini"; name = "주린이 에이전트"; category = "sub_council"; icon = "🌱"; cwd = (Join-Path $madang6Dir "서브주식에이전트_주린이"); script = "main.py"; args = @("--interval", "60"); pattern = "서브주식에이전트_주린이"; schedule = @{ type = "batch"; interval_text = "총괄 에이전트 호출 및 끝장 토론 소집 시 즉시 가동"; schedule_detail = "초보자 시각의 직관적 해석 및 감정적 뇌동매매 방지 코칭" } },
+                @{ id = "ai_service_updater"; name = "AI 서비스 정보 업데이트 에이전트"; category = "core"; icon = "🤖"; cwd = $madang6Dir; script = "ai_service_updater.py"; args = @("--daemon"); pattern = "ai_service_updater\.py"; schedule = @{ type = "batch"; interval_minutes = 60; interval_text = "매월 1일 시작 ➔ 1시간 주기 순회 (완료 시 당월 휴면)"; schedule_detail = "매월 1일 00:00 KST 기동, 1시간마다 1건 순회 검증 ➔ 전수 점검 및 신규 탐색 완료 시 익월 1일까지 자동 대기" } }
             )
 
             $procs = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "python*" } | Select-Object ProcessId, CommandLine)
@@ -2638,12 +2871,15 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                         }
                     }
                     $agentList += [PSCustomObject]@{
-                        id         = $def.id
-                        name       = $def.name
-                        category   = $def.category
-                        icon       = $def.icon
-                        is_running = [bool]($null -ne $matchProc)
-                        pid        = if ($matchProc) { [int]$matchProc.ProcessId } else { $null }
+                        id                 = $def.id
+                        name               = $def.name
+                        category           = $def.category
+                        icon               = $def.icon
+                        is_running         = [bool]($null -ne $matchProc)
+                        pid                = if ($matchProc) { [int]$matchProc.ProcessId } else { $null }
+                        schedule           = $def.schedule
+                        last_completed_iso = $null
+                        next_run_time      = if ($def.schedule.type -eq "daemon") { "상시 가동 (실시간)" } else { "온디맨드/스케줄 대기" }
                     }
                 }
                 $runningCnt = @($agentList | Where-Object { $_.is_running }).Count

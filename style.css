@@ -6280,3 +6280,168 @@ input:disabled + .slider {
     max-width: 100%;
   }
 }
+
+/* ========================================================= */
+/* 📑 토스증권 주식 매매일지 모바일 완벽 대응 반응형 레이아웃 */
+/* ========================================================= */
+.trading-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.trading-stat-card {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 16px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.trading-pos-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.trading-pos-card {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.trading-pos-main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.trading-pos-info-block {
+  flex: 1;
+  min-width: 220px;
+  max-width: 100%;
+}
+
+.trading-pos-price-block {
+  text-align: right;
+  min-width: 120px;
+}
+
+.trading-order-note-box {
+  color: #38bdf8;
+  font-size: 0.82rem;
+  font-weight: 600;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.trading-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.trading-metric-box {
+  background: rgba(15, 23, 42, 0.6);
+  padding: 12px;
+  border-radius: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.trading-lifecycle-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.trading-lifecycle-step {
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 0;
+  overflow: hidden;
+}
+
+@media screen and (max-width: 768px) {
+  .trading-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .trading-stat-card {
+    padding: 12px;
+  }
+  .trading-pos-card {
+    padding: 16px;
+  }
+  .trading-pos-main-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .trading-pos-price-block {
+    text-align: left;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  }
+  .trading-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .trading-lifecycle-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .trading-lifecycle-step {
+    padding: 8px 10px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .trading-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .trading-stat-card {
+    padding: 10px 12px;
+  }
+  .trading-pos-header-row h3 {
+    font-size: 1.02rem !important;
+  }
+  .trading-pos-card {
+    padding: 14px;
+  }
+  .trading-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .trading-metric-box {
+    padding: 10px 8px;
+  }
+  .trading-metric-box div:last-child {
+    font-size: 0.98rem !important;
+  }
+}
+

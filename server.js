@@ -9,6 +9,8 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const telegramBot = require('./app/utils/telegramBotHelper');
+const stockAutoTrader = require('./app/services/stockAutoTrader');
+const tossInvestClient = require('./app/utils/tossInvestClient');
 
 const app = express();
 app.set('trust proxy', true);
@@ -704,6 +706,9 @@ function getGoogleRedirectUri(req) {
   return `${finalProto}://${host}/api/auth/google/callback`;
 }
 
+const DEFAULT_GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const DEFAULT_GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+
 async function getValidGoogleAccessToken(clientRefreshToken = null) {
   let tokens = getGoogleTokens() || {};
   if (!tokens.refresh_token && clientRefreshToken) {
@@ -718,8 +723,8 @@ async function getValidGoogleAccessToken(clientRefreshToken = null) {
   }
 
   if (tokens.refresh_token) {
-    const clientId = getEnvVal('GOOGLE_CLIENT_ID');
-    const clientSecret = getEnvVal('GOOGLE_CLIENT_SECRET');
+    const clientId = getEnvVal('GOOGLE_CLIENT_ID', DEFAULT_GOOGLE_CLIENT_ID);
+    const clientSecret = getEnvVal('GOOGLE_CLIENT_SECRET', DEFAULT_GOOGLE_CLIENT_SECRET);
 
     try {
       const resp = await fetch('https://oauth2.googleapis.com/token', {
@@ -751,7 +756,7 @@ async function getValidGoogleAccessToken(clientRefreshToken = null) {
 
 // 1. Google OAuth URL 생성
 app.get('/api/auth/google/url', (req, res) => {
-  const clientId = getEnvVal('GOOGLE_CLIENT_ID');
+  const clientId = getEnvVal('GOOGLE_CLIENT_ID', DEFAULT_GOOGLE_CLIENT_ID);
   const redirectUri = req.query.redirect_uri || getGoogleRedirectUri(req);
 
   const params = new URLSearchParams({
@@ -779,8 +784,8 @@ app.get('/api/auth/google/callback', async (req, res) => {
     return res.redirect('/?auth=error&msg=' + encodeURIComponent(error || 'No code returned') + '#blogger-news');
   }
 
-  const clientId = getEnvVal('GOOGLE_CLIENT_ID');
-  const clientSecret = getEnvVal('GOOGLE_CLIENT_SECRET');
+  const clientId = getEnvVal('GOOGLE_CLIENT_ID', DEFAULT_GOOGLE_CLIENT_ID);
+  const clientSecret = getEnvVal('GOOGLE_CLIENT_SECRET', DEFAULT_GOOGLE_CLIENT_SECRET);
   const redirectUri = getGoogleRedirectUri(req);
 
   try {
@@ -827,8 +832,8 @@ app.post('/api/auth/google/code', async (req, res) => {
     return res.status(400).json({ success: false, error: '인증 코드가 필요합니다.' });
   }
 
-  const clientId = getEnvVal('GOOGLE_CLIENT_ID');
-  const clientSecret = getEnvVal('GOOGLE_CLIENT_SECRET');
+  const clientId = getEnvVal('GOOGLE_CLIENT_ID', DEFAULT_GOOGLE_CLIENT_ID);
+  const clientSecret = getEnvVal('GOOGLE_CLIENT_SECRET', DEFAULT_GOOGLE_CLIENT_SECRET);
 
   try {
     const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
@@ -877,7 +882,79 @@ app.get('/api/auth/google/status', (req, res) => {
   });
 });
 
-// 5. Blogger API v3 게시글 목록 조회
+async function fetchBloggerPublicPosts() {
+  const feedUrl = 'https://bangtae.blogspot.com/feeds/posts/default?alt=json&max-results=25';
+  const res = await fetch(feedUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  if (!res.ok) throw new Error(`Public Feed Error (${res.status})`);
+  const data = await res.json();
+  const entries = data?.feed?.entry || [];
+
+  return entries.map(e => {
+    const tKey = '$t';
+    const rawContent = e.content?.[tKey] || e.summary?.[tKey] || '';
+    const cleanContent = rawContent
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const title = e.title?.[tKey] || '무제';
+    const published = e.published?.[tKey] || '';
+    const updated = e.updated?.[tKey] || '';
+    const linkObj = (e.link || []).find(l => l.rel === 'alternate') || e.link?.[0] || {};
+    const url = linkObj.href || 'https://bangtae.blogspot.com/';
+
+    const images = [];
+    if (e.media$thumbnail?.url) {
+      images.push(e.media$thumbnail.url.replace(/\/s72-c\//, '/s800/'));
+    }
+    const imgMatches = rawContent.matchAll(/<img[^>]+src=["']([^"']+)["']/gi);
+    for (const m of imgMatches) {
+      if (m[1] && !images.includes(m[1])) images.push(m[1]);
+      if (images.length >= 3) break;
+    }
+
+    const labels = (e.category || []).map(c => c.term).filter(Boolean);
+    if (labels.length === 0) labels.push('뉴스요약');
+
+    let formattedDate = published;
+    try {
+      const d = new Date(published);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const h = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        formattedDate = `${y}.${m}.${day} ${h}:${min}`;
+      }
+    } catch (err) {}
+
+    const rawId = e.id?.[tKey] || '';
+    const idMatch = rawId.match(/post-(\d+)/);
+    const id = idMatch ? idMatch[1] : String(Math.random());
+
+    return {
+      id,
+      title,
+      url,
+      published,
+      formattedDate,
+      updated,
+      labels,
+      author: e.author?.[0]?.name?.[tKey] || '방태',
+      description: cleanContent.length > 280 ? cleanContent.slice(0, 280) + '...' : cleanContent,
+      images
+    };
+  });
+}
+
+// 5. Blogger API v3 게시글 목록 조회 (OAuth 우선 + 공개 피드 100% 무인증 자동 폴백)
 app.get('/api/blogger-posts', async (req, res) => {
   const isRefresh = req.query.refresh === 'true' || req.query.refresh === '1';
   const clientRefreshToken = req.headers['x-google-refresh-token'] || req.query.refresh_token || null;
@@ -891,12 +968,37 @@ app.get('/api/blogger-posts', async (req, res) => {
   const accessToken = await getValidGoogleAccessToken(clientRefreshToken);
 
   if (!accessToken) {
-    return res.json({
-      success: false,
-      connected: false,
-      message: 'Google OAuth 2.0 계정 연동이 필요합니다.',
-      items: []
-    });
+    try {
+      const publicItems = await fetchBloggerPublicPosts();
+      const result = {
+        success: true,
+        connected: false,
+        isPublicFeed: true,
+        blogId,
+        blogTitle: '방태 데일리 뉴스요약',
+        blogUrl: 'https://bangtae.blogspot.com/',
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedKst: new Intl.DateTimeFormat('sv-SE', {
+          timeZone: 'Asia/Seoul',
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }).format(new Date()),
+        source: 'public_feed',
+        itemsCount: publicItems.length,
+        items: publicItems
+      };
+      cachedBloggerPosts = result;
+      bloggerPostsCacheTime = now;
+      return res.json(result);
+    } catch (pubErr) {
+      console.error('[Blogger Public Feed Error]:', pubErr);
+      return res.json({
+        success: false,
+        connected: false,
+        message: 'Google OAuth 2.0 계정 연동이 필요합니다.',
+        items: []
+      });
+    }
   }
 
   try {
@@ -909,6 +1011,21 @@ app.get('/api/blogger-posts', async (req, res) => {
     });
 
     if (!bRes.ok) {
+      // API 실패 시 공개 피드로 즉시 전환
+      try {
+        const publicItems = await fetchBloggerPublicPosts();
+        return res.json({
+          success: true,
+          connected: false,
+          isPublicFeed: true,
+          blogId,
+          blogTitle: '방태 데일리 뉴스요약',
+          blogUrl: 'https://bangtae.blogspot.com/',
+          source: 'public_feed_fallback',
+          itemsCount: publicItems.length,
+          items: publicItems
+        });
+      } catch (e) {}
       const errBody = await bRes.json().catch(() => ({}));
       return res.status(bRes.status).json({
         success: false,
@@ -986,6 +1103,143 @@ app.get('/api/blogger-posts', async (req, res) => {
   } catch (err) {
     console.error('[Blogger API Error]:', err);
     res.status(500).json({ success: false, error: err.message, items: [] });
+  }
+});
+
+// ==========================================
+// 6. 토스증권 Open API & AI 끝장토론 자동매매/매매일지 API
+// ==========================================
+try { stockAutoTrader.init(); } catch (e) { console.warn('[StockAutoTrader] Init warning:', e.message); }
+
+// (1) 자동매매 상태 및 현재 포지션 요약
+app.get('/api/trading/status', (req, res) => {
+  const cfg = stockAutoTrader.getConfig();
+  const journal = stockAutoTrader.getJournalData();
+  res.json({
+    success: true,
+    configured: Boolean(cfg.clientId && cfg.clientSecret),
+    isAutoTradingEnabled: Boolean(cfg.isAutoTradingEnabled),
+    currentPosition: journal.currentPosition,
+    stats: journal.stats,
+    lastCheckAt: journal.lastCheckAt,
+    config: {
+      clientId: cfg.clientId ? `${cfg.clientId.slice(0, 8)}...` : '',
+      accountNo: cfg.accountNo ? `${cfg.accountNo.slice(0, 4)}****` : '',
+      mode: cfg.mode || 'real',
+      budgetPerStock: cfg.budgetPerStock || 100000,
+      checkIntervalMs: cfg.checkIntervalMs || 300000
+    }
+  });
+});
+
+// (2) 자동매매 ON / OFF 토글
+app.post('/api/trading/toggle', (req, res) => {
+  const { enabled } = req.body || {};
+  const updatedCfg = stockAutoTrader.toggleAutoTrading(Boolean(enabled));
+  res.json({ success: true, isAutoTradingEnabled: Boolean(updatedCfg.isAutoTradingEnabled) });
+});
+
+// (3) 전체 누적 매매일지 및 통계 조회 (실계좌 보유 잔고 실시간 동기화)
+app.get('/api/trading/journal', async (req, res) => {
+  try {
+    const journal = stockAutoTrader.getJournalData();
+    const cfg = stockAutoTrader.getConfig();
+    if (cfg.clientId && cfg.clientSecret) {
+      await stockAutoTrader.syncHoldingsWithToss(journal);
+    }
+    res.json({
+      success: true,
+      configured: Boolean(cfg.clientId && cfg.clientSecret),
+      isAutoTradingEnabled: Boolean(cfg.isAutoTradingEnabled),
+      currentPosition: journal.currentPosition,
+      history: journal.history || [],
+      stats: journal.stats || {},
+      lastCheckAt: journal.lastCheckAt
+    });
+  } catch (err) {
+    const journal = stockAutoTrader.getJournalData();
+    const cfg = stockAutoTrader.getConfig();
+    res.json({
+      success: true,
+      configured: Boolean(cfg.clientId && cfg.clientSecret),
+      isAutoTradingEnabled: Boolean(cfg.isAutoTradingEnabled),
+      currentPosition: journal.currentPosition,
+      history: journal.history || [],
+      stats: journal.stats || {},
+      lastCheckAt: journal.lastCheckAt,
+      syncWarning: err.message
+    });
+  }
+});
+
+// (3-1) 토스증권 실계좌 보유 잔고 원본 직접 조회 (진단용)
+app.get('/api/trading/holdings', async (req, res) => {
+  try {
+    const tossInvestClient = require('./app/utils/tossInvestClient');
+    const result = await tossInvestClient.getHoldings();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// (4) 사용자 비상 전량 매도 (현재 보유 종목 시장가 즉시 청산)
+app.post('/api/trading/emergency-sell', async (req, res) => {
+  try {
+    const result = await stockAutoTrader.emergencySell();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// (5) 토스증권 API 설정 저장
+app.post('/api/trading/config', (req, res) => {
+  const { clientId, clientSecret, accountNo, mode } = req.body || {};
+  const updated = stockAutoTrader.saveConfig({ clientId, clientSecret, accountNo, mode });
+  res.json({ success: true, message: '토스증권 API 설정이 저장되었습니다.', config: updated });
+});
+
+// (6) 수동 1회 사이클 실행 (테스트/즉시 트리거)
+app.post('/api/trading/manual-cycle', async (req, res) => {
+  try {
+    await stockAutoTrader.runTick();
+    const journal = stockAutoTrader.getJournalData();
+    res.json({ success: true, message: '트레이딩 엔진 1회 사이클이 실행되었습니다.', position: journal.currentPosition });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// (7) 현재 서버 공인 송신 IP 조회 (토스 WTS 허용 IP 등록용)
+app.get('/api/trading/server-ip', async (req, res) => {
+  try {
+    const ipResp = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
+    const data = await ipResp.json();
+    res.json({ success: true, ip: data.ip });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// 토스증권 API 연결 및 시세 조회 진단 API
+app.get('/api/trading/test-connection', async (req, res) => {
+  try {
+    const symbol = req.query.symbol || '034020'; // 두산에너빌리티 기본
+    const token = await tossInvestClient.getAccessToken();
+    const quote = await tossInvestClient.getQuote(symbol);
+    res.json({
+      success: true,
+      hasToken: Boolean(token),
+      tokenPrefix: token ? `${token.slice(0, 10)}...` : null,
+      symbol,
+      quote
+    });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e.message
+    });
   }
 });
 
@@ -1208,7 +1462,7 @@ const AUTO_THEME_CANDIDATES = [
 
 const KR_THEME_CANDIDATES = AUTO_THEME_CANDIDATES;
 
-// 🇺🇸 미국장(NYSE/NASDAQ) 핵심 AI·빅테크 10대 테마 후보군
+// 🇺🇸 미국장(NYSE/NASDAQ) 핵심 AI·빅테크 11대 테마 후보군
 const US_THEME_CANDIDATES = [
   { code: 'NVDA', name: 'NVIDIA (엔비디아)', market: 'NASDAQ', cik: '0001045810', topic: 'Blackwell Ultra & 차세대 AI GPU 데이터센터 독점력' },
   { code: 'TSLA', name: 'Tesla (테슬라)', market: 'NASDAQ', cik: '0001318605', topic: 'FSD v13 규제 승인 및 로보택시 Cybercab 상용화' },
@@ -1219,8 +1473,131 @@ const US_THEME_CANDIDATES = [
   { code: 'META', name: 'Meta (메타)', market: 'NASDAQ', cik: '0001326801', topic: 'Llama 4 오픈소스 생태계 지배력 및 AI 광고 전환율 극대화' },
   { code: 'AVGO', name: 'Broadcom (브로드컴)', market: 'NASDAQ', cik: '0001730168', topic: '커스텀 XPU ASIC 수요 및 VMware 가상화 번들링 수익' },
   { code: 'PLTR', name: 'Palantir (팔란티어)', market: 'NYSE', cik: '0001321655', topic: 'AIP(인공지능 플랫폼) 미국 국방 및 민간 엔터프라이즈 폭풍 수주' },
-  { code: 'AMD', name: 'AMD (에이엠디)', market: 'NASDAQ', cik: '0000002488', topic: 'MI350/MI400 AI 가속기 시장 점유율 탈환 및 Zen 5 서버 CPU' }
+  { code: 'AMD', name: 'AMD (에이엠디)', market: 'NASDAQ', cik: '0000002488', topic: 'MI350/MI400 AI 가속기 시장 점유율 탈환 및 Zen 5 서버 CPU' },
+  { code: 'DUOL', name: 'Duolingo (듀오링고)', market: 'NASDAQ', cik: '0001562088', topic: '생성형 AI 언어 학습 및 구독자 ARR 고속 성장' },
+  { code: 'MANE', name: 'Veradermics (베라더믹스)', market: 'NYSE', cik: '0001827635', topic: '차세대 피부질환 바이오 신약 임상 모멘텀 및 FDA 상용화 가속' }
 ];
+
+// 🇺🇸 미국장(NYSE/NASDAQ) 대표 종목 및 매핑 딕셔너리
+const US_STOCK_MAP = {
+  'MANE': { code: 'MANE', name: 'Veradermics (베라더믹스)', market: 'NYSE', cik: '0001827635', topic: '차세대 피부질환 바이오 신약 임상 모멘텀 및 FDA 상용화 가속' },
+  '베라더믹스': { code: 'MANE', name: 'Veradermics (베라더믹스)', market: 'NYSE', cik: '0001827635', topic: '차세대 피부질환 바이오 신약 임상 모멘텀 및 FDA 상용화 가속' },
+  'VERADERMICS': { code: 'MANE', name: 'Veradermics (베라더믹스)', market: 'NYSE', cik: '0001827635', topic: '차세대 피부질환 바이오 신약 임상 모멘텀 및 FDA 상용화 가속' },
+  'DUOL': { code: 'DUOL', name: 'Duolingo (듀오링고)', market: 'NASDAQ', cik: '0001562088', topic: '생성형 AI 언어 학습 및 구독자 ARR 고속 성장' },
+  '듀오링고': { code: 'DUOL', name: 'Duolingo (듀오링고)', market: 'NASDAQ', cik: '0001562088', topic: '생성형 AI 언어 학습 및 구독자 ARR 고속 성장' },
+  'DUOLINGO': { code: 'DUOL', name: 'Duolingo (듀오링고)', market: 'NASDAQ', cik: '0001562088', topic: '생성형 AI 언어 학습 및 구독자 ARR 고속 성장' },
+  'NVDA': { code: 'NVDA', name: 'NVIDIA (엔비디아)', market: 'NASDAQ', cik: '0001045810', topic: 'Blackwell Ultra & 차세대 AI GPU 데이터센터 독점력' },
+  '엔비디아': { code: 'NVDA', name: 'NVIDIA (엔비디아)', market: 'NASDAQ', cik: '0001045810', topic: 'Blackwell Ultra & 차세대 AI GPU 데이터센터 독점력' },
+  'TSLA': { code: 'TSLA', name: 'Tesla (테슬라)', market: 'NASDAQ', cik: '0001318605', topic: 'FSD v13 규제 승인 및 로보택시 Cybercab 상용화' },
+  '테슬라': { code: 'TSLA', name: 'Tesla (테슬라)', market: 'NASDAQ', cik: '0001318605', topic: 'FSD v13 규제 승인 및 로보택시 Cybercab 상용화' },
+  'AAPL': { code: 'AAPL', name: 'Apple (애플)', market: 'NASDAQ', cik: '0000320193', topic: 'Apple Intelligence 생태계 확장 및 온디바이스 AI 슈퍼사이클' },
+  '애플': { code: 'AAPL', name: 'Apple (애플)', market: 'NASDAQ', cik: '0000320193', topic: 'Apple Intelligence 생태계 확장 및 온디바이스 AI 슈퍼사이클' },
+  'MSFT': { code: 'MSFT', name: 'Microsoft (마이크로소프트)', market: 'NASDAQ', cik: '0000789019', topic: 'Azure AI 클라우드 마진율 및 Copilot 엔터프라이즈 침투율' },
+  '마이크로소프트': { code: 'MSFT', name: 'Microsoft (마이크로소프트)', market: 'NASDAQ', cik: '0000789019', topic: 'Azure AI 클라우드 마진율 및 Copilot 엔터프라이즈 침투율' },
+  'GOOGL': { code: 'GOOGL', name: 'Alphabet (알파벳/구글)', market: 'NASDAQ', cik: '0001652044', topic: 'Gemini 2.5 멀티모달 검색 전환 및 커스텀 TPU v6 시너지' },
+  '구글': { code: 'GOOGL', name: 'Alphabet (알파벳/구글)', market: 'NASDAQ', cik: '0001652044', topic: 'Gemini 2.5 멀티모달 검색 전환 및 커스텀 TPU v6 시너지' },
+  '알파벳': { code: 'GOOGL', name: 'Alphabet (알파벳/구글)', market: 'NASDAQ', cik: '0001652044', topic: 'Gemini 2.5 멀티모달 검색 전환 및 커스텀 TPU v6 시너지' },
+  'AMZN': { code: 'AMZN', name: 'Amazon (아마존)', market: 'NASDAQ', cik: '0001018724', topic: 'AWS Trainium2 칩 내재화 및 전자상거래 AI 물류 효율화' },
+  '아마존': { code: 'AMZN', name: 'Amazon (아마존)', market: 'NASDAQ', cik: '0001018724', topic: 'AWS Trainium2 칩 내재화 및 전자상거래 AI 물류 효율화' },
+  'META': { code: 'META', name: 'Meta (메타)', market: 'NASDAQ', cik: '0001326801', topic: 'Llama 4 오픈소스 생태계 지배력 및 AI 광고 전환율 극대화' },
+  '메타': { code: 'META', name: 'Meta (메타)', market: 'NASDAQ', cik: '0001326801', topic: 'Llama 4 오픈소스 생태계 지배력 및 AI 광고 전환율 극대화' },
+  'AVGO': { code: 'AVGO', name: 'Broadcom (브로드컴)', market: 'NASDAQ', cik: '0001730168', topic: '커스텀 XPU ASIC 수요 및 VMware 가상화 번들링 수익' },
+  '브로드컴': { code: 'AVGO', name: 'Broadcom (브로드컴)', market: 'NASDAQ', cik: '0001730168', topic: '커스텀 XPU ASIC 수요 및 VMware 가상화 번들링 수익' },
+  'PLTR': { code: 'PLTR', name: 'Palantir (팔란티어)', market: 'NYSE', cik: '0001321655', topic: 'AIP(인공지능 플랫폼) 미국 국방 및 민간 엔터프라이즈 폭풍 수주' },
+  '팔란티어': { code: 'PLTR', name: 'Palantir (팔란티어)', market: 'NYSE', cik: '0001321655', topic: 'AIP(인공지능 플랫폼) 미국 국방 및 민간 엔터프라이즈 폭풍 수주' },
+  'AMD': { code: 'AMD', name: 'AMD (에이엠디)', market: 'NASDAQ', cik: '0000002488', topic: 'MI350/MI400 AI 가속기 시장 점유율 탈환 및 Zen 5 서버 CPU' },
+  '에이엠디': { code: 'AMD', name: 'AMD (에이엠디)', market: 'NASDAQ', cik: '0000002488', topic: 'MI350/MI400 AI 가속기 시장 점유율 탈환 및 Zen 5 서버 CPU' },
+  'CPNG': { code: 'CPNG', name: 'Coupang (쿠팡)', market: 'NYSE', cik: '0001834584', topic: '로켓배송 물류 자동화 AI 및 대만 등 글로벌 확장' },
+  '쿠팡': { code: 'CPNG', name: 'Coupang (쿠팡)', market: 'NYSE', cik: '0001834584', topic: '로켓배송 물류 자동화 AI 및 대만 등 글로벌 확장' },
+  'IONQ': { code: 'IONQ', name: 'IonQ (아이온큐)', market: 'NYSE', cik: '0001824920', topic: '이온트랩 양자컴퓨팅 상용화 및 정부/기업 수주 확대' },
+  '아이온큐': { code: 'IONQ', name: 'IonQ (아이온큐)', market: 'NYSE', cik: '0001824920', topic: '이온트랩 양자컴퓨팅 상용화 및 정부/기업 수주 확대' },
+  'SOUN': { code: 'SOUN', name: 'SoundHound AI (사운드하운드)', market: 'NASDAQ', cik: '0001840636', topic: '음성 AI 에이전트 자동차/F&B 침투율' },
+  '사운드하운드': { code: 'SOUN', name: 'SoundHound AI (사운드하운드)', market: 'NASDAQ', cik: '0001840636', topic: '음성 AI 에이전트 자동차/F&B 침투율' },
+  'COIN': { code: 'COIN', name: 'Coinbase (코인베이스)', market: 'NASDAQ', cik: '0001679788', topic: '가상자산 제도권 편입 및 스테이블코인 수수료 수익' },
+  '코인베이스': { code: 'COIN', name: 'Coinbase (코인베이스)', market: 'NASDAQ', cik: '0001679788', topic: '가상자산 제도권 편입 및 스테이블코인 수수료 수익' },
+  'SNOW': { code: 'SNOW', name: 'Snowflake (스노우플레이크)', market: 'NYSE', cik: '0001640147', topic: '데이터 클라우드 및 생성형 AI 엔터프라이즈 데이터웨어하우스' },
+  '스노우플레이크': { code: 'SNOW', name: 'Snowflake (스노우플레이크)', market: 'NYSE', cik: '0001640147', topic: '데이터 클라우드 및 생성형 AI 엔터프라이즈 데이터웨어하우스' },
+  'ARM': { code: 'ARM', name: 'Arm Holdings (암홀딩스)', market: 'NASDAQ', cik: '0001973239', topic: 'v9 아키텍처 로열티 성장 및 데이터센터 AI 칩 침투율' },
+  '암': { code: 'ARM', name: 'Arm Holdings (암홀딩스)', market: 'NASDAQ', cik: '0001973239', topic: 'v9 아키텍처 로열티 성장 및 데이터센터 AI 칩 침투율' },
+  '암홀딩스': { code: 'ARM', name: 'Arm Holdings (암홀딩스)', market: 'NASDAQ', cik: '0001973239', topic: 'v9 아키텍처 로열티 성장 및 데이터센터 AI 칩 침투율' },
+  'TSM': { code: 'TSM', name: 'TSMC (티에스엠씨)', market: 'NYSE', cik: '0001046179', topic: '2나노 공정 양산 및 글로벌 첨단 파운드리 독점 지배력' },
+  'TSMC': { code: 'TSM', name: 'TSMC (티에스엠씨)', market: 'NYSE', cik: '0001046179', topic: '2나노 공정 양산 및 글로벌 첨단 파운드리 독점 지배력' },
+  '티에스엠씨': { code: 'TSM', name: 'TSMC (티에스엠씨)', market: 'NYSE', cik: '0001046179', topic: '2나노 공정 양산 및 글로벌 첨단 파운드리 독점 지배력' },
+  'INTC': { code: 'INTC', name: 'Intel (인텔)', market: 'NASDAQ', cik: '0000050863', topic: '18A 파운드리 공정 승부수 및 정부 보조금 수혜' },
+  '인텔': { code: 'INTC', name: 'Intel (인텔)', market: 'NASDAQ', cik: '0000050863', topic: '18A 파운드리 공정 승부수 및 정부 보조금 수혜' },
+  'QCOM': { code: 'QCOM', name: 'Qualcomm (퀄컴)', market: 'NASDAQ', cik: '0000804328', topic: '스냅드래곤 X 엘리트 AI PC 및 오토모티브 칩 확장' },
+  '퀄컴': { code: 'QCOM', name: 'Qualcomm (퀄컴)', market: 'NASDAQ', cik: '0000804328', topic: '스냅드래곤 X 엘리트 AI PC 및 오토모티브 칩 확장' },
+  'MU': { code: 'MU', name: 'Micron (마이크론)', market: 'NASDAQ', cik: '0000723125', topic: 'HBM3E 고대역폭 메모리 공급 및 차세대 D램 사이클' },
+  '마이크론': { code: 'MU', name: 'Micron (마이크론)', market: 'NASDAQ', cik: '0000723125', topic: 'HBM3E 고대역폭 메모리 공급 및 차세대 D램 사이클' },
+  'NFLX': { code: 'NFLX', name: 'Netflix (넷플릭스)', market: 'NASDAQ', cik: '0001065280', topic: '글로벌 광고 요금제 전환 및 라이브 스트리밍 스포츠' },
+  '넷플릭스': { code: 'NFLX', name: 'Netflix (넷플릭스)', market: 'NASDAQ', cik: '0001065280', topic: '글로벌 광고 요금제 전환 및 라이브 스트리밍 스포츠' },
+  'ADBE': { code: 'ADBE', name: 'Adobe (어도비)', market: 'NASDAQ', cik: '0000796343', topic: '파이어플라이(Firefly) 생성형 AI 상용화 및 크리에이티브 클라우드' },
+  '어도비': { code: 'ADBE', name: 'Adobe (어도비)', market: 'NASDAQ', cik: '0000796343', topic: '파이어플라이(Firefly) 생성형 AI 상용화 및 크리에이티브 클라우드' },
+  'APP': { code: 'APP', name: 'AppLovin (앱러빈)', market: 'NASDAQ', cik: '0001751008', topic: 'AXON 2.0 AI 광고 엔진 폭풍 성장 및 이커머스 확장' },
+  '앱러빈': { code: 'APP', name: 'AppLovin (앱러빈)', market: 'NASDAQ', cik: '0001751008', topic: 'AXON 2.0 AI 광고 엔진 폭풍 성장 및 이커머스 확장' },
+  'SMCI': { code: 'SMCI', name: 'Super Micro Computer (슈퍼마이크로)', market: 'NASDAQ', cik: '0001375365', topic: '수랭식 AI 데이터센터 랙서버 솔루션' },
+  '슈퍼마이크로': { code: 'SMCI', name: 'Super Micro Computer (슈퍼마이크로)', market: 'NASDAQ', cik: '0001375365', topic: '수랭식 AI 데이터센터 랙서버 솔루션' },
+  'CRWD': { code: 'CRWD', name: 'CrowdStrike (크라우드스트라이크)', market: 'NASDAQ', cik: '0001535527', topic: '팔콘(Falcon) AI 클라우드 보안 플랫폼 점유율' },
+  '크라우드스트라이크': { code: 'CRWD', name: 'CrowdStrike (크라우드스트라이크)', market: 'NASDAQ', cik: '0001535527', topic: '팔콘(Falcon) AI 클라우드 보안 플랫폼 점유율' },
+  'PANW': { code: 'PANW', name: 'Palo Alto Networks (팔로알토)', market: 'NASDAQ', cik: '0001327567', topic: '차세대 보안 플랫폼화 전략 및 Precision AI' },
+  '팔로알토': { code: 'PANW', name: 'Palo Alto Networks (팔로알토)', market: 'NASDAQ', cik: '0001327567', topic: '차세대 보안 플랫폼화 전략 및 Precision AI' },
+  'MSTR': { code: 'MSTR', name: 'MicroStrategy (마이크로스트래티지)', market: 'NASDAQ', cik: '0001050446', topic: '비트코인 전략적 비축 및 기업 금융 레버리지' },
+  '마이크로스트래티지': { code: 'MSTR', name: 'MicroStrategy (마이크로스트래티지)', market: 'NASDAQ', cik: '0001050446', topic: '비트코인 전략적 비축 및 기업 금융 레버리지' },
+  'UBER': { code: 'UBER', name: 'Uber (우버)', market: 'NYSE', cik: '0001543151', topic: '글로벌 모빌리티 독점 및 자율주행 파트너십 플랫폼' },
+  '우버': { code: 'UBER', name: 'Uber (우버)', market: 'NYSE', cik: '0001543151', topic: '글로벌 모빌리티 독점 및 자율주행 파트너십 플랫폼' },
+  'ABNB': { code: 'ABNB', name: 'Airbnb (에어비앤비)', market: 'NASDAQ', cik: '0001559720', topic: '글로벌 여행 플랫폼 현금흐름 및 장기 숙박 점유율' },
+  '에어비앤비': { code: 'ABNB', name: 'Airbnb (에어비앤비)', market: 'NASDAQ', cik: '0001559720', topic: '글로벌 여행 플랫폼 현금흐름 및 장기 숙박 점유율' },
+  'DIS': { code: 'DIS', name: 'Disney (월트디즈니)', market: 'NYSE', cik: '0001744489', topic: '스트리밍 흑자 전환 및 테마파크/크루즈 글로벌 확장' },
+  '디즈니': { code: 'DIS', name: 'Disney (월트디즈니)', market: 'NYSE', cik: '0001744489', topic: '스트리밍 흑자 전환 및 테마파크/크루즈 글로벌 확장' }
+};
+
+let secTickersCache = null;
+let lastSecFetchTime = 0;
+
+async function lookupSecCik(ticker) {
+  if (!ticker) return '';
+  const sym = String(ticker).toUpperCase().trim();
+  try {
+    const now = Date.now();
+    if (!secTickersCache || (now - lastSecFetchTime > 86400000)) {
+      const res = await fetch('https://www.sec.gov/files/company_tickers.json', {
+        headers: { 'User-Agent': 'MadangResearchCorp/1.0 (bangtae@onorca.dev)' }
+      });
+      if (res.ok) {
+        secTickersCache = await res.json();
+        lastSecFetchTime = now;
+      }
+    }
+    if (secTickersCache) {
+      for (const item of Object.values(secTickersCache)) {
+        if (item.ticker && item.ticker.toUpperCase() === sym) {
+          return String(item.cik_str).padStart(10, '0');
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[SEC CIK Lookup Error]', e.message);
+  }
+  return '';
+}
+
+function lookupUsStock(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  if (!s) return null;
+  const upper = s.toUpperCase();
+  const clean = s.replace(/\s+/g, '');
+  const cleanUpper = upper.replace(/\s+/g, '');
+  if (US_STOCK_MAP[s]) return US_STOCK_MAP[s];
+  if (US_STOCK_MAP[upper]) return US_STOCK_MAP[upper];
+  if (US_STOCK_MAP[clean]) return US_STOCK_MAP[clean];
+  if (US_STOCK_MAP[cleanUpper]) return US_STOCK_MAP[cleanUpper];
+  for (const item of Object.values(US_STOCK_MAP)) {
+    if (item.code.toUpperCase() === upper) return item;
+    if (item.name.toLowerCase().includes(s.toLowerCase())) return item;
+  }
+  return null;
+}
 
 // --- 🌐 시장별 장전/장후 세션 및 휴장일(공휴일) 판정 엔진 ---
 function getKstDate(d = new Date()) {
@@ -1332,6 +1709,9 @@ async function fetchUsStockData(ticker, cik = '') {
   let usdPrice = 0.0;
   let changePct = '+0.0%';
   let market = 'NASDAQ';
+  let companyName = '';
+  let sector = '';
+  let industry = '';
 
   try {
     const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d`;
@@ -1346,23 +1726,54 @@ async function fetchUsStockData(ticker, cik = '') {
         const pct = prev ? (diff / prev) * 100 : 0.0;
         changePct = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
         if (meta.exchangeName === 'NYQ' || meta.exchangeName === 'NYSE') market = 'NYSE';
+        if (meta.shortName) companyName = meta.shortName;
+        if (meta.longName && !companyName) companyName = meta.longName;
       }
     }
   } catch (e) {
     console.warn(`[US Stock Quote Error: ${ticker}]`, e.message);
   }
 
+  // Yahoo Search API로 상세 업종(Sector / Industry) 및 영문사명 보강
+  try {
+    const sUrl = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}`;
+    const sRes = await fetch(sUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (sRes.ok) {
+      const sJson = await sRes.json();
+      const quotes = sJson?.quotes || [];
+      const matched = quotes.find(q => q.symbol && q.symbol.toUpperCase() === ticker.toUpperCase()) || quotes[0];
+      if (matched) {
+        if (!companyName && (matched.shortname || matched.longname)) {
+          companyName = matched.shortname || matched.longname;
+        }
+        sector = matched.sectorDisp || matched.sector || '';
+        industry = matched.industryDisp || matched.industry || '';
+      }
+    }
+  } catch (e) {
+    console.warn(`[US Stock Search Error: ${ticker}]`, e.message);
+  }
+
   const fxRate = await fetchUsdkrwRate();
   const krwPrice = Math.round(usdPrice * fxRate);
 
+  // CIK 미지정 시 SEC 공식 티커 매핑에서 동적 탐색
+  let targetCik = cik;
+  if (!targetCik) {
+    targetCik = await lookupSecCik(ticker);
+  }
+
   let filings = [];
-  if (cik) {
+  let sicDescription = '';
+  if (targetCik) {
     try {
-      const padCik = String(cik).replace(/^CIK/i, '').padStart(10, '0');
+      const padCik = String(targetCik).replace(/^CIK/i, '').padStart(10, '0');
       const sUrl = `https://data.sec.gov/submissions/CIK${padCik}.json`;
       const sRes = await fetch(sUrl, { headers: { 'User-Agent': 'MadangResearchCorp/1.0 (bangtae@onorca.dev)' } });
       if (sRes.ok) {
         const sData = await sRes.json();
+        if (!companyName && sData.name) companyName = sData.name;
+        if (sData.sicDescription) sicDescription = sData.sicDescription;
         const recent = sData?.filings?.recent || {};
         const forms = recent.form || [];
         const dates = recent.filingDate || [];
@@ -1371,7 +1782,7 @@ async function fetchUsStockData(ticker, cik = '') {
           const f = forms[i];
           const d = dates[i];
           const acc = accs[i];
-          if (['8-K', '10-Q', '10-K', 'Form 4'].includes(f)) {
+          if (['8-K', '10-Q', '10-K', 'Form 4', '4', 'SCHEDULE 13D/A', '144'].includes(f)) {
             const cleanAcc = acc.replace(/-/g, '');
             const url = `https://www.sec.gov/Archives/edgar/data/${parseInt(padCik, 10)}/${cleanAcc}/${acc}.txt`;
             filings.push({ form: f, date: d, url });
@@ -1386,12 +1797,16 @@ async function fetchUsStockData(ticker, cik = '') {
 
   return {
     ticker,
+    companyName: companyName || ticker,
+    sector,
+    industry: industry || sicDescription,
     usdPrice: usdPrice ? `$${usdPrice.toFixed(2)}` : 'N/A',
     krwPrice: krwPrice ? `${krwPrice.toLocaleString()}원` : 'N/A',
     combinedPrice: usdPrice ? `$${usdPrice.toFixed(2)} (약 ${krwPrice.toLocaleString()}원)` : 'N/A',
     changePct,
     market,
     fxRate,
+    cik: targetCik,
     filings
   };
 }
@@ -1438,21 +1853,22 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
 
   let resolvedCode = '';
   let resolvedName = stockName || '';
-  let rawStock = String(stock || '').trim();
+  let rawStock = String(stock || resolvedName || '').trim();
 
   const session = getCurrentMarketSession(new Date());
   let targetMarket = requestedMarket || (isAutoTheme ? session.market : null);
 
-  // 미장(US) 후보군 또는 티커 매칭 (사용자 입력이 있을 때만 검색)
-  const usCandidate = (rawStock || resolvedName) ? US_THEME_CANDIDATES.find(c =>
+  // 미장(US) 후보군 또는 티커 매칭 (lookupUsStock 우선 대조)
+  const matchedUsObj = lookupUsStock(rawStock) || lookupUsStock(resolvedName);
+  const usCandidate = matchedUsObj || ((rawStock || resolvedName) ? US_THEME_CANDIDATES.find(c =>
     (rawStock && c.code.toUpperCase() === rawStock.toUpperCase()) ||
     (rawStock && c.name.toLowerCase().includes(rawStock.toLowerCase())) ||
     (resolvedName && c.name.toLowerCase().includes(resolvedName.toLowerCase()))
-  ) : null;
+  ) : null);
 
   const isUsStock = isAutoTheme 
     ? (targetMarket === 'US')
-    : (Boolean(usCandidate) || (/^[A-Z]{1,5}$/i.test(rawStock) && !defaultMap[rawStock]));
+    : (requestedMarket === 'US' || Boolean(usCandidate) || (/^[A-Z]{1,5}$/i.test(rawStock) && !defaultMap[rawStock] && !krxStockMap[rawStock]));
 
   // 기존 토론 목록을 조회하여 아직 발굴되지 않은 신규 종목 우선 선정
   let existingDebates = [];
@@ -1504,6 +1920,10 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
     realPrice = usData.combinedPrice;
     realChangePct = usData.changePct;
     realMarket = usData.market;
+    if (usData.cik) cik = usData.cik;
+    if (!resolvedName || resolvedName === resolvedCode) {
+      resolvedName = usData.companyName || resolvedCode;
+    }
     realStockName = resolvedName;
   } else {
     // ==========================================
@@ -1653,14 +2073,15 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
 
   if (isUsStock && usData) {
     const filings = usData.filings || [];
+    const sectorInfo = [usData.sector, usData.industry].filter(Boolean).join(' / ');
     newsFactText = filings.length > 0 
       ? filings.map(f => `• [${f.date}] SEC Form ${f.form} 공식 공시 등록 (${f.url})`).join('\n')
       : '• 미국 증권거래위원회(SEC) EDGAR 수시공시 및 분기보고서 점검 완료';
-    dartFactText = `• SEC 공식 전자공시 시스템(EDGAR) CIK ${cik || resolvedCode} 공식 등록 문서 확인`;
+    dartFactText = `• 기업 공식 사명: ${usData.companyName || realStockName}\n• 산업 섹터 및 세부 분야: ${sectorInfo || '글로벌 상장 기업'}\n• SEC 공식 전자공시 시스템(EDGAR) CIK ${cik || resolvedCode} 공식 등록 문서 확인`;
     trendFactText = `• 야후 파이낸스 & 토스증권 해외주식 실시간 시세: ${realPrice} (${realChangePct})`;
     verifiedHeadline = filings.length > 0
       ? `SEC EDGAR 공식 공시 [Form ${filings[0].form}] (${filings[0].date})`
-      : `미국 SEC EDGAR 및 글로벌 증시 실시간 수급 팩트 점검 완료`;
+      : (sectorInfo ? `${usData.companyName} (${sectorInfo}) 글로벌 팩트 점검 완료` : `미국 SEC EDGAR 및 글로벌 증시 실시간 수급 팩트 점검 완료`);
   } else {
     newsFactText = recentNewsList.length > 0
       ? recentNewsList.join('\n')
@@ -1681,11 +2102,12 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
   const systemPrompt = `[역할: 5대 에이전트 주식 끝장 토론실(Debate Arena) 심의위원회 & 전문 애널리스트]
 당신은 최고 수준의 5대 주식 서브에이전트(메인총괄 CIO, 신중론자, 성장론자, 차티스트/수급, 주린이, 단가)가 한 치의 거짓 없이 치열하게 맞붙는 'AI 끝장 토론실'의 심의위원회 총괄 오케스트레이터입니다.
 
-[절대 준수: 2026년 실시간 실측가 및 공식 공시 팩트 보존 규칙]
+[절대 준수: 2026년 실시간 실측가 및 공식 공시/업종 팩트 보존 규칙]
 1. 대상 종목의 현재 실시간 실측 주가는 정확히 "${realPrice || '실시간 시세'}" (${realChangePct || '+0.0%'}) 입니다.
 2. 절대 과거 학습 데이터의 구 주가를 발언하지 마십시오!
-3. 11턴(단가)의 1차/2차/3차 분할 매수가, 8턴(차티스트)의 지지/저항선, 12턴(메인총괄)의 목표가/손절가는 반드시 실측가 "${realPrice}"를 기준으로 타당하게 계산된 현실적인 금액이어야 합니다. ${isUsStock ? '미국 주식은 달러($)와 원화(약 ₩) 환산가를 함께 명시하십시오.' : ''}
-4. 테마 검증 시 제공된 [최신 24시간 실시간 뉴스 및 공시 팩트]를 직접적 근거로 삼으십시오.
+3. 대상 종목의 실제 기업 정체성(공식 사명, 소속 산업 섹터, 실제 주요 제품/서비스/파이프라인)을 절대 임의로 왜곡하거나 다른 업종(예: 바이오 제약 기업을 반도체/컴퓨터 칩으로 날조)하지 마십시오! 반드시 제공된 실제 공시 및 업종 팩트를 바탕으로만 발언해야 합니다.
+4. 11턴(단가)의 1차/2차/3차 분할 매수가, 8턴(차티스트)의 지지/저항선, 12턴(메인총괄)의 목표가/손절가는 반드시 실측가 "${realPrice}"를 기준으로 타당하게 계산된 현실적인 금액이어야 합니다. ${isUsStock ? '미국 주식은 달러($)와 원화(약 ₩) 환산가를 함께 명시하십시오.' : ''}
+5. 테마 검증 시 제공된 [최신 24시간 실시간 뉴스 및 공시 팩트]를 직접적 근거로 삼으십시오.
 
 단순한 공시 단발성 공방이 아닌, 투자자가 실제로 해당 기업을 100% 꿰뚫어 볼 수 있도록 아래 [5대 핵심 검증 단계]를 12턴에 걸쳐 한 단계씩 순차적으로 검증하고 반박하며 치열한 티키타카 공방을 벌이세요.
 
@@ -1728,7 +2150,7 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
     "theme_name": "기업 핵심 테마명",
     "news_evidence": "핵심 테마 및 실적 연결 고리 팩트 요약",
     "metrics": {
-      "subject": "주체 (글로벌 빅테크, 정부 정책 등)",
+      "subject": "주체 (정부 규제기관, 글로벌 기업 등)",
       "timing": "시점 (예: 2026년 하반기)",
       "earnings_link": "실적 연결성 (영업이익 기여도 등)",
       "market_reaction": "시장 반응 (수급, 거래량 등)"
@@ -1763,13 +2185,20 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
 
   let userPrompt = '';
   if (isUsStock) {
-    userPrompt = `미국 주식 시장(${realMarket})의 글로벌 대장주 [${realStockName || resolvedName}] (${resolvedCode})에 대해 실시간 검증하세요.
+    const sectorInfo = [usData?.sector, usData?.industry].filter(Boolean).join(' / ');
+    userPrompt = `미국 주식 시장(${realMarket})의 상장 기업 [${realStockName || resolvedName}] (${resolvedCode})에 대해 실시간 검증하세요.
+공식 기업명: ${usData?.companyName || realStockName}
+소속 산업군: ${sectorInfo || '글로벌 상장 기업'}
 현재 실시간 실측 주가는 정확히 "${realPrice}" (${realChangePct || ''}) 입니다.
+[기업 정체성 및 소속 산업군]
+• 기업명: ${usData?.companyName || realStockName}
+• 섹터 및 세부 산업: ${sectorInfo || '공식 등록 기업'}
 [미국 SEC EDGAR 최신 공식 공시 팩트]
 ${newsFactText}
 [글로벌 시세 및 수급 팩트]
 ${trendFactText}
 ${dartFactText}
+[중요 지침]: 본 기업의 실제 업종(${sectorInfo || '공식 등록 업종'})에 맞는 파이프라인, 임상/연구, 시장 수요, 실적을 근거로 분석하십시오. 임의의 타 업종으로 날조하지 마십시오.
 '5대 핵심 검증 단계'에 따라 5대 에이전트의 치열한 12턴 단계별 끝장 토론과 애널리스트 최종 판정이 담긴 완성된 JSON을 생성하세요. 반드시 실측 주가 "${realPrice}"를 기준으로 매수가, 목표가를 제시해야 합니다.`;
   } else if (isAutoTheme) {
     userPrompt = `오늘 한국 주식 시장(KOSPI/KOSDAQ)에서 가장 뜨겁게 화제가 되고 있거나 실질적 모멘텀이 발생한 핵심 테마와 그 대표 대장주 [${realStockName || resolvedName}] (${resolvedCode})에 대해 실시간 검증하세요.
@@ -1793,28 +2222,43 @@ ${trendFactText}
 '5대 핵심 검증 단계'에 따라 5대 에이전트의 치열한 12턴 단계별 끝장 토론과 애널리스트 최종 판정이 담긴 완성된 JSON을 생성하세요. 반드시 실측 종가 "${realPrice}원"을 기준으로 매수가, 목표가를 제시해야 합니다.`;
   }
 
-  const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+  const candidateModels = ['gemini-2.5-flash-lite', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-pro'];
+  let geminiRes = null;
+  let lastErrText = '';
 
-  console.log(`[Cloud Debate Engine] Gemini 2.5 Flash 호출 시작: ${realStockName} (${resolvedCode}) [${realMarket}]...`);
-  const response = await fetch(geminiEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n[사용자 요청]\n${userPrompt}` }] }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.3,
-        maxOutputTokens: 8192
+  for (const modelName of candidateModels) {
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`;
+    console.log(`[Cloud Debate Engine] Gemini 모델 호출 시도 (${modelName}): ${realStockName} (${resolvedCode}) [${realMarket}]...`);
+    try {
+      const response = await fetch(geminiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n[사용자 요청]\n${userPrompt}` }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.3,
+            maxOutputTokens: 8192
+          }
+        })
+      });
+
+      if (response.ok) {
+        geminiRes = await response.json();
+        break;
+      } else {
+        lastErrText = await response.text();
+        console.warn(`[Cloud Debate Engine] ${modelName} 호출 실패 (${response.status}): ${lastErrText.slice(0, 150)}... 다음 모델 시도`);
       }
-    })
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gemini API Error: ${response.status} ${errText}`);
+    } catch (e) {
+      lastErrText = e.message;
+    }
   }
 
-  const geminiRes = await response.json();
+  if (!geminiRes) {
+    throw new Error(`모든 Gemini 모델 할당량 초과 또는 호출 실패: ${lastErrText}`);
+  }
+
   const rawJsonText = geminiRes.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!rawJsonText) {
     throw new Error('Gemini로부터 유효한 끝장 토론 대본 응답을 받지 못했습니다.');
@@ -2065,8 +2509,8 @@ app.get('/api/stock-debates/last-auto-status', (req, res) => {
 
 // 엔드포인트 3: 즉시 토론 소집 (Debate Summon) - 로컬 파이썬 우선, 부재 시 Gemini Cloud 엔진 즉시 폴백!
 app.post('/api/stock-debates/trigger', async (req, res) => {
-  const stock = (req.body?.stock || '').trim();
-  const stockName = (req.body?.stock_name || req.body?.originalQuery || '').trim();
+  let stock = (req.body?.stock || '').trim();
+  let stockName = (req.body?.stock_name || req.body?.originalQuery || '').trim();
   const topic = (req.body?.topic || '').trim();
 
   if (!stock && !stockName) {
@@ -2076,8 +2520,14 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
     });
   }
 
-  // 1. 미장 종목 감지 시 즉시 Cloud Engine 호출 (Yahoo/SEC EDGAR 실시간 연계)
-  const isUsStockInput = Boolean(US_THEME_CANDIDATES.find(c => 
+  // 1. 미장 종목 감지 및 티커 자동 정규화 (Yahoo/SEC EDGAR 실시간 연계)
+  const matchedUs = lookupUsStock(stock) || lookupUsStock(stockName);
+  if (matchedUs) {
+    stock = matchedUs.code;
+    if (!stockName) stockName = matchedUs.name;
+  }
+
+  const isUsStockInput = Boolean(matchedUs) || Boolean(US_THEME_CANDIDATES.find(c => 
     c.code.toUpperCase() === stock.toUpperCase() || 
     c.name.toLowerCase().includes(stock.toLowerCase()) || 
     (stockName && c.name.toLowerCase().includes(stockName.toLowerCase()))
@@ -2266,7 +2716,7 @@ Google 검색을 통해 대상 종목의 가장 최신 현재가, 목표주가, 
     };
 
     let rawText = '';
-    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+    const models = ['gemini-2.5-flash-lite', 'gemini-3.5-flash', 'gemini-2.5-flash'];
     for (const m of models) {
       try {
         const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${geminiKey}`;
@@ -2883,7 +3333,13 @@ const SYSTEM_AGENTS = [
     script: 'main.py',
     args: [],
     matchPattern: /newsfilter_threads_agent[\\\/]+main\.py|newsfilter_threads_agent.*main/i,
-    description: '공시 및 실시간 증시 뉴스 수집 / Threads 자동 포스팅 데몬'
+    description: '공시 및 실시간 증시 뉴스 수집 / Threads 자동 포스팅 데몬',
+    schedule: {
+      type: 'daemon',
+      type_kr: '상시 데몬',
+      interval_text: '실시간 상시 감시',
+      schedule_detail: '공시·속보 실시간 모니터링 및 AI 브리핑 포스팅 (24시간 상시 가동)'
+    }
   },
   {
     id: 'sap',
@@ -2894,7 +3350,14 @@ const SYSTEM_AGENTS = [
     script: 'main.py',
     args: [],
     matchPattern: /sap-integration-agent[\\\/]+main\.py|sap-integration-agent.*main/i,
-    description: 'SCN 및 SAP 커뮤니티 뉴스 수집 & 포털 동기화 데몬'
+    description: 'SCN 및 SAP 커뮤니티 뉴스 수집 & 포털 동기화 데몬',
+    schedule: {
+      type: 'batch',
+      type_kr: '정기 배치',
+      interval_minutes: 720,
+      interval_text: '12시간 주기 (하루 2회: 09:00, 21:00 KST)',
+      schedule_detail: 'SAP 커뮤니티 및 릴리즈 뉴스 수집 후 포털 자동 동기화'
+    }
   },
   {
     id: 'supervisor',
@@ -2905,7 +3368,13 @@ const SYSTEM_AGENTS = [
     script: 'main.py',
     args: [],
     matchPattern: /agent_supervisor[\\\/]+main\.py|agent_supervisor.*main/i,
-    description: '전체 에이전트 리소스 감시, 크래시 자동 복구 및 텔레그램 알림'
+    description: '전체 에이전트 리소스 감시, 크래시 자동 복구 및 텔레그램 알림',
+    schedule: {
+      type: 'daemon',
+      type_kr: '상시 데몬',
+      interval_text: '5초 감시 / 60분 정기 브리핑',
+      schedule_detail: 'OS 리소스(CPU/RAM) 5초 주기 감시, 크래시 자동 복구, 매시 정각 텔레그램 상태 브리핑'
+    }
   },
   {
     id: 'lead_orchestrator',
@@ -2916,7 +3385,15 @@ const SYSTEM_AGENTS = [
     script: 'main.py',
     args: ['--interval', '60'],
     matchPattern: /메인주식총괄에이전트[\\\/]+main\.py/i,
-    description: '5대 서브에이전트 조율, 1차 원천 팩트체크 및 최종 의결'
+    description: '5대 서브에이전트 조율, 1차 원천 팩트체크 및 최종 의결',
+    schedule: {
+      type: 'batch',
+      type_kr: '정규 장중 배치',
+      interval_minutes: 60,
+      market_hours_only: true,
+      interval_text: '평일 장중 1시간 주기 배치',
+      schedule_detail: '국내장(08:30~18:00) 및 미국장(22:30/23:30~05:00/06:00) 시간대 1시간 간격 순환 분석'
+    }
   },
   {
     id: 'sub_danka',
@@ -2927,7 +3404,13 @@ const SYSTEM_AGENTS = [
     script: 'main.py',
     args: ['--stock', '005930'],
     matchPattern: /서브주식에이전트_단가[\\\/]+main\.py/i,
-    description: 'daankal.com 화수분 투자철학 기반 5인 심의 및 보물찾기'
+    description: 'daankal.com 화수분 투자철학 기반 5인 심의 및 보물찾기',
+    schedule: {
+      type: 'batch',
+      type_kr: '온디맨드/장중 심의',
+      interval_text: '총괄 에이전트 호출 및 끝장 토론 소집 시 즉시 가동',
+      schedule_detail: '단가 투자철학 적정 밸류에이션 및 안전마진 심의'
+    }
   },
   {
     id: 'sub_growth',
@@ -2938,7 +3421,13 @@ const SYSTEM_AGENTS = [
     script: 'main.py',
     args: ['--interval', '60'],
     matchPattern: /서브주식에이전트_성장론자[\\\/]+main\.py/i,
-    description: '파괴적 혁신 및 전방 산업 고성장 테크주 발굴'
+    description: '파괴적 혁신 및 전방 산업 고성장 테크주 발굴',
+    schedule: {
+      type: 'batch',
+      type_kr: '온디맨드/장중 심의',
+      interval_text: '총괄 에이전트 호출 및 끝장 토론 소집 시 즉시 가동',
+      schedule_detail: '성장 섹터 테크 혁신주 및 미래 성장 모멘텀 분석'
+    }
   },
   {
     id: 'sub_cautious',
@@ -2949,7 +3438,13 @@ const SYSTEM_AGENTS = [
     script: 'main.py',
     args: ['--interval', '60'],
     matchPattern: /서브주식에이전트_신중론자[\\\/]+main\.py/i,
-    description: '단가식 안전마진 및 저평가 화수분 배당주 감사'
+    description: '단가식 안전마진 및 저평가 화수분 배당주 감사',
+    schedule: {
+      type: 'batch',
+      type_kr: '온디맨드/장중 심의',
+      interval_text: '총괄 에이전트 호출 및 끝장 토론 소집 시 즉시 가동',
+      schedule_detail: '재무 건전성 감사, 다운사이드 리스크 및 배당 안정성 점검'
+    }
   },
   {
     id: 'sub_technical',
@@ -2960,7 +3455,13 @@ const SYSTEM_AGENTS = [
     script: 'main.py',
     args: ['--interval', '60'],
     matchPattern: /서브주식에이전트_기술적분석가[\\\/]+main\.py/i,
-    description: '외인/기관 스마트머니 수급 집중 및 거래량 급증 추적'
+    description: '외인/기관 스마트머니 수급 집중 및 거래량 급증 추적',
+    schedule: {
+      type: 'batch',
+      type_kr: '온디맨드/장중 심의',
+      interval_text: '총괄 에이전트 호출 및 끝장 토론 소집 시 즉시 가동',
+      schedule_detail: '차트 패턴 분석, 외인/기관 수급 및 거래대금 모멘텀 검증'
+    }
   },
   {
     id: 'sub_jurini',
@@ -2971,7 +3472,13 @@ const SYSTEM_AGENTS = [
     script: 'main.py',
     args: ['--interval', '60'],
     matchPattern: /서브주식에이전트_주린이[\\\/]+main\.py/i,
-    description: '초보 투자자 눈높이의 쉬운 해설 및 안심 가이드'
+    description: '초보 투자자 눈높이의 쉬운 해설 및 안심 가이드',
+    schedule: {
+      type: 'batch',
+      type_kr: '온디맨드/장중 심의',
+      interval_text: '총괄 에이전트 호출 및 끝장 토론 소집 시 즉시 가동',
+      schedule_detail: '초보자 시각의 직관적 해석 및 감정적 뇌동매매 방지 코칭'
+    }
   },
   {
     id: 'ai_service_updater',
@@ -2982,7 +3489,15 @@ const SYSTEM_AGENTS = [
     script: 'ai_service_updater.py',
     args: ['--daemon'],
     matchPattern: /ai_service_updater\.py/i,
-    description: 'AI 모델 정보 자동 점검, 웹 스크래핑/검증 및 Supabase 클라우드/텔레그램 실시간 동기화 데몬'
+    description: 'AI 모델 정보 자동 점검, 웹 스크래핑/검증 및 Supabase 클라우드/텔레그램 실시간 동기화 데몬',
+    schedule: {
+      type: 'batch',
+      type_kr: '월간 순회 배치',
+      interval_minutes: 60,
+      schedule_type: 'monthly_batch',
+      interval_text: '매월 1일 시작 ➔ 1시간 주기 순회 (완료 시 당월 휴면)',
+      schedule_detail: '매월 1일 00:00 KST 기동, 1시간마다 1건 순회 검증 ➔ 전수 점검 및 신규 탐색 완료 시 익월 1일까지 자동 대기'
+    }
   }
 ];
 
@@ -3120,6 +3635,50 @@ app.get('/api/system/agents', async (req, res) => {
       const isRunning = !!procMatch || isHbValid;
       const finalPid = procMatch ? procMatch.ProcessId : hbPid;
 
+      // 직전 실행 완료 시각 및 다음 예정 시각 동적 계산
+      const lastCompletedIso = (hb && hb.last_completed_iso) || null;
+      const executionDuration = (hb && hb.execution_duration) || null;
+      let nextRunTime = null;
+
+      if (agent.schedule) {
+        if (agent.schedule.type === 'daemon') {
+          nextRunTime = '상시 가동 (실시간)';
+        } else if (agent.id === 'sap') {
+          // 12시간 주기 (09:00, 21:00 KST)
+          const kstNow = new Date(Date.now() + 9 * 3600 * 1000);
+          const currentHour = kstNow.getUTCHours();
+          let targetHour = currentHour < 9 ? 9 : (currentHour < 21 ? 21 : 9);
+          let targetDate = new Date(kstNow);
+          if (currentHour >= 21) {
+            targetDate.setUTCDate(targetDate.getUTCDate() + 1);
+          }
+          targetDate.setUTCHours(targetHour, 0, 0, 0);
+          const targetKstStr = `${targetDate.getUTCFullYear()}-${String(targetDate.getUTCMonth()+1).padStart(2,'0')}-${String(targetDate.getUTCDate()).padStart(2,'0')} ${String(targetHour).padStart(2,'0')}:00 KST`;
+          nextRunTime = targetKstStr;
+        } else if (agent.id === 'lead_orchestrator') {
+          if (lastCompletedIso) {
+            const lastMs = new Date(lastCompletedIso).getTime();
+            const nextMs = lastMs + 60 * 60 * 1000;
+            const nextDt = new Date(nextMs + 9 * 3600 * 1000);
+            nextRunTime = `${String(nextDt.getUTCHours()).padStart(2,'0')}:${String(nextDt.getUTCMinutes()).padStart(2,'0')} KST (장중 1시간 주기)`;
+          } else {
+            nextRunTime = '평일 장중 1시간 주기 (매시 정각)';
+          }
+        } else if (agent.id === 'ai_service_updater') {
+          if (hb && hb.phase === 'COMPLETED_MONTHLY_IDLE') {
+            const kstNow = new Date(Date.now() + 9 * 3600 * 1000);
+            const curMonth = kstNow.getUTCMonth();
+            const nextMonth = (curMonth + 1) % 12;
+            const nextYear = kstNow.getUTCFullYear() + (curMonth === 11 ? 1 : 0);
+            nextRunTime = `${nextYear}년 ${String(nextMonth + 1).padStart(2,'0')}월 01일 00:00 KST (당월 완료)`;
+          } else {
+            nextRunTime = '매월 1일 시작 ➔ 1시간 주기 순회';
+          }
+        } else {
+          nextRunTime = '온디맨드 호출 또는 토론 소집 시 가동';
+        }
+      }
+
       return {
         id: agent.id,
         name: agent.name,
@@ -3130,6 +3689,10 @@ app.get('/api/system/agents', async (req, res) => {
         pid: finalPid,
         source: procMatch ? 'local_process' : (isHbValid ? 'cloud_heartbeat' : 'offline'),
         lastHeartbeat: hb ? hb.lastHeartbeat : null,
+        last_completed_iso: lastCompletedIso,
+        execution_duration: executionDuration,
+        next_run_time: nextRunTime,
+        schedule: agent.schedule || null,
         command: procMatch ? procMatch.CommandLine : null
       };
     });

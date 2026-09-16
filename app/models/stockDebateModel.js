@@ -37,7 +37,7 @@ window.StockDebateModel = {
     const cleanQ = q.replace(/\s+/g, '');
     if (krxMap[cleanQ]) return krxMap[cleanQ];
 
-    // 2. 미국 대표 종목 (US Big Tech)
+    // 2. 미국 대표 종목 (US Big Tech & 서학개미 주요 종목)
     const usMap = {
       'NVDA': 'NVDA', '엔비디아': 'NVDA', 'NVIDIA': 'NVDA',
       'TSLA': 'TSLA', '테슬라': 'TSLA', 'TESLA': 'TSLA',
@@ -48,7 +48,29 @@ window.StockDebateModel = {
       'META': 'META', '메타': 'META',
       'AVGO': 'AVGO', '브로드컴': 'AVGO',
       'PLTR': 'PLTR', '팔란티어': 'PLTR',
-      'AMD': 'AMD', '에이엠디': 'AMD'
+      'AMD': 'AMD', '에이엠디': 'AMD',
+      'DUOL': 'DUOL', '듀오링고': 'DUOL', 'DUOLINGO': 'DUOL',
+      'CPNG': 'CPNG', '쿠팡': 'CPNG', 'COUPANG': 'CPNG',
+      'IONQ': 'IONQ', '아이온큐': 'IONQ',
+      'SOUN': 'SOUN', '사운드하운드': 'SOUN', '사운드하운드AI': 'SOUN',
+      'COIN': 'COIN', '코인베이스': 'COIN',
+      'SNOW': 'SNOW', '스노우플레이크': 'SNOW',
+      'ARM': 'ARM', '암': 'ARM', '암홀딩스': 'ARM',
+      'TSM': 'TSM', 'TSMC': 'TSM', '티에스엠씨': 'TSM',
+      'INTC': 'INTC', '인텔': 'INTC',
+      'QCOM': 'QCOM', '퀄컴': 'QCOM',
+      'MU': 'MU', '마이크론': 'MU', '마이크론테크놀로지': 'MU',
+      'NFLX': 'NFLX', '넷플릭스': 'NFLX',
+      'ADBE': 'ADBE', '어도비': 'ADBE',
+      'APP': 'APP', '앱러빈': 'APP',
+      'SMCI': 'SMCI', '슈퍼마이크로': 'SMCI', '슈퍼마이크로컴퓨터': 'SMCI',
+      'CRWD': 'CRWD', '크라우드스트라이크': 'CRWD',
+      'PANW': 'PANW', '팔로알토': 'PANW', '팔로알토네트웍스': 'PANW',
+      'MSTR': 'MSTR', '마이크로스트래티지': 'MSTR',
+      'UBER': 'UBER', '우버': 'UBER',
+      'ABNB': 'ABNB', '에어비앤비': 'ABNB',
+      'DIS': 'DIS', '디즈니': 'DIS', '월트디즈니': 'DIS',
+      'MANE': 'MANE', '베라더믹스': 'MANE', 'VERADERMICS': 'MANE'
     };
     if (usMap[q.toUpperCase()]) return usMap[q.toUpperCase()];
     if (usMap[q]) return usMap[q];
@@ -76,7 +98,15 @@ window.StockDebateModel = {
     const usReverseMap = {
       'NVDA': 'NVIDIA (엔비디아)', 'TSLA': 'Tesla (테슬라)', 'AAPL': 'Apple (애플)',
       'MSFT': 'Microsoft (마이크로소프트)', 'GOOGL': 'Alphabet (알파벳)', 'AMZN': 'Amazon (아마존)',
-      'META': 'Meta (메타)', 'AVGO': 'Broadcom (브로드컴)', 'PLTR': 'Palantir (팔란티어)', 'AMD': 'AMD (에이엠디)'
+      'META': 'Meta (메타)', 'AVGO': 'Broadcom (브로드컴)', 'PLTR': 'Palantir (팔란티어)', 'AMD': 'AMD (에이엠디)',
+      'DUOL': 'Duolingo (듀오링고)', 'CPNG': 'Coupang (쿠팡)', 'IONQ': 'IonQ (아이온큐)',
+      'SOUN': 'SoundHound AI (사운드하운드)', 'COIN': 'Coinbase (코인베이스)', 'SNOW': 'Snowflake (스노우플레이크)',
+      'ARM': 'Arm Holdings (암홀딩스)', 'TSM': 'TSMC (티에스엠씨)', 'INTC': 'Intel (인텔)',
+      'QCOM': 'Qualcomm (퀄컴)', 'MU': 'Micron (마이크론)', 'NFLX': 'Netflix (넷플릭스)',
+      'ADBE': 'Adobe (어도비)', 'APP': 'AppLovin (앱러빈)', 'SMCI': 'Super Micro Computer (슈퍼마이크로)',
+      'CRWD': 'CrowdStrike (크라우드스트라이크)', 'PANW': 'Palo Alto Networks (팔로알토)',
+      'MSTR': 'MicroStrategy (마이크로스트래티지)', 'UBER': 'Uber (우버)', 'ABNB': 'Airbnb (에어비앤비)', 'DIS': 'Disney (디즈니)',
+      'MANE': 'Veradermics (베라더믹스)'
     };
     if (usReverseMap[q.toUpperCase()]) return usReverseMap[q.toUpperCase()];
 
@@ -351,8 +381,32 @@ window.StockDebateModel = {
     }
   },
 
+  isAdmin() {
+    try {
+      const raw = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u && u.isGuest === false) return true;
+      }
+    } catch (e) {}
+    if (typeof document !== 'undefined' && document.body && !document.body.classList.contains('is-guest-mode')) {
+      const raw = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+      if (raw) {
+        try {
+          const u = JSON.parse(raw);
+          return u && !u.isGuest;
+        } catch (e) {}
+      }
+    }
+    return false;
+  },
+
   async deleteDebate(debateId) {
     if (!debateId) return false;
+    if (!this.isAdmin()) {
+      console.warn('[StockDebateModel] Unauthorized delete attempt: Admin role required.');
+      return false;
+    }
     try {
       const endpoints = this.resolveEndpoints(`/api/stock-debates?id=${encodeURIComponent(debateId)}`);
       for (const ep of endpoints) {
@@ -374,6 +428,10 @@ window.StockDebateModel = {
   },
 
   async clearAllDebates() {
+    if (!this.isAdmin()) {
+      console.warn('[StockDebateModel] Unauthorized clear attempt: Admin role required.');
+      return false;
+    }
     try {
       const endpoints = this.resolveEndpoints('/api/stock-debates?all=true');
       for (const ep of endpoints) {

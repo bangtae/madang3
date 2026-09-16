@@ -188,15 +188,15 @@
             badge.style.color = '#4ade80';
             badge.style.borderColor = 'rgba(34, 197, 94, 0.4)';
           } else {
-            badge.textContent = '🟡 Google OAuth 연동 필요';
-            badge.style.background = 'rgba(234, 179, 8, 0.2)';
-            badge.style.color = '#facc15';
-            badge.style.borderColor = 'rgba(234, 179, 8, 0.4)';
+            badge.textContent = '🟢 실시간 블로그 연동 중';
+            badge.style.background = 'rgba(34, 197, 94, 0.2)';
+            badge.style.color = '#4ade80';
+            badge.style.borderColor = 'rgba(34, 197, 94, 0.4)';
           }
         }
 
         if (connectCard) {
-          connectCard.style.display = this.isConnected ? 'none' : 'block';
+          connectCard.style.display = (this.isConnected || (this.allPosts && this.allPosts.length > 0)) ? 'none' : 'block';
         }
       } catch (e) {
         console.warn('[BloggerNewsView] Auth status check error:', e);
@@ -206,8 +206,6 @@
     async loadPosts(forceRefresh = false) {
       if (this.isLoading) return;
       this.isLoading = true;
-
-      await this.checkAuthStatus();
 
       const loadingEl = document.getElementById('blogger-news-loading');
       const emptyEl = document.getElementById('blogger-news-empty');
@@ -232,8 +230,8 @@
         const res = await fetch(url, { headers });
         const data = await res.json();
 
-        if (data && data.connected === false) {
-          // 구글 연동 필요
+        if (data && data.success === false && (!data.items || data.items.length === 0)) {
+          // 게시글 로드 실패 및 연동 필요
           this.isConnected = false;
           const connectCard = document.getElementById('blogger-oauth-connect-card');
           if (connectCard) connectCard.style.display = 'block';
@@ -243,6 +241,9 @@
           }
           return;
         }
+
+        const connectCard = document.getElementById('blogger-oauth-connect-card');
+        if (connectCard) connectCard.style.display = 'none';
 
         if (data && Array.isArray(data.items)) {
           this.allPosts = data.items;

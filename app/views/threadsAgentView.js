@@ -87,6 +87,48 @@ window.ThreadsAgentView = {
     const agJurini = getAgent('sub_jurini');
     const agAiServiceUpdater = getAgent('ai_service_updater');
 
+    // 스케줄 & 배치 시간 메타 박스 HTML 렌더러 헬퍼
+    const renderScheduleBox = (agent, defaultIntervalText, defaultNextRunText) => {
+      const sch = agent.schedule || {};
+      const intervalText = sch.interval_text || defaultIntervalText || '설정 정보 없음';
+      const scheduleDetail = sch.schedule_detail || '';
+      const lastDoneIso = agent.last_completed_iso;
+      const lastDuration = agent.execution_duration;
+      
+      let lastDoneStr = '이력 없음';
+      if (lastDoneIso) {
+        try {
+          const d = new Date(lastDoneIso);
+          lastDoneStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+          if (lastDuration) {
+            lastDoneStr += ` (소요 ${Math.round(lastDuration)}초)`;
+          }
+        } catch (e) {
+          lastDoneStr = lastDoneIso;
+        }
+      }
+
+      const nextRunStr = agent.next_run_time || defaultNextRunText || (sch.type === 'daemon' ? '상시 가동 (실시간)' : '온디맨드/스케줄 대기');
+
+      return `
+        <div class="agent-schedule-meta-box" style="background: rgba(15, 23, 42, 0.7); padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.78rem; display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="color: #94a3b8; font-weight: 600;">⏱️ 스케줄 주기:</span>
+            <span style="color: #38bdf8; font-weight: 700; text-align: right;">${intervalText}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="color: #94a3b8; font-weight: 600;">🕒 직전 완료:</span>
+            <span style="color: #cbd5e1; font-family: monospace;">${lastDoneStr}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="color: #94a3b8; font-weight: 600;">⏳ 다음 예정:</span>
+            <span style="color: #a3e635; font-weight: 600;">${nextRunStr}</span>
+          </div>
+          ${scheduleDetail ? `<div style="font-size: 0.72rem; color: #64748b; margin-top: 2px; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 4px;">💡 ${scheduleDetail}</div>` : ''}
+        </div>
+      `;
+    };
+
     const subCouncilList = [agDanka, agGrowth, agCautious, agTechnical, agJurini];
     const subCouncilRunningCount = subCouncilList.filter(a => a.is_running).length;
 
@@ -160,6 +202,9 @@ window.ThreadsAgentView = {
           </div>
 
           <div class="card-body" style="display: flex; flex-direction: column; gap: 14px;">
+            <!-- 스케줄 및 배치 시간 정보 메타 박스 -->
+            ${renderScheduleBox(agThreads, '상시 데몬 (실시간 감시)', '상시 가동 (실시간)')}
+
             <!-- 온디맨드 뉴스 브리핑 즉시 실행 -->
             <div class="agent-control-box">
               <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
@@ -237,6 +282,9 @@ window.ThreadsAgentView = {
           </div>
 
           <div class="card-body" style="display: flex; flex-direction: column; gap: 14px;">
+            <!-- 스케줄 및 배치 시간 정보 메타 박스 -->
+            ${renderScheduleBox(agSap, '12시간 주기 (하루 2회: 09:00, 21:00 KST)', agSap.next_run_time || sapStatus.next_run_time)}
+
             <!-- 온디맨드 뉴스 즉시 수집 -->
             <div class="agent-control-box">
               <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
@@ -283,7 +331,7 @@ window.ThreadsAgentView = {
             <!-- 통계 요약 -->
             <div style="background: rgba(15, 23, 42, 0.5); padding: 8px 12px; border-radius: 6px; font-size: 0.78rem; color: #94a3b8; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
               <div>수집 뉴스: <b id="sap-stat-news" style="color: #38bdf8;">${sapStatus.total_news_count || 0}건</b></div>
-              <div>다음 실행: <span id="sap-stat-next" style="color: #cbd5e1;">${sapStatus.next_run_time || '로그온 시 / 대기'}</span></div>
+              <div>다음 실행: <span id="sap-stat-next" style="color: #cbd5e1;">${agSap.next_run_time || sapStatus.next_run_time || '로그온 시 / 대기'}</span></div>
             </div>
           </div>
         </div>
@@ -304,6 +352,9 @@ window.ThreadsAgentView = {
           </div>
 
           <div class="card-body" style="display: flex; flex-direction: column; gap: 14px;">
+            <!-- 스케줄 및 배치 시간 정보 메타 박스 -->
+            ${renderScheduleBox(agSupervisor, '5초 감시 / 60분 정기 브리핑', '상시 가동 (실시간)')}
+
             <div style="background: rgba(15, 23, 42, 0.5); padding: 12px; border-radius: 8px; font-size: 0.8rem; line-height: 1.6; color: #94a3b8;">
               <div style="margin-bottom: 4px;"><span style="color: #cbd5e1; font-weight: 600;">📌 실행 위치:</span> <code>madang6/agent_supervisor/main.py</code></div>
               <div style="margin-bottom: 4px;"><span style="color: #cbd5e1; font-weight: 600;">📌 주요 역할:</span> 5대 서브에이전트 비정상 종료 시 자동 재기동, 실시간 헬스체크</div>
@@ -328,6 +379,9 @@ window.ThreadsAgentView = {
           </div>
 
           <div class="card-body" style="display: flex; flex-direction: column; gap: 14px;">
+            <!-- 스케줄 및 배치 시간 정보 메타 박스 -->
+            ${renderScheduleBox(agLead, '평일 장중 1시간 주기 배치', agLead.next_run_time || '평일 장중 1시간 주기')}
+
             <div style="background: rgba(15, 23, 42, 0.5); padding: 12px; border-radius: 8px; font-size: 0.8rem; line-height: 1.6; color: #94a3b8;">
               <div style="margin-bottom: 4px;"><span style="color: #cbd5e1; font-weight: 600;">📌 실행 위치:</span> <code>madang6/메인주식총괄에이전트/main.py --interval 60</code></div>
               <div style="margin-bottom: 4px;"><span style="color: #cbd5e1; font-weight: 600;">📌 탐색 모드:</span> 60초 주기 자동 순환 시장 분석 및 합의 도출</div>
@@ -358,6 +412,9 @@ window.ThreadsAgentView = {
           </div>
 
           <div class="card-body" style="display: flex; flex-direction: column; gap: 14px; padding-top: 14px;">
+            <!-- 스케줄 및 배치 시간 정보 메타 박스 -->
+            ${renderScheduleBox(agAiServiceUpdater, '매월 1일 시작 ➔ 1시간 주기 순회', agAiServiceUpdater.next_run_time || '익월 1일 00:00 KST')}
+
             <div class="agent-meta-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; background: rgba(15, 23, 42, 0.6); padding: 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.06);">
               <div class="meta-item">
                 <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 실행 스크립트</span>
@@ -430,6 +487,9 @@ window.ThreadsAgentView = {
                     <div>
                       <div style="font-weight: 600; font-size: 0.9rem; color: #f1f5f9;">${item.name}</div>
                       <div style="font-size: 0.76rem; color: #94a3b8;">${item.desc}</div>
+                      <div style="font-size: 0.72rem; color: #38bdf8; margin-top: 3px;">
+                        ⏱️ 스케줄: 온디맨드 호출 / 끝장 토론 소집 시 실시간 가동
+                      </div>
                     </div>
                   </div>
 

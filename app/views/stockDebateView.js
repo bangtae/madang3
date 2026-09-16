@@ -5,6 +5,26 @@ window.StockDebateView = {
   nextRunSeconds: 3600,
   expandedMap: {},
 
+  isAdmin() {
+    try {
+      const raw = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u && u.isGuest === false) return true;
+      }
+    } catch (e) {}
+    if (typeof document !== 'undefined' && document.body && !document.body.classList.contains('is-guest-mode')) {
+      const raw = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+      if (raw) {
+        try {
+          const u = JSON.parse(raw);
+          return u && !u.isGuest;
+        } catch (e) {}
+      }
+    }
+    return false;
+  },
+
   isDebateExpanded(id, idx) {
     if (this.expandedMap && typeof this.expandedMap[id] === 'boolean') {
       return this.expandedMap[id];
@@ -324,44 +344,58 @@ window.StockDebateView = {
       });
     }
 
-    // 전체 토론 기록 비우기 버튼
+    // 전체 토론 기록 비우기 버튼 (관리자 전용)
     const btnClearAll = document.getElementById('btn-clear-all-debates');
     if (btnClearAll) {
       btnClearAll.addEventListener('click', async () => {
+        if (!this.isAdmin()) {
+          alert('⚠️ 토론 기록 전체 삭제는 최고 관리자만 수행할 수 있습니다.\n우측 상단 [관리자 전환] 후 다시 시도해주세요.');
+          return;
+        }
         if (!window.StockDebateModel) return;
         const total = (window.StockDebateModel.items || []).length;
         if (total === 0) {
           alert('삭제할 토론 기록이 없습니다.');
           return;
         }
-        if (confirm(`저장된 모든 끝장 토론 기록(${total}건)을 완전히 삭제하시겠습니까?`)) {
+        if (confirm(`⚠️ [관리자 권한] 저장된 모든 끝장 토론 기록(${total}건)을 완전히 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
           btnClearAll.disabled = true;
           btnClearAll.textContent = '⏳ 삭제 중...';
           await window.StockDebateModel.clearAllDebates();
           this.render();
           btnClearAll.disabled = false;
           btnClearAll.textContent = '🗑️ 전체 비우기';
+          if (window.UiView && window.UiView.showToast) {
+            window.UiView.showToast('🗑️ 모든 끝장 토론 기록이 초기화되었습니다.');
+          }
         }
       });
     }
 
-    // 개별 토론 삭제 이벤트 위임
+    // 개별 토론 삭제 이벤트 위임 (관리자 전용)
     const feedContainer = document.getElementById('stock-debate-feed');
     if (feedContainer && !feedContainer._hasDeleteBound) {
       feedContainer._hasDeleteBound = true;
       feedContainer.addEventListener('click', async (e) => {
         const delBtn = e.target.closest('.btn-delete-debate-card');
         if (!delBtn) return;
+        if (!this.isAdmin()) {
+          alert('⚠️ 토론 기록 삭제는 최고 관리자만 수행할 수 있습니다.\n우측 상단 [관리자 전환] 후 다시 시도해주세요.');
+          return;
+        }
         const debateId = delBtn.getAttribute('data-id');
         const stockName = delBtn.getAttribute('data-stock') || '해당';
         if (!debateId || !window.StockDebateModel) return;
 
-        if (confirm(`[${stockName}] 끝장 토론 기록을 삭제하시겠습니까?`)) {
+        if (confirm(`⚠️ [관리자 권한] [${stockName}] 끝장 토론 기록을 영구 삭제하시겠습니까?`)) {
           delBtn.disabled = true;
           delBtn.textContent = '⏳';
           const ok = await window.StockDebateModel.deleteDebate(debateId);
           if (ok) {
             this.render();
+            if (window.UiView && window.UiView.showToast) {
+              window.UiView.showToast(`🗑️ [${stockName}] 토론 기록이 삭제되었습니다.`);
+            }
           } else {
             alert('삭제에 실패했습니다. 잠시 후 다시 시도해주세요.');
             delBtn.disabled = false;
@@ -493,6 +527,12 @@ window.StockDebateView = {
   render() {
     this.init();
     if (!window.StockDebateModel) return;
+
+    // 관리자 전용 전체 비우기 버튼 노출/숨김 제어
+    const btnClearAll = document.getElementById('btn-clear-all-debates');
+    if (btnClearAll) {
+      btnClearAll.style.display = this.isAdmin() ? 'inline-flex' : 'none';
+    }
 
     const debates = window.StockDebateModel.getFilteredDebates();
     const container = document.getElementById('stock-debate-feed');
@@ -828,6 +868,11 @@ window.StockDebateView = {
               <span class="toggle-icon">${isExpanded ? '▲' : '▼'}</span>
               <span class="toggle-label">${isExpanded ? '12턴 대화 접기' : '12턴 대화 보기 (12턴)'}</span>
             </button>
+            ${this.isAdmin() ? `
+            <button type="button" class="btn-delete-debate-card" data-id="${d.id}" data-stock="${d.stock_name || d.item_code || '해당'}" title="[관리자 전용] 이 끝장 토론 기록 삭제" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; padding: 4px 9px; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+              🗑️ 삭제
+            </button>
+            ` : ''}
           </div>
         </div>
 

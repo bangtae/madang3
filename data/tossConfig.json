@@ -1,0 +1,12 @@
+{
+  "clientId": "tsck_live_R90egikbBycPNBfxzEOsgG",
+  "clientSecret": "tssk_live_r4QvYdJmMIMgCK9oDEkg6k3sAfk2at5DyovtLmQgT7U",
+  "accountNo": "14601015948",
+  "accountSeq": 1,
+  "mode": "real",
+  "maxStockPrice": 100000,
+  "budgetPerStock": 100000,
+  "checkIntervalMs": 300000,
+  "isAutoTradingEnabled": false,
+  "updatedAt": "2026-09-14T23:11:00.000Z"
+}

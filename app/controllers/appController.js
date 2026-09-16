@@ -47,6 +47,12 @@ window.AppController = {
     if (window.GithubTrendingView) {
       window.GithubTrendingView.init();
     }
+    if (window.ChurchNewsModel) {
+      await window.ChurchNewsModel.init();
+    }
+    if (window.ChurchNewsView) {
+      window.ChurchNewsView.init();
+    }
 
     // 기본 대시보드 뷰일 때만 refreshAllViews() 수행 (다른 화면일 때 깜빡임 차단)
     if (!initialTarget || initialTarget === 'dashboard') {
@@ -108,6 +114,11 @@ window.AppController = {
       if (btnLogout) btnLogout.classList.remove('hidden');
     }
     this.applyMenuPermissions();
+    if (window.StockDebateView && typeof window.StockDebateView.render === 'function') {
+      try {
+        window.StockDebateView.render();
+      } catch (e) {}
+    }
   },
 
   scrollToBoardList(targetId) {
@@ -1291,6 +1302,8 @@ window.AppController = {
       'stock-debate': 'invest',
       'stock-blog': 'invest',
       'blogger-news': 'invest',
+      'stock-journal': 'invest',
+      'church-news': 'life',
       'monster-wave': 'life',
       'monster-defense': 'life',
       'threads-agent': 'admin',
@@ -1299,6 +1312,7 @@ window.AppController = {
       'ip-logs': 'admin',
       'batch-register': 'admin',
       'tech-stack': 'admin',
+      'stock-trading-admin': 'admin',
       'menu-config': 'admin'
     };
     return map[sideView] || null;
@@ -1312,7 +1326,7 @@ window.AppController = {
       'agent-builder': 'agent-builder',
       'work': 'sap-terms',
       'invest': 'stock-temp',
-      'life': 'monster-wave',
+      'life': 'church-news',
       'admin': 'ip-whitelist'
     };
     return map[topView] || 'dashboard';
@@ -1409,6 +1423,7 @@ window.AppController = {
     const viewThreadsAgent = document.getElementById('view-threads-agent');
     const viewMonsterDefense = document.getElementById('view-monster-defense');
     const viewMonsterWave = document.getElementById('view-monster-wave');
+    const viewChurchNews = document.getElementById('view-church-news');
 
     const hideAllViews = () => {
       if (viewDashboard) viewDashboard.classList.add('hidden');
@@ -1433,9 +1448,14 @@ window.AppController = {
       if (viewStockBlog) viewStockBlog.classList.add('hidden');
       const viewBloggerNews = document.getElementById('view-blogger-news');
       if (viewBloggerNews) viewBloggerNews.classList.add('hidden');
+      const viewStockJournal = document.getElementById('view-stock-journal');
+      if (viewStockJournal) viewStockJournal.classList.add('hidden');
+      const viewStockTradingAdmin = document.getElementById('view-stock-trading-admin');
+      if (viewStockTradingAdmin) viewStockTradingAdmin.classList.add('hidden');
       if (viewThreadsAgent) viewThreadsAgent.classList.add('hidden');
       if (viewMonsterDefense) viewMonsterDefense.classList.add('hidden');
       if (viewMonsterWave) viewMonsterWave.classList.add('hidden');
+      if (viewChurchNews) viewChurchNews.classList.add('hidden');
     };
 
     // 다른 뷰로 이동 시 게임 루프 일시정지 (리소스 절약)
@@ -1445,7 +1465,10 @@ window.AppController = {
 
     hideAllViews();
 
-    if (sideView === 'monster-wave') {
+    if (sideView === 'church-news') {
+      if (viewChurchNews) viewChurchNews.classList.remove('hidden');
+      if (window.ChurchNewsView) window.ChurchNewsView.render();
+    } else if (sideView === 'monster-wave') {
       if (viewMonsterWave) viewMonsterWave.classList.remove('hidden');
     } else if (sideView === 'monster-defense') {
       if (viewMonsterDefense) viewMonsterDefense.classList.remove('hidden');
@@ -1485,6 +1508,13 @@ window.AppController = {
       if (window.BloggerNewsView) {
         window.BloggerNewsView.init();
         window.BloggerNewsView.loadPosts();
+      }
+    } else if (sideView === 'stock-journal') {
+      const viewStockJournal = document.getElementById('view-stock-journal');
+      if (viewStockJournal) viewStockJournal.classList.remove('hidden');
+      if (window.StockJournalView) {
+        window.StockJournalView.init();
+        window.StockJournalView.loadStatus();
       }
     } else if (sideView === 'dashboard') {
       if (viewDashboard) viewDashboard.classList.remove('hidden');
@@ -1543,6 +1573,13 @@ window.AppController = {
       if (viewTechStack) viewTechStack.classList.remove('hidden');
       if (window.TechStackView) {
         window.TechStackView.init();
+      }
+    } else if (sideView === 'stock-trading-admin') {
+      const viewStockTradingAdmin = document.getElementById('view-stock-trading-admin');
+      if (viewStockTradingAdmin) viewStockTradingAdmin.classList.remove('hidden');
+      if (window.StockTradingAdminView) {
+        window.StockTradingAdminView.init();
+        window.StockTradingAdminView.loadStatus();
       }
     } else if (sideView === 'ip-whitelist') {
       if (viewIpWhitelist) viewIpWhitelist.classList.remove('hidden');
@@ -1624,6 +1661,7 @@ window.AppController = {
       { id: "stock-debate", name: "AI 끝장 토론실", icon: "🔥", category: "invest", statCardId: "card-stat-stock-debate", guest: true, admin: true, description: "서브에이전트 5인의 실시간 격론 및 상호 반박 끝장 토론 피드" },
       { id: "stock-blog", name: "배고픈투자씨 데일리", icon: "📰", category: "invest", statCardId: "card-stat-stock-blog", guest: true, admin: true, description: "배고픈투자씨 네이버 블로그 최신 증시분위기 리포트 및 게시글 실시간 연동" },
       { id: "blogger-news", name: "방태 데일리 뉴스", icon: "🌐", category: "invest", statCardId: "card-stat-blogger-news", guest: true, admin: true, description: "구글 Blogger API v3 기반 bangtae.blogspot.com 데일리 뉴스요약 연동" },
+      { id: "stock-journal", name: "주식 매매일지", icon: "📑", category: "invest", statCardId: "card-stat-stock-journal", guest: true, admin: true, description: "토스증권 Open API & AI 끝장토론 의결 기반 10만원 이하 1주 단일 매매·익절·손절 자동매매 및 실시간 매매일지" },
       { id: "api-info", name: "API 정보", icon: "📚", category: "main", statCardId: "card-stat-apis", guest: true, admin: true, description: "API 정보 목록 및 세부 개발 명세 조회" },
       { id: "ai-models", name: "AI 서비스 정보", icon: "🤖", category: "ai", statCardId: "card-stat-ai-services", guest: true, admin: true, description: "최신 AI 모델 및 서비스 정보 목록 조회" },
       { id: "ai-terms", name: "AI 용어 & 마인드맵", icon: "🧠", category: "ai", statCardId: "card-stat-ai-terms", guest: true, admin: true, description: "AI 관련 기술 개념 및 마인드맵 학습" },
@@ -1636,6 +1674,7 @@ window.AppController = {
       { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
       { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
       { id: "batch-register", name: "API정보 일괄등록", icon: "📥", category: "admin", guest: false, admin: true, description: "엑셀 파일 업로드를 통한 API bulk 등록" },
+      { id: "stock-trading-admin", name: "주식 자동매매 제어", icon: "🤖", category: "admin", guest: false, admin: true, description: "토스증권 Open API 기반 끝장토론 의결 종목 10만원 이하 1주 단일 예약매매 및 계좌/API 통합 제어" },
       { id: "menu-config", name: "메뉴 권한 설정", icon: "⚙️", category: "admin", guest: false, admin: true, description: "게스트 및 관리자 모드 메뉴 노출 설정" }
     ];
   },
