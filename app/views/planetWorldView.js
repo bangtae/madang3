@@ -22,12 +22,20 @@ window.PlanetWorldView = {
   planetRadius: 12,
 
   init() {
-    this.container = document.getElementById('planet-viewport');
-    if (!this.container) return;
+    this.container = document.getElementById('planet-canvas-container') || document.getElementById('planet-viewport');
 
+    // 1. DOM 이벤트 (모달 열기/닫기, 업로드, 검색)는 캔버스 로딩 여부와 무관하게 즉시 바인딩
     this.bindDOMEvents();
 
-    // Three.js가 로드되어 있는지 확인
+    // 2. 월드 데이터 및 통계 HUD 로드
+    this.refreshWorld();
+
+    if (!this.container) {
+      console.warn('[PlanetWorldView] planet-canvas-container not found in DOM');
+      return;
+    }
+
+    // 3. Three.js가 로드되어 있는지 확인
     if (typeof THREE === 'undefined') {
       console.warn('[PlanetWorldView] Three.js not loaded yet. Waiting for script...');
       setTimeout(() => this.init(), 100);
@@ -40,7 +48,6 @@ window.PlanetWorldView = {
     }
 
     this.startLoop();
-    this.refreshWorld();
   },
 
   initThreeScene() {
@@ -362,6 +369,31 @@ window.PlanetWorldView = {
 
       prevMousePos = { x: e.clientX, y: e.clientY };
     });
+
+    // 모바일 터치 회전 드래그 인터랙션
+    this.container.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches.length === 1) {
+        isDragging = true;
+        prevMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+
+    this.container.addEventListener('touchmove', (e) => {
+      if (!isDragging || !e.touches || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - prevMousePos.x;
+      const deltaY = touch.clientY - prevMousePos.y;
+
+      if (this.planetMesh) {
+        this.planetMesh.rotation.y += deltaX * 0.007;
+        this.planetMesh.rotation.x += deltaY * 0.007;
+      }
+      prevMousePos = { x: touch.clientX, y: touch.clientY };
+    }, { passive: true });
 
     // 줌 인/아웃 (마우스 휠)
     this.container.addEventListener('wheel', (e) => {

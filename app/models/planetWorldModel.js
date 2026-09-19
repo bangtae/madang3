@@ -72,41 +72,80 @@ window.PlanetWorldModel = {
   },
 
   /**
-   * 클라이언트 Canvas 기반 자동 배경 투명화(누끼 추출) 알고리즘
+   * 클라이언트 Canvas 기반 자동 배경 투명화(누끼 추출) 알고리즘 (모바일 고화질 최적화)
    * 아이가 스케치북/종이에 그린 그림에서 흰색/연회색 종이 배경을 투명하게 변환
    */
-  processTransparentBackground(imgEl, tolerance = 40) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = imgEl.naturalWidth || imgEl.width || 300;
-    canvas.height = imgEl.naturalHeight || imgEl.height || 300;
+  async processTransparentBackground(imgSource, tolerance = 40) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
 
-    ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const d = imgData.data;
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
 
-    // 모서리 4개 샘플링하여 배경 기준색 산출
-    const cornerR = (d[0] + d[(canvas.width - 1) * 4] + d[(canvas.height - 1) * canvas.width * 4]) / 3;
-    const cornerG = (d[1] + d[(canvas.width - 1) * 4 + 1] + d[(canvas.height - 1) * canvas.width * 4 + 1]) / 3;
-    const cornerB = (d[2] + d[(canvas.width - 1) * 4 + 2] + d[(canvas.height - 1) * canvas.width * 4 + 2]) / 3;
+          // 모바일 고화질(12MP~50MP) 사진 메모리 절약을 위한 스마트 리사이징 (최대 800px)
+          const maxDim = 800;
+          let width = img.naturalWidth || img.width || 300;
+          let height = img.naturalHeight || img.height || 300;
 
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i];
-      const g = d[i + 1];
-      const b = d[i + 2];
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
 
-      // 밝은 흰색/아이보리 종이 또는 모서리 기준색과 유사한 픽셀 투명화
-      const isWhitePaper = (r > 215 && g > 215 && b > 215);
-      const isNearCorner = (Math.abs(r - cornerR) < tolerance && Math.abs(g - cornerG) < tolerance && Math.abs(b - cornerB) < tolerance);
+          canvas.width = width;
+          canvas.height = height;
 
-      if (isWhitePaper || isNearCorner) {
-        // 투명도(Alpha)를 0으로 설정
-        d[i + 3] = 0;
+          ctx.drawImage(img, 0, 0, width, height);
+          const imgData = ctx.getImageData(0, 0, width, height);
+          const d = imgData.data;
+
+          // 모서리 4개 샘플링하여 배경 기준색 산출
+          const cornerR = (d[0] + d[(width - 1) * 4] + d[(height - 1) * width * 4]) / 3;
+          const cornerG = (d[1] + d[(width - 1) * 4 + 1] + d[(height - 1) * width * 4 + 1]) / 3;
+          const cornerB = (d[2] + d[(width - 1) * 4 + 2] + d[(height - 1) * width * 4 + 2]) / 3;
+
+          for (let i = 0; i < d.length; i += 4) {
+            const r = d[i];
+            const g = d[i + 1];
+            const b = d[i + 2];
+
+            // 밝은 흰색/아이보리 종이 또는 모서리 기준색과 유사한 픽셀 투명화
+            const isWhitePaper = (r > 215 && g > 215 && b > 215);
+            const isNearCorner = (Math.abs(r - cornerR) < tolerance && Math.abs(g - cornerG) < tolerance && Math.abs(b - cornerB) < tolerance);
+
+            if (isWhitePaper || isNearCorner) {
+              d[i + 3] = 0;
+            }
+          }
+
+          ctx.putImageData(imgData, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } catch (e) {
+          console.warn('[PlanetWorldModel] processTransparentBackground canvas error:', e);
+          resolve(typeof imgSource === 'string' ? imgSource : img.src);
+        }
+      };
+
+      img.onerror = () => {
+        resolve(typeof imgSource === 'string' ? imgSource : '');
+      };
+
+      if (typeof imgSource === 'string') {
+        img.src = imgSource;
+      } else if (imgSource && imgSource.src) {
+        img.src = imgSource.src;
+      } else {
+        resolve('');
       }
-    }
-
-    ctx.putImageData(imgData, 0, 0);
-    return canvas.toDataURL('image/png');
+    });
   },
 
   /**
