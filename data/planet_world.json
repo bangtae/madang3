@@ -1,117 +1,171 @@
 {
-  "lastUpdated": "2026-09-20 06:15:00",
-  "planetConfig": {
-    "name": "아이와 함께 만드는 행성 지구",
-    "radius": 12,
-    "theme": "earth_vibrant",
-    "seaColor": "#0284c7",
-    "landColor": "#15803d",
-    "atmosphereColor": "#38bdf8"
-  },
-  "buildings": [
-    {
-      "id": "b-1",
-      "name": "꿈꾸는 우리 집",
-      "category": "family",
-      "type": "cozy_house",
-      "color": "#f97316",
-      "lat": 15.5,
-      "lon": 30.2,
-      "height": 2.5,
-      "title": "행복한 우리 가족 첫 보금자리",
-      "desc": "가족들과 함께 찍은 사진과 행복한 일상 메모가 보관된 따뜻한 집입니다.",
-      "tags": ["가족", "집", "추억", "일상"],
-      "createdAt": "2026-09-18",
-      "imageUrl": "https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=500&auto=format&fit=crop&q=60"
-    },
-    {
-      "id": "b-2",
-      "name": "푸른 바다 등대 & 아쿠아리움",
-      "category": "travel",
-      "type": "lighthouse",
-      "color": "#0ea5e9",
-      "lat": -12.0,
-      "lon": 85.4,
-      "height": 3.8,
-      "title": "제주도 푸른 바다 여행 기록",
-      "desc": "여름휴가 때 아이와 함께 바다를 보며 조개껍질을 주웠던 소중한 여행 사진 모음.",
-      "tags": ["제주도", "바다", "여행", "휴가", "등대"],
-      "createdAt": "2026-09-15",
-      "imageUrl": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500&auto=format&fit=crop&q=60"
-    },
-    {
-      "id": "b-3",
-      "name": "지혜의 별빛 도서관 & 연구소",
-      "category": "study",
-      "type": "observatory",
-      "color": "#8b5cf6",
-      "lat": 42.1,
-      "lon": -60.8,
-      "height": 3.2,
-      "title": "우주와 과학 호기심 탐구 노트",
-      "desc": "아이가 궁금해했던 태양계 행성들과 공룡 백과사전 스크랩 자료실입니다.",
-      "tags": ["과학", "공부", "우주", "공룡", "연구소", "도서관"],
-      "createdAt": "2026-09-12",
-      "imageUrl": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=500&auto=format&fit=crop&q=60"
-    },
-    {
-      "id": "b-4",
-      "name": "황금빛 미래 은행 & 상점",
-      "category": "finance",
-      "type": "bank_tower",
-      "color": "#eab308",
-      "lat": -35.2,
-      "lon": -45.0,
-      "height": 4.5,
-      "title": "아이 용돈 기입장 & 저축 통장",
-      "desc": "심부름하고 모은 동전들과 첫 통장 개설 기념 메모가 보관된 금융 센터.",
-      "tags": ["용돈", "저축", "경제", "통장", "은행"],
-      "createdAt": "2026-09-10",
-      "imageUrl": "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=500&auto=format&fit=crop&q=60"
-    }
-  ],
-  "characters": [
-    {
-      "id": "c-1",
-      "name": "우주토끼 피포",
-      "species": "drawing",
-      "creator": "우리아이",
-      "lat": 20.0,
-      "lon": 35.0,
-      "speed": 0.008,
-      "bounceSpeed": 0.08,
-      "scale": 1.4,
-      "speech": "안녕! 내가 만든 별에 놀러온 걸 환영해! 깡충깡충~🐰",
-      "imageUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='60' r='30' fill='%23fbcfe8' stroke='%23ec4899' stroke-width='4'/><ellipse cx='38' cy='25' rx='8' ry='22' fill='%23fbcfe8' stroke='%23ec4899' stroke-width='4'/><ellipse cx='62' cy='25' rx='8' ry='22' fill='%23fbcfe8' stroke='%23ec4899' stroke-width='4'/><circle cx='40' cy='55' r='5' fill='%231e293b'/><circle cx='60' cy='55' r='5' fill='%231e293b'/><ellipse cx='50' cy='65' rx='4' ry='3' fill='%23f43f5e'/><path d='M44 72 Q50 78 56 72' stroke='%23ec4899' stroke-width='3' fill='none'/></svg>",
-      "createdAt": "2026-09-18"
-    },
-    {
-      "id": "c-2",
-      "name": "초록용 드라코",
-      "species": "drawing",
-      "creator": "우리아이",
-      "lat": -10.0,
-      "lon": 90.0,
-      "speed": 0.006,
-      "bounceSpeed": 0.06,
-      "scale": 1.6,
-      "speech": "크와앙! 나는 바다와 등대를 지키는 수호자 드래곤이야! 🐉",
-      "imageUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M30 40 Q50 15 70 40 Q85 65 70 85 Q30 90 20 65 Z' fill='%2386efac' stroke='%2316a34a' stroke-width='4'/><circle cx='45' cy='45' r='6' fill='%230f172a'/><circle cx='65' cy='45' r='6' fill='%230f172a'/><polygon points='25,35 15,20 30,25' fill='%23facc15' stroke='%23ca8a04' stroke-width='2'/><polygon points='75,35 85,20 70,25' fill='%23facc15' stroke='%23ca8a04' stroke-width='2'/><path d='M45 68 Q55 78 65 68' stroke='%2315803d' stroke-width='3' fill='none'/></svg>",
-      "createdAt": "2026-09-16"
-    },
-    {
-      "id": "c-3",
-      "name": "아기별 삐약이",
-      "species": "drawing",
-      "creator": "우리아이",
-      "lat": 38.0,
-      "lon": -55.0,
-      "speed": 0.01,
-      "bounceSpeed": 0.1,
-      "scale": 1.2,
-      "speech": "도서관에서 재미있는 책 읽을 사람 여기 모여라! 🐥",
-      "imageUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='55' r='28' fill='%23fef08a' stroke='%23eab308' stroke-width='4'/><circle cx='40' cy='50' r='4' fill='%231e293b'/><circle cx='60' cy='50' r='4' fill='%231e293b'/><polygon points='46,58 54,58 50,66' fill='%23f97316'/><path d='M30 65 Q20 70 30 75' stroke='%23eab308' stroke-width='3' fill='none'/><path d='M70 65 Q80 70 70 75' stroke='%23eab308' stroke-width='3' fill='none'/></svg>",
-      "createdAt": "2026-09-14"
-    }
-  ]
+    "lastUpdated":  "2026-09-20 06:15:00",
+    "planetConfig":  {
+                         "name":  "아이와 함께 만드는 행성 지구",
+                         "radius":  12,
+                         "theme":  "earth_vibrant",
+                         "seaColor":  "#0284c7",
+                         "landColor":  "#15803d",
+                         "atmosphereColor":  "#38bdf8"
+                     },
+    "buildings":  [
+                      {
+                          "id":  "b-1",
+                          "name":  "꿈꾸는 우리 집",
+                          "category":  "family",
+                          "type":  "cozy_house",
+                          "color":  "#f97316",
+                          "lat":  15.5,
+                          "lon":  30.2,
+                          "height":  2.5,
+                          "title":  "행복한 우리 가족 첫 보금자리",
+                          "desc":  "가족들과 함께 찍은 사진과 행복한 일상 메모가 보관된 따뜻한 집입니다.",
+                          "tags":  [
+                                       "가족",
+                                       "집",
+                                       "추억",
+                                       "일상"
+                                   ],
+                          "createdAt":  "2026-09-18",
+                          "imageUrl":  "https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=500\u0026auto=format\u0026fit=crop\u0026q=60"
+                      },
+                      {
+                          "id":  "b-2",
+                          "name":  "푸른 바다 등대 \u0026 아쿠아리움",
+                          "category":  "travel",
+                          "type":  "lighthouse",
+                          "color":  "#0ea5e9",
+                          "lat":  -12.0,
+                          "lon":  85.4,
+                          "height":  3.8,
+                          "title":  "제주도 푸른 바다 여행 기록",
+                          "desc":  "여름휴가 때 아이와 함께 바다를 보며 조개껍질을 주웠던 소중한 여행 사진 모음.",
+                          "tags":  [
+                                       "제주도",
+                                       "바다",
+                                       "여행",
+                                       "휴가",
+                                       "등대"
+                                   ],
+                          "createdAt":  "2026-09-15",
+                          "imageUrl":  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500\u0026auto=format\u0026fit=crop\u0026q=60"
+                      },
+                      {
+                          "id":  "b-3",
+                          "name":  "지혜의 별빛 도서관 \u0026 연구소",
+                          "category":  "study",
+                          "type":  "observatory",
+                          "color":  "#8b5cf6",
+                          "lat":  42.1,
+                          "lon":  -60.8,
+                          "height":  3.2,
+                          "title":  "우주와 과학 호기심 탐구 노트",
+                          "desc":  "아이가 궁금해했던 태양계 행성들과 공룡 백과사전 스크랩 자료실입니다.",
+                          "tags":  [
+                                       "과학",
+                                       "공부",
+                                       "우주",
+                                       "공룡",
+                                       "연구소",
+                                       "도서관"
+                                   ],
+                          "createdAt":  "2026-09-12",
+                          "imageUrl":  "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=500\u0026auto=format\u0026fit=crop\u0026q=60"
+                      },
+                      {
+                          "id":  "b-4",
+                          "name":  "황금빛 미래 은행 \u0026 상점",
+                          "category":  "finance",
+                          "type":  "bank_tower",
+                          "color":  "#eab308",
+                          "lat":  -35.2,
+                          "lon":  -45.0,
+                          "height":  4.5,
+                          "title":  "아이 용돈 기입장 \u0026 저축 통장",
+                          "desc":  "심부름하고 모은 동전들과 첫 통장 개설 기념 메모가 보관된 금융 센터.",
+                          "tags":  [
+                                       "용돈",
+                                       "저축",
+                                       "경제",
+                                       "통장",
+                                       "은행"
+                                   ],
+                          "createdAt":  "2026-09-10",
+                          "imageUrl":  "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=500\u0026auto=format\u0026fit=crop\u0026q=60"
+                      },
+                      {
+                          "id":  "b-e18dc447",
+                          "name":  "???",
+                          "category":  "family",
+                          "type":  "cozy_house",
+                          "color":  "#f97316",
+                          "lat":  32,
+                          "lon":  -113,
+                          "height":  3,
+                          "title":  "새로운 추억과 기록",
+                          "desc":  "행성 위에 새롭게 건축된 기록 보관소입니다.",
+                          "tags":  "새기록",
+                          "createdAt":  "2026-09-20",
+                          "imageUrl":  null
+                      },
+                      {
+                          "id":  "b-8e14a4d5",
+                          "name":  "test",
+                          "category":  "family",
+                          "type":  "cozy_house",
+                          "color":  "#f97316",
+                          "lat":  -9,
+                          "lon":  154,
+                          "height":  3,
+                          "title":  "새로운 추억과 기록",
+                          "desc":  "행성 위에 새롭게 건축된 기록 보관소입니다.",
+                          "tags":  "새기록",
+                          "createdAt":  "2026-09-20",
+                          "imageUrl":  null
+                      }
+                  ],
+    "characters":  [
+                       {
+                           "id":  "c-1",
+                           "name":  "우주토끼 피포",
+                           "species":  "drawing",
+                           "creator":  "우리아이",
+                           "lat":  20.0,
+                           "lon":  35.0,
+                           "speed":  0.008,
+                           "bounceSpeed":  0.08,
+                           "scale":  1.4,
+                           "speech":  "안녕! 내가 만든 별에 놀러온 걸 환영해! 깡충깡충~🐰",
+                           "imageUrl":  "data:image/svg+xml;utf8,\u003csvg xmlns=\u0027http://www.w3.org/2000/svg\u0027 viewBox=\u00270 0 100 100\u0027\u003e\u003ccircle cx=\u002750\u0027 cy=\u002760\u0027 r=\u002730\u0027 fill=\u0027%23fbcfe8\u0027 stroke=\u0027%23ec4899\u0027 stroke-width=\u00274\u0027/\u003e\u003cellipse cx=\u002738\u0027 cy=\u002725\u0027 rx=\u00278\u0027 ry=\u002722\u0027 fill=\u0027%23fbcfe8\u0027 stroke=\u0027%23ec4899\u0027 stroke-width=\u00274\u0027/\u003e\u003cellipse cx=\u002762\u0027 cy=\u002725\u0027 rx=\u00278\u0027 ry=\u002722\u0027 fill=\u0027%23fbcfe8\u0027 stroke=\u0027%23ec4899\u0027 stroke-width=\u00274\u0027/\u003e\u003ccircle cx=\u002740\u0027 cy=\u002755\u0027 r=\u00275\u0027 fill=\u0027%231e293b\u0027/\u003e\u003ccircle cx=\u002760\u0027 cy=\u002755\u0027 r=\u00275\u0027 fill=\u0027%231e293b\u0027/\u003e\u003cellipse cx=\u002750\u0027 cy=\u002765\u0027 rx=\u00274\u0027 ry=\u00273\u0027 fill=\u0027%23f43f5e\u0027/\u003e\u003cpath d=\u0027M44 72 Q50 78 56 72\u0027 stroke=\u0027%23ec4899\u0027 stroke-width=\u00273\u0027 fill=\u0027none\u0027/\u003e\u003c/svg\u003e",
+                           "createdAt":  "2026-09-18"
+                       },
+                       {
+                           "id":  "c-2",
+                           "name":  "초록용 드라코",
+                           "species":  "drawing",
+                           "creator":  "우리아이",
+                           "lat":  -10.0,
+                           "lon":  90.0,
+                           "speed":  0.006,
+                           "bounceSpeed":  0.06,
+                           "scale":  1.6,
+                           "speech":  "크와앙! 나는 바다와 등대를 지키는 수호자 드래곤이야! 🐉",
+                           "imageUrl":  "data:image/svg+xml;utf8,\u003csvg xmlns=\u0027http://www.w3.org/2000/svg\u0027 viewBox=\u00270 0 100 100\u0027\u003e\u003cpath d=\u0027M30 40 Q50 15 70 40 Q85 65 70 85 Q30 90 20 65 Z\u0027 fill=\u0027%2386efac\u0027 stroke=\u0027%2316a34a\u0027 stroke-width=\u00274\u0027/\u003e\u003ccircle cx=\u002745\u0027 cy=\u002745\u0027 r=\u00276\u0027 fill=\u0027%230f172a\u0027/\u003e\u003ccircle cx=\u002765\u0027 cy=\u002745\u0027 r=\u00276\u0027 fill=\u0027%230f172a\u0027/\u003e\u003cpolygon points=\u002725,35 15,20 30,25\u0027 fill=\u0027%23facc15\u0027 stroke=\u0027%23ca8a04\u0027 stroke-width=\u00272\u0027/\u003e\u003cpolygon points=\u002775,35 85,20 70,25\u0027 fill=\u0027%23facc15\u0027 stroke=\u0027%23ca8a04\u0027 stroke-width=\u00272\u0027/\u003e\u003cpath d=\u0027M45 68 Q55 78 65 68\u0027 stroke=\u0027%2315803d\u0027 stroke-width=\u00273\u0027 fill=\u0027none\u0027/\u003e\u003c/svg\u003e",
+                           "createdAt":  "2026-09-16"
+                       },
+                       {
+                           "id":  "c-3",
+                           "name":  "아기별 삐약이",
+                           "species":  "drawing",
+                           "creator":  "우리아이",
+                           "lat":  38.0,
+                           "lon":  -55.0,
+                           "speed":  0.01,
+                           "bounceSpeed":  0.1,
+                           "scale":  1.2,
+                           "speech":  "도서관에서 재미있는 책 읽을 사람 여기 모여라! 🐥",
+                           "imageUrl":  "data:image/svg+xml;utf8,\u003csvg xmlns=\u0027http://www.w3.org/2000/svg\u0027 viewBox=\u00270 0 100 100\u0027\u003e\u003ccircle cx=\u002750\u0027 cy=\u002755\u0027 r=\u002728\u0027 fill=\u0027%23fef08a\u0027 stroke=\u0027%23eab308\u0027 stroke-width=\u00274\u0027/\u003e\u003ccircle cx=\u002740\u0027 cy=\u002750\u0027 r=\u00274\u0027 fill=\u0027%231e293b\u0027/\u003e\u003ccircle cx=\u002760\u0027 cy=\u002750\u0027 r=\u00274\u0027 fill=\u0027%231e293b\u0027/\u003e\u003cpolygon points=\u002746,58 54,58 50,66\u0027 fill=\u0027%23f97316\u0027/\u003e\u003cpath d=\u0027M30 65 Q20 70 30 75\u0027 stroke=\u0027%23eab308\u0027 stroke-width=\u00273\u0027 fill=\u0027none\u0027/\u003e\u003cpath d=\u0027M70 65 Q80 70 70 75\u0027 stroke=\u0027%23eab308\u0027 stroke-width=\u00273\u0027 fill=\u0027none\u0027/\u003e\u003c/svg\u003e",
+                           "createdAt":  "2026-09-14"
+                       }
+                   ]
 }

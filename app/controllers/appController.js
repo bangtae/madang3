@@ -122,6 +122,10 @@ window.AppController = {
       if (btnSwitchAdmin) btnSwitchAdmin.classList.add('hidden');
       if (btnLogout) btnLogout.classList.remove('hidden');
     }
+    const btnPlanetUpload = document.getElementById('btn-planet-open-upload');
+    if (btnPlanetUpload) {
+      btnPlanetUpload.style.display = user.isGuest ? 'none' : 'inline-flex';
+    }
     this.applyMenuPermissions();
     if (window.StockDebateView && typeof window.StockDebateView.render === 'function') {
       try {

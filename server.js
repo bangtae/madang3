@@ -250,7 +250,14 @@ app.get('/api/planet/search', (req, res) => {
 
 app.post('/api/planet/upload', (req, res) => {
   try {
+    const roleHeader = req.headers['x-portal-role'] || '';
     const payload = req.body || {};
+    
+    // 관리자 권한 검증: 오직 최고 관리자(x-portal-role: admin)만 업로드 가능
+    if (roleHeader !== 'admin' && payload.role !== 'admin') {
+      return res.status(403).json({ success: false, message: '🔒 최고 관리자만 자료 및 캐릭터를 업로드할 수 있습니다.' });
+    }
+
     let data = { buildings: [], characters: [] };
     if (fs.existsSync(planetWorldFile)) {
       try { data = JSON.parse(fs.readFileSync(planetWorldFile, 'utf8')); } catch (e) {}

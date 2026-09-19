@@ -42,9 +42,13 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="css/monster-defense.css">
   <style>
-    /* 게스트 모드 시 주식 매매일지 관리자 전용 섹션(토스 실계좌 잔고, 맞춤 전략) 완전 숨김 */
-    body.is-guest-mode .journal-admin-only {
+    /* 게스트 모드 시 주식 매매일지 및 행성 자료 업로드 관리자 전용 섹션 완전 숨김 */
+    body.is-guest-mode .journal-admin-only,
+    body.is-guest-mode .planet-admin-only {
       display: none !important;
+    }
+    body.is-guest-mode .planet-guest-only {
+      display: inline-flex !important;
     }
 
     /* 교회 최신소식 스타일 */
@@ -1969,9 +1973,12 @@
                 <span style="color: #64748b;">|</span>
                 <span style="color: #34d399;">🌐 인구: <strong id="planet-stat-population">0</strong>명</span>
               </div>
-              <button type="button" id="btn-planet-open-upload" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 700; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">
+              <button type="button" id="btn-planet-open-upload" class="btn btn-primary planet-admin-only" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 700; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">
                 <span>🚀</span> 자료 / 아이 그림 올리기
               </button>
+              <div class="planet-guest-only" style="display: none; align-items: center; gap: 6px; font-size: 0.8rem; color: #94a3b8; background: rgba(15, 23, 42, 0.7); padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                <span>🔒 탐색 모드 (자료 업로드는 관리자 전용)</span>
+              </div>
               <button type="button" id="btn-planet-reset-view" class="btn btn-secondary" style="padding: 8px 14px; border-radius: 8px; font-size: 0.85rem;" title="카메라 위치 초기화">
                 🔄 뷰 리셋
               </button>

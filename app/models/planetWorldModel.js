@@ -185,22 +185,42 @@ window.PlanetWorldModel = {
   },
 
   /**
-   * 파일 및 메타데이터를 서버에 업로드하고 행성에 배치
+   * 파일 및 메타데이터를 서버에 업로드하고 행성에 배치 (관리자 전용)
    */
   async uploadItem(payload) {
+    const rawUser = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+    let user = { isGuest: true, username: '게스트' };
+    if (rawUser) {
+      try { user = JSON.parse(rawUser); } catch(e) {}
+    }
+    if (user.isGuest) {
+      throw new Error('🔒 자료 및 아이 그림 업로드는 최고 관리자 권한이 필요합니다.');
+    }
+
     try {
       const res = await fetch('/api/planet/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-portal-role': 'admin',
+          'x-portal-user': encodeURIComponent(user.username || 'admin')
+        },
+        body: JSON.stringify({
+          ...payload,
+          author: user.username || '관리자'
+        })
       });
 
       if (res.ok) {
         const item = await res.json();
         await this.loadWorld(true);
         return item;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `서버 응답 오류 (${res.status})`);
       }
     } catch (e) {
+      if (e.message.includes('관리자')) throw e;
       console.warn('[PlanetWorldModel] upload API failed, updating local state:', e);
     }
 

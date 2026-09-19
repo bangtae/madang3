@@ -645,6 +645,19 @@ function Send-JsonResponse($stream, $corsHeaders, $jsonText) {
     Send-RawBytesResponse $stream $corsHeaders "application/json; charset=utf-8" $jsonBytes
 }
 
+function Send-ForbiddenResponse($stream, $corsHeaders, $message) {
+    $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes('{"success":false,"message":"' + $message + '"}')
+    $responseHeader = "HTTP/1.1 403 Forbidden`r`nContent-Type: application/json; charset=utf-8`r`nCache-Control: no-cache, no-store, must-revalidate`r`nPragma: no-cache`r`nContent-Length: $($bodyBytes.Length)`r`n${corsHeaders}Connection: close`r`n`r`n"
+    $headerBytes = [System.Text.Encoding]::UTF8.GetBytes($responseHeader)
+    try {
+        $stream.Write($headerBytes, 0, $headerBytes.Length)
+        if ($bodyBytes.Length -gt 0) {
+            $stream.Write($bodyBytes, 0, $bodyBytes.Length)
+        }
+        $stream.Flush()
+    } catch {}
+}
+
 function Send-RawBytesResponse($stream, $corsHeaders, $contentType, [byte[]]$bodyBytes) {
     if ($null -eq $bodyBytes) { $bodyBytes = [byte[]]@() }
     $responseHeader = "HTTP/1.1 200 OK`r`nContent-Type: ${contentType}`r`nCache-Control: no-cache, no-store, must-revalidate`r`nPragma: no-cache`r`nContent-Length: $($bodyBytes.Length)`r`n${corsHeaders}Connection: close`r`n`r`n"
@@ -1385,6 +1398,16 @@ while ($true) {
         elseif ($urlPath -eq "/api/planet/upload") {
             if ($method -eq "POST") {
                 try {
+                    # Check Admin Role Guard: Only admin allowed
+                    $roleHeader = ""
+                    if ($requestText -match '(?i)x-portal-role:\s*([^\r\n]+)') {
+                        $roleHeader = $matches[1].Trim()
+                    }
+                    if ($roleHeader -ne "admin") {
+                        Send-ForbiddenResponse $stream $corsHeaders "관리자만 자료를 업로드할 수 있습니다."
+                        continue
+                    }
+
                     $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
                     $postData = if ($headerBodySplit.Length -eq 2) { $headerBodySplit[1] } else { "" }
                     $payload = $postData | ConvertFrom-Json

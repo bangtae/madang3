@@ -533,101 +533,167 @@ window.PlanetWorldView = {
     this.renderer.setSize(width, height);
   },
 
+  isAdminUser() {
+    const rawUser = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+    if (!rawUser) return false;
+    try {
+      const u = JSON.parse(rawUser);
+      return u && !u.isGuest;
+    } catch (e) {
+      return false;
+    }
+  },
+
   bindDOMEvents() {
-    // 1. 업로드 버튼 모달 열기
+    // 1. 업로드 모달 열기 (관리자 전용)
     const btnOpenUpload = document.getElementById('btn-planet-open-upload');
-    const uploadModal = document.getElementById('planet-upload-modal');
+    const uploadModal = document.getElementById('modal-planet-upload') || document.getElementById('planet-upload-modal');
     const btnCloseUpload = document.getElementById('btn-planet-upload-close');
+    const btnCancelUpload = document.getElementById('btn-planet-upload-cancel');
 
-    if (btnOpenUpload && uploadModal) {
-      btnOpenUpload.addEventListener('click', () => uploadModal.classList.remove('hidden'));
+    const openModal = () => {
+      if (!this.isAdminUser()) {
+        if (window.UiView && window.UiView.showToast) {
+          window.UiView.showToast('🔒 자료 및 아이 그림 업로드는 관리자만 가능합니다.');
+        } else {
+          alert('🔒 자료 및 아이 그림 업로드는 최고 관리자만 가능합니다.');
+        }
+        return;
+      }
+      if (uploadModal) {
+        uploadModal.style.display = 'flex';
+        uploadModal.classList.remove('hidden');
+      }
+    };
+
+    const closeModal = () => {
+      if (uploadModal) {
+        uploadModal.style.display = 'none';
+        uploadModal.classList.add('hidden');
+      }
+    };
+
+    if (btnOpenUpload) {
+      btnOpenUpload.addEventListener('click', openModal);
     }
-    if (btnCloseUpload && uploadModal) {
-      btnCloseUpload.addEventListener('click', () => uploadModal.classList.add('hidden'));
+    if (btnCloseUpload) {
+      btnCloseUpload.addEventListener('click', closeModal);
+    }
+    if (btnCancelUpload) {
+      btnCancelUpload.addEventListener('click', closeModal);
     }
 
-    // 2. 파일 드래그 앤 드롭 & 파일 인풋
-    const dropZone = document.getElementById('planet-drop-zone');
+    // 2. 파일 선택 & 배경 투명화 미리보기
     const fileInput = document.getElementById('planet-file-input');
-    const previewContainer = document.getElementById('planet-preview-container');
+    const previewBox = document.getElementById('planet-preview-box') || document.getElementById('planet-preview-container');
     const previewImg = document.getElementById('planet-preview-img');
-    let selectedImageBase64 = '';
 
-    if (dropZone && fileInput) {
-      dropZone.addEventListener('click', () => fileInput.click());
-      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#818cf8'; });
-      dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'rgba(255,255,255,0.2)'; });
-      dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = 'rgba(255,255,255,0.2)';
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-          this.handleSelectedFile(e.dataTransfer.files[0]);
-        }
-      });
-
-      fileInput.addEventListener('change', (e) => {
+    if (fileInput) {
+      fileInput.addEventListener('change', async (e) => {
         if (e.target.files && e.target.files[0]) {
-          this.handleSelectedFile(e.target.files[0]);
+          const file = e.target.files[0];
+          const reader = new FileReader();
+          reader.onload = async (evt) => {
+            const rawBase64 = evt.target.result;
+            this.originalRawBase64 = rawBase64;
+            
+            // 이미지인 경우 자동 배경 투명화 처리
+            if (file.type.startsWith('image/')) {
+              try {
+                const transparentBase64 = await window.PlanetWorldModel.processTransparentBackground(rawBase64);
+                this.processedImageBase64 = transparentBase64;
+                if (previewImg) previewImg.src = transparentBase64;
+              } catch (err) {
+                this.processedImageBase64 = rawBase64;
+                if (previewImg) previewImg.src = rawBase64;
+              }
+            } else {
+              this.processedImageBase64 = rawBase64;
+              if (previewImg) previewImg.src = 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=400';
+            }
+            if (previewBox) previewBox.style.display = 'block';
+          };
+          reader.readAsDataURL(file);
         }
       });
     }
 
-    // 3. 배경 투명화(누끼) 체크박스 변경
-    const chkRemoveBg = document.getElementById('planet-chk-remove-bg');
-    if (chkRemoveBg) {
-      chkRemoveBg.addEventListener('change', () => {
-        if (this.originalRawBase64) {
-          this.applyBackgroundFilter(this.originalRawBase64, chkRemoveBg.checked);
-        }
-      });
-    }
+    // 3. 업로드 폼 제출 처리 (관리자 권한 검증)
+    const formUpload = document.getElementById('form-planet-upload');
+    const btnSubmitUpload = document.getElementById('btn-planet-upload-submit') || document.getElementById('btn-planet-submit-upload');
 
-    // 4. 업로드 완료 전송
-    const btnSubmitUpload = document.getElementById('btn-planet-submit-upload');
-    if (btnSubmitUpload) {
-      btnSubmitUpload.addEventListener('click', async () => {
-        const note = document.getElementById('planet-upload-note')?.value || '';
-        const forceType = document.querySelector('input[name="planet-entity-type"]:checked')?.value || 'auto';
+    const handleUploadSubmit = async (e) => {
+      if (e) e.preventDefault();
 
-        if (!this.processedImageBase64 && !note) {
-          alert('이미지를 선택하거나 메모를 입력해주세요!');
-          return;
-        }
+      if (!this.isAdminUser()) {
+        alert('🔒 자료 업로드 권한이 없습니다. 관리자로 로그인해주세요.');
+        return;
+      }
 
+      const name = document.getElementById('planet-item-name')?.value?.trim() || '';
+      const type = document.getElementById('planet-item-type')?.value || 'auto';
+      const desc = document.getElementById('planet-item-desc')?.value?.trim() || '';
+
+      if (!name) {
+        alert('자료 또는 캐릭터 이름을 입력해주세요!');
+        return;
+      }
+
+      if (btnSubmitUpload) {
         btnSubmitUpload.disabled = true;
         btnSubmitUpload.textContent = '🤖 Gemini 분석 및 행성 건축 중...';
+      }
 
-        try {
-          const model = window.PlanetWorldModel;
-          const analysis = await model.analyzeMaterialWithLLM(this.processedImageBase64, note, forceType);
+      try {
+        const model = window.PlanetWorldModel;
+        const analysis = await model.analyzeMaterialWithLLM(this.processedImageBase64, desc, type, name);
 
-          const payload = {
-            ...analysis,
-            imageBase64: this.processedImageBase64,
-            imageUrl: this.processedImageBase64 || 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=500'
-          };
+        const payload = {
+          ...analysis,
+          name: name,
+          title: name,
+          imageBase64: this.processedImageBase64,
+          imageUrl: this.processedImageBase64 || 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=500'
+        };
 
-          await model.uploadItem(payload);
-          await this.refreshWorld();
-
-          if (uploadModal) uploadModal.classList.add('hidden');
-          // 업로드 폼 리셋
-          if (document.getElementById('planet-upload-note')) document.getElementById('planet-upload-note').value = '';
-          if (previewContainer) previewContainer.classList.add('hidden');
-          this.processedImageBase64 = '';
-          this.originalRawBase64 = '';
-
-          // 방금 생성된 건물 또는 캐릭터로 포커스
-          if (!payload.isCharacter) {
-            this.focusOnBuilding(payload);
-          }
-        } catch (err) {
-          alert('업로드 처리 중 오류가 발생했습니다: ' + err.message);
-        } finally {
-          btnSubmitUpload.disabled = false;
-          btnSubmitUpload.textContent = '🚀 행성에 소환 & 건축하기';
+        const res = await model.uploadItem(payload);
+        if (res && res.success === false) {
+          throw new Error(res.message || '업로드 실패');
         }
-      });
+
+        await this.refreshWorld();
+        closeModal();
+
+        // 폼 초기화
+        if (formUpload) formUpload.reset();
+        if (previewBox) previewBox.style.display = 'none';
+        this.processedImageBase64 = '';
+        this.originalRawBase64 = '';
+
+        if (window.UiView && window.UiView.showToast) {
+          window.UiView.showToast(`✨ '${name}'(이)가 행성에 성공적으로 배치되었습니다!`);
+        } else {
+          alert(`✨ '${name}'(이)가 행성에 성공적으로 배치되었습니다!`);
+        }
+
+        // 방금 생성된 건물로 카메라 포커싱
+        if (payload.id) {
+          this.focusOnEntity(payload.id);
+        }
+      } catch (err) {
+        alert('업로드 처리 중 오류가 발생했습니다: ' + err.message);
+      } finally {
+        if (btnSubmitUpload) {
+          btnSubmitUpload.disabled = false;
+          btnSubmitUpload.textContent = '🔨 행성에 건축 & 소환하기';
+        }
+      }
+    };
+
+    if (formUpload) {
+      formUpload.addEventListener('submit', handleUploadSubmit);
+    } else if (btnSubmitUpload) {
+      btnSubmitUpload.addEventListener('click', handleUploadSubmit);
     }
 
     // 5. 검색바 입력 & 포커싱
