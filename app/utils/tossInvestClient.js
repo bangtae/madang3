@@ -551,6 +551,54 @@ class TossInvestClient {
   }
 
   /**
+   * 다음 국내 정규장(KRX) 개장 영업일(날짜, 요일, 상대문구) 계산 (주말/공휴일/휴장일 제외)
+   */
+  getNextKrTradingDay(baseDate = new Date()) {
+    const kst = this.getKstDate(baseDate);
+    const totalMinutes = kst.getHours() * 60 + kst.getMinutes();
+
+    let candidate = new Date(kst.getTime());
+
+    // 당일 09:00 정규장 개장 이후이거나 오늘이 휴장일이면 다음 날부터 탐색
+    const isTodayHoliday = candidate.getDay() === 0 || candidate.getDay() === 6 || this.isKrHoliday(candidate);
+    if (totalMinutes >= 540 || isTodayHoliday) {
+      candidate.setDate(candidate.getDate() + 1);
+    }
+
+    // 주말(토=6, 일=0) 및 공휴일 건너뛰기
+    while (candidate.getDay() === 0 || candidate.getDay() === 6 || this.isKrHoliday(candidate)) {
+      candidate.setDate(candidate.getDate() + 1);
+    }
+
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const m = candidate.getMonth() + 1;
+    const d = candidate.getDate();
+    const dayName = dayNames[candidate.getDay()];
+
+    const baseDayOnly = new Date(kst.getFullYear(), kst.getMonth(), kst.getDate());
+    const candDayOnly = new Date(candidate.getFullYear(), candidate.getMonth(), candidate.getDate());
+    const diffDays = Math.round((candDayOnly - baseDayOnly) / (1000 * 60 * 60 * 24));
+
+    let relativeText = '';
+    if (diffDays === 0) {
+      relativeText = `오늘(${m}/${d} ${dayName})`;
+    } else if (diffDays === 1) {
+      relativeText = `내일(${m}/${d} ${dayName})`;
+    } else {
+      relativeText = `다음 개장일인 ${m}월 ${d}일(${dayName})`;
+    }
+
+    return {
+      date: candidate,
+      formattedText: relativeText,
+      month: m,
+      day: d,
+      dayName: dayName,
+      diffDays: diffDays
+    };
+  }
+
+  /**
    * 현재 시각 기준 자동매매 타깃 시장 판정
    * - 현재 국장이 열려있으면 -> 'KR'
    * - 현재 미장이 열려있으면 -> 'US'
@@ -577,6 +625,313 @@ class TossInvestClient {
 
     // 아침 05:00부터 15:30까지는 한국장(KR) 우선
     return 'KR';
+  }
+
+  /**
+   * 미국 서머타임(Daylight Saving Time) 활성 여부 판정
+   * 미국 DST: 3월 둘째 주 일요일 02:00 ~ 11월 첫째 주 일요일 02:00
+   */
+  isUsDstActive(date = new Date()) {
+    const etDate = this.getEtDate(date);
+    const year = etDate.getFullYear();
+    const marchFirst = new Date(Date.UTC(year, 2, 1));
+    const marchSecondSun = 14 - ((marchFirst.getUTCDay() + 6) % 7);
+    const dstStart = new Date(Date.UTC(year, 2, marchSecondSun, 7, 0, 0));
+
+    const novFirst = new Date(Date.UTC(year, 10, 1));
+    const novFirstSun = 7 - ((novFirst.getUTCDay() + 6) % 7) || 7;
+    const dstEnd = new Date(Date.UTC(year, 10, novFirstSun, 6, 0, 0));
+
+    return date >= dstStart && date < dstEnd;
+  }
+
+  /**
+   * 실시간 시장 세션 및 세부 운영 시간 상세 판별 (NXT, KRX, US)
+   */
+  getCurrentMarketSession(now = new Date()) {
+    const kstDate = this.getKstDate(now);
+    const day = kstDate.getDay();
+    const isWeekend = day === 0 || day === 6;
+    const isHoliday = this.isKrHoliday(kstDate);
+    const kstHours = kstDate.getHours();
+    const kstMinutes = kstDate.getMinutes();
+    const totalMinutes = kstHours * 60 + kstMinutes;
+    const isDst = this.isUsDstActive(now);
+
+    const usMarketOpen = this.isRegularMarketOpen('US');
+
+    if (isWeekend) {
+      return {
+        code: 'WEEKEND',
+        name: '주말 휴장',
+        badgeColor: '#94a3b8',
+        description: '토요일/일요일은 모든 정규 거래소가 휴장합니다.',
+        isScalpingGoldenTime: false,
+        goldenTimePriority: null,
+        activeExchange: null,
+        detailTime: '월요일 오전 08:00 NXT 프리마켓 개장 예정'
+      };
+    }
+
+    if (isHoliday) {
+      return {
+        code: 'KR_HOLIDAY',
+        name: '국내 공휴일 휴장',
+        badgeColor: '#94a3b8',
+        description: '한국거래소 및 대체거래소(NXT) 공휴일 휴장입니다.',
+        isScalpingGoldenTime: false,
+        goldenTimePriority: null,
+        activeExchange: null,
+        detailTime: usMarketOpen ? '미국 정규장은 운영 중' : '휴장'
+      };
+    }
+
+    // 1. NXT 프리마켓 (08:00 ~ 08:50) - 🥈 골든타임 2순위
+    if (totalMinutes >= 480 && totalMinutes < 530) {
+      return {
+        code: 'NXT_PRE_MARKET',
+        name: 'NXT 프리마켓 접속매매',
+        badgeColor: '#38bdf8',
+        description: '대체거래소(NXT) 프리마켓 실시간 접속매매 중입니다. (08:00~08:50)',
+        isScalpingGoldenTime: true,
+        goldenTimePriority: 2,
+        activeExchange: 'NXT',
+        detailTime: '08:00 ~ 08:50 (NXT 접속매매)'
+      };
+    }
+
+    // 2. NXT 호가 정지 & KRX 동시호가 (08:50 ~ 09:00)
+    if (totalMinutes >= 530 && totalMinutes < 540) {
+      return {
+        code: 'ORDER_SUSPENDED_PRE_OPEN',
+        name: '개장 동시호가 (NXT 호가정지)',
+        badgeColor: '#fbbf24',
+        description: '09:00 개장 전 시가 결정 동시호가 진행 중입니다. (신규 호가 정지, 취소만 가능)',
+        isScalpingGoldenTime: false,
+        goldenTimePriority: null,
+        activeExchange: 'KRX_PRE',
+        detailTime: '08:50 ~ 09:00 (시가 동시호가)'
+      };
+    }
+
+    // 3. KRX 정규장 & NXT 메인마켓 개장 직후 (09:00 ~ 09:30) - 🥇 최강 골든타임 1순위!
+    if (totalMinutes >= 540 && totalMinutes < 570) {
+      return {
+        code: 'KRX_GOLDEN_OPEN',
+        name: '★ 국장 개장 골든타임 (09:00~09:30)',
+        badgeColor: '#10b981',
+        description: '거래대금과 거래량이 폭발하는 하루 중 가장 최적의 초단타 골든타임입니다!',
+        isScalpingGoldenTime: true,
+        goldenTimePriority: 1,
+        activeExchange: 'KRX_NXT',
+        detailTime: '09:00 ~ 09:30 (초단타 최고 적기)'
+      };
+    }
+
+    // 4. KRX 정규장 & NXT 메인마켓 주간 운영 (09:30 ~ 15:20)
+    if (totalMinutes >= 570 && totalMinutes < 920) {
+      return {
+        code: 'KRX_REGULAR_MAIN',
+        name: '국장 정규장 & NXT 메인마켓',
+        badgeColor: '#10b981',
+        description: '한국거래소(KRX) 정규장 및 NXT 메인마켓이 정상 운영 중입니다. (09:00~15:20)',
+        isScalpingGoldenTime: true,
+        goldenTimePriority: 1,
+        activeExchange: 'KRX_NXT',
+        detailTime: '09:00 ~ 15:20 (실시간 접속매매)'
+      };
+    }
+
+    // 5. 장 마감 동시호가 (15:20 ~ 15:30)
+    if (totalMinutes >= 920 && totalMinutes < 930) {
+      return {
+        code: 'CLOSING_AUCTION',
+        name: '장마감 동시호가 (NXT 호가정지)',
+        badgeColor: '#f59e0b',
+        description: '종가 결정 동시호가 시간대입니다. (신규 체결 정지, 취소만 가능)',
+        isScalpingGoldenTime: false,
+        goldenTimePriority: null,
+        activeExchange: 'KRX_AUCTION',
+        detailTime: '15:20 ~ 15:30 (종가 동시호가)'
+      };
+    }
+
+    // 6. 장후 시간외 및 NXT 애프터마켓 (15:30 ~ 20:00)
+    if (totalMinutes >= 930 && totalMinutes < 1200) {
+      return {
+        code: 'NXT_KRX_AFTER_MARKET',
+        name: 'NXT 애프터마켓 & 시간외 거래',
+        badgeColor: '#818cf8',
+        description: 'NXT 애프터마켓(15:40~20:00 실시간 접속매매) 및 KRX 시간외 거래가 진행됩니다.',
+        isScalpingGoldenTime: false,
+        goldenTimePriority: null,
+        activeExchange: 'NXT_AFTER',
+        detailTime: '15:30 ~ 20:00 (NXT 실시간 접속매매)'
+      };
+    }
+
+    // 7. 미국 정규장 (22:30~05:00 KST / 겨울 23:30~06:00 KST) - 🥉 골든타임 3순위
+    if (usMarketOpen) {
+      const isGoldenUs = isDst ? (totalMinutes >= 1350 || totalMinutes < 60) : (totalMinutes >= 1410 || totalMinutes < 120);
+      return {
+        code: 'US_REGULAR_OPEN',
+        name: isGoldenUs ? '★ 미장 개장 골든타임' : '미국 정규장 운영 중',
+        badgeColor: '#a855f7',
+        description: isDst ? '미국 정규장(서머타임 22:30~05:00 KST)이 운영 중입니다.' : '미국 정규장(겨울철 23:30~06:00 KST)이 운영 중입니다.',
+        isScalpingGoldenTime: isGoldenUs,
+        goldenTimePriority: 3,
+        activeExchange: 'US',
+        detailTime: isDst ? '22:30 ~ 익일 05:00 KST' : '23:30 ~ 익일 06:00 KST'
+      };
+    }
+
+    // 8. 그 외 야간/새벽 휴장 대기 (20:00~22:30 또는 05:00~08:00)
+    return {
+      code: 'MARKET_STANDBY',
+      name: totalMinutes < 480 ? '아침 개장 대기 (08:00 NXT 프리마켓)' : '야간 휴장 / 미장 대기',
+      badgeColor: '#64748b',
+      description: totalMinutes < 480 ? '오전 08:00 NXT 프리마켓 개장을 대기 중입니다.' : '국장 마감 완료. 22:30 미국 정규장 개장을 대기 중입니다.',
+      isScalpingGoldenTime: false,
+      goldenTimePriority: null,
+      activeExchange: null,
+      detailTime: totalMinutes < 480 ? '08:00 NXT 개장' : '22:30 미장 개장'
+    };
+  }
+
+  /**
+   * 종목 마스터 정보 조회 (종목명, 시장 등)
+   * 엔드포인트: GET /api/v1/stocks?symbols={symbol}
+   */
+  async getStockInfo(symbol) {
+    if (!this.isConfigured()) return null;
+    try {
+      const token = await this.getAccessToken();
+      const res = await fetch(`${this.baseUrl}/api/v1/stocks?symbols=${encodeURIComponent(symbol)}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: AbortSignal.timeout(4000)
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const list = data.result || [];
+      return list.length > 0 ? list[0] : null;
+    } catch (e) {
+      console.warn(`[TossInvestClient] getStockInfo error for ${symbol}:`, e.message);
+      return null;
+    }
+  }
+
+  /**
+   * 토스증권 실시간 차트/랭킹 조회 API
+   * 엔드포인트: GET /api/v1/rankings
+   */
+  async getRankings({
+    type = 'MARKET_TRADING_AMOUNT',
+    marketCountry = 'KR',
+    duration = 'realtime',
+    count = 50,
+    excludeInvestmentCaution = true
+  } = {}) {
+    if (!this.isConfigured()) {
+      return { success: false, configured: false, message: '토스증권 API가 설정되지 않았습니다.' };
+    }
+
+    try {
+      const headers = await this.getAuthHeaders();
+      const qs = new URLSearchParams({
+        type,
+        marketCountry,
+        duration,
+        count: String(count),
+        excludeInvestmentCaution: String(excludeInvestmentCaution)
+      });
+
+      const url = `${this.baseUrl}/api/v1/rankings?${qs.toString()}`;
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(5000) });
+      if (!res.ok) {
+        const errText = await res.text();
+        return { success: false, error: `HTTP ${res.status}: ${errText}` };
+      }
+
+      const data = await res.json();
+      return {
+        success: true,
+        rankings: data.result?.rankings || [],
+        rankedAt: data.result?.rankedAt || null
+      };
+    } catch (e) {
+      console.error('[TossInvestClient] getRankings error:', e.message);
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * 국장 10만원 이하 거래대금 1위 초단타 타깃 종목 발굴
+   */
+  async findScalpingTargetStock(maxPrice = 100000, excludeSymbols = []) {
+    let rankRes = await this.getRankings({
+      type: 'MARKET_TRADING_AMOUNT',
+      marketCountry: 'KR',
+      duration: 'realtime',
+      count: 50,
+      excludeInvestmentCaution: true
+    });
+
+    if (!rankRes.success || !rankRes.rankings || rankRes.rankings.length === 0) {
+      // 장 시작 직전 또는 장외 시 1d 랭킹으로 보조 조회
+      const backupRes = await this.getRankings({
+        type: 'MARKET_TRADING_AMOUNT',
+        marketCountry: 'KR',
+        duration: '1d',
+        count: 50,
+        excludeInvestmentCaution: true
+      });
+      if (backupRes.success && backupRes.rankings && backupRes.rankings.length > 0) {
+        rankRes = backupRes;
+      }
+    }
+
+    if (!rankRes.rankings || rankRes.rankings.length === 0) {
+      return null;
+    }
+
+    const excludeSet = new Set((excludeSymbols || []).map(s => String(s || '').trim()).filter(Boolean));
+
+    // 10만원 이하 종목 및 중복 방지 제외 종목(집중운용/맞춤전략) 필터링
+    const eligible = rankRes.rankings.filter(item => {
+      const sym = String(item.symbol || '').trim();
+      if (excludeSet.has(sym)) {
+        console.log(`[TossClient] Scalping candidate ${sym} excluded (already in other position/strategy)`);
+        return false;
+      }
+      const price = parseFloat(item.price?.lastPrice || item.lastPrice || (typeof item.price === 'number' ? item.price : 0) || 0);
+      return price > 0 && price <= maxPrice;
+    });
+
+    if (eligible.length === 0) return null;
+
+    const topStock = eligible[0];
+    const curPrice = parseFloat(topStock.price?.lastPrice || topStock.lastPrice || (typeof topStock.price === 'number' ? topStock.price : 0) || 0);
+    const changeRate = parseFloat(topStock.price?.changeRate || topStock.changeRate || 0);
+
+    // 종목명 조회 (토스 종목 마스터 API 연동)
+    let stockName = topStock.symbol;
+    try {
+      const info = await this.getStockInfo(topStock.symbol);
+      if (info && info.name) {
+        stockName = info.name;
+      }
+    } catch (e) {}
+
+    return {
+      symbol: topStock.symbol,
+      stockName: stockName,
+      market: 'KR',
+      currency: topStock.currency || 'KRW',
+      currentPrice: curPrice,
+      changeRate: changeRate,
+      tradingAmount: parseFloat(topStock.tradingAmount || 0),
+      tradingVolume: parseFloat(topStock.tradingVolume || 0)
+    };
   }
 }
 

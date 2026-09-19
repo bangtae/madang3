@@ -53,6 +53,9 @@ window.AppController = {
     if (window.ChurchNewsView) {
       window.ChurchNewsView.init();
     }
+    if (window.PortalChatbotView) {
+      window.PortalChatbotView.init();
+    }
 
     // 기본 대시보드 뷰일 때만 refreshAllViews() 수행 (다른 화면일 때 깜빡임 차단)
     if (!initialTarget || initialTarget === 'dashboard') {
@@ -117,6 +120,11 @@ window.AppController = {
     if (window.StockDebateView && typeof window.StockDebateView.render === 'function') {
       try {
         window.StockDebateView.render();
+      } catch (e) {}
+    }
+    if (window.StockJournalView && typeof window.StockJournalView.applyAdminVisibility === 'function') {
+      try {
+        window.StockJournalView.applyAdminVisibility();
       } catch (e) {}
     }
   },

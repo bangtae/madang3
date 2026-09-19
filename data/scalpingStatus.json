@@ -1,0 +1,29 @@
+{
+  "isActive": false,
+  "isWaitingMarketOpen": false,
+  "targetProfitPct": 2.5,
+  "stopLossPct": -1.5,
+  "currentPosition": null,
+  "lastCheckAt": "2026-09-18T00:12:38.620Z",
+  "history": [
+    {
+      "symbol": "034020",
+      "stockName": "두산에너빌리티",
+      "market": "KR",
+      "currency": "KRW",
+      "quantity": 1,
+      "entryPrice": 87200,
+      "currentPrice": 85800,
+      "exitPrice": 85800,
+      "targetPrice": 89380,
+      "stopLossPrice": 85892,
+      "realizedPnl": -1400,
+      "returnPct": -1.61,
+      "exitReason": "STOP_LOSS",
+      "orderId": "SCALP-1789700002426",
+      "enteredAt": "2026-09-18T00:00:02.426Z",
+      "closedAt": "2026-09-18T00:12:38.620Z",
+      "status": "CLOSED"
+    }
+  ]
+}

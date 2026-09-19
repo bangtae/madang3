@@ -202,21 +202,57 @@ class TelegramBotHelper {
     return true;
   }
 
+  normalizeTelegramHtml(text) {
+    if (!text) return '';
+    let s = String(text);
+    // 1. <br> 태그를 텔레그램 표준 개행 문자(\n)로 변환
+    s = s.replace(/<br\s*\/?>/gi, '\n');
+    // 2. 텔레그램 미지원 <font> 태그 제거
+    s = s.replace(/<font[^>]*>/gi, '');
+    s = s.replace(/<\/font>/gi, '');
+    // 3. 문단 및 블록 태그 변환
+    s = s.replace(/<\/p>/gi, '\n\n');
+    s = s.replace(/<p[^>]*>/gi, '');
+    s = s.replace(/<\/div>/gi, '\n');
+    s = s.replace(/<div[^>]*>/gi, '');
+    // 4. 비지원 span 태그 제거 (tg-spoiler 제외)
+    s = s.replace(/<span(?![^>]*class=["']tg-spoiler["'])[^>]*>/gi, '');
+    s = s.replace(/<\/span>/gi, '');
+    return s.trim();
+  }
+
   async sendGeneralMessage(text, parseMode = 'HTML') {
     if (!this.config.enabled || !this.config.botToken) return false;
+    const cleanText = (parseMode === 'HTML') ? this.normalizeTelegramHtml(text) : String(text);
     const chatIds = this.config.allowedChatIds.split(',').map(s => s.trim()).filter(Boolean);
     for (const chatId of chatIds) {
       try {
         const url = `https://api.telegram.org/bot${this.config.botToken}/sendMessage`;
-        await fetch(url, {
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: chatId,
-            text: text,
+            text: cleanText,
             parse_mode: parseMode
           })
         });
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error(`[TelegramBot] sendMessage failed (${res.status}):`, errText);
+          // HTML 파싱 에러(400) 발생 시 태그 제거 후 플레인 텍스트로 1회 폴백 전송
+          if (res.status === 400 && parseMode === 'HTML') {
+            const plain = cleanText.replace(/<[^>]+>/g, '');
+            await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: plain
+              })
+            }).catch(() => {});
+          }
+        }
       } catch (err) {
         console.error('[TelegramBot] sendGeneralMessage error:', err.message);
       }

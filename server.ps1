@@ -2527,6 +2527,211 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                 Send-JsonResponse $stream $corsHeaders ($consultingResult | ConvertTo-Json -Depth 5 -Compress)
             }
         }
+        elseif ($urlPath -eq "/api/portal-search-chat") {
+            if ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                $searchChatResult = $null
+                if ($headerBodySplit.Length -eq 2) {
+                    $reqBody = $headerBodySplit[1]
+                    try {
+                        $parsedReq = $reqBody | ConvertFrom-Json
+                        $qInput = $parsedReq.question
+                        if (-not [string]::IsNullOrWhiteSpace($qInput)) {
+                            $cleanQ = $qInput.Trim()
+                            $qTokens = $cleanQ.ToLower().Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)
+                            $matchedList = [System.Collections.ArrayList]@()
+
+                            # 1. APIs
+                            $apisFile = Join-Path $dataDir "apis.json"
+                            if (Test-Path $apisFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($apisFile, [System.Text.Encoding]::UTF8)
+                                    $apis = $raw | ConvertFrom-Json
+                                    foreach ($item in $apis) {
+                                        $sc = 0
+                                        $txt = "$($item.title) $($item.category) $($item.tags -join ' ') $($item.docsUrl)".ToLower()
+                                        foreach ($t in $qTokens) {
+                                            if ($t.Length -ge 2 -and $txt.Contains($t)) { $sc += 3 }
+                                        }
+                                        if ($sc -gt 0) {
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "API"
+                                                title = $item.title
+                                                summary = if ($item.docsUrl) { $item.docsUrl } else { $item.category }
+                                                targetView = "api-info"
+                                                id = $item.id
+                                            })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 2. AI Models
+                            $aiModelsFile = Join-Path $dataDir "aiModels.json"
+                            if (Test-Path $aiModelsFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($aiModelsFile, [System.Text.Encoding]::UTF8)
+                                    $aiList = $raw | ConvertFrom-Json
+                                    foreach ($item in $aiList) {
+                                        $sc = 0
+                                        $txt = "$($item.title) $($item.developer) $($item.category) $($item.summary) $($item.tags -join ' ')".ToLower()
+                                        foreach ($t in $qTokens) {
+                                            if ($t.Length -ge 2 -and $txt.Contains($t)) { $sc += 3 }
+                                        }
+                                        if ($sc -gt 0) {
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "AI 모델"
+                                                title = $item.title
+                                                summary = if ($item.summary) { $item.summary } else { $item.description }
+                                                targetView = "ai-models"
+                                                id = $item.id
+                                            })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 3. AI Terms
+                            $aiTermsFile = Join-Path $dataDir "aiTerms.json"
+                            if (Test-Path $aiTermsFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($aiTermsFile, [System.Text.Encoding]::UTF8)
+                                    $termList = $raw | ConvertFrom-Json
+                                    foreach ($item in $termList) {
+                                        $sc = 0
+                                        $txt = "$($item.term) $($item.summary) $($item.category)".ToLower()
+                                        foreach ($t in $qTokens) {
+                                            if ($t.Length -ge 2 -and $txt.Contains($t)) { $sc += 3 }
+                                        }
+                                        if ($sc -gt 0) {
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "AI 용어"
+                                                title = $item.term
+                                                summary = if ($item.summary) { $item.summary } else { $item.definition }
+                                                targetView = "ai-terms"
+                                                id = $item.id
+                                            })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 4. SAP Knowledge
+                            $sapFile = Join-Path $dataDir "sapKnowledge.json"
+                            if (Test-Path $sapFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($sapFile, [System.Text.Encoding]::UTF8)
+                                    $sapList = $raw | ConvertFrom-Json
+                                    foreach ($item in $sapList) {
+                                        $sc = 0
+                                        $txt = "$($item.title) $($item.topic) $($item.tags -join ' ') $($item.content)".ToLower()
+                                        foreach ($t in $qTokens) {
+                                            if ($t.Length -ge 2 -and $txt.Contains($t)) { $sc += 3 }
+                                        }
+                                        if ($sc -gt 0) {
+                                            $snip = if ($item.content -and $item.content.Length -gt 120) { $item.content.Substring(0, 120) + "..." } else { $item.content }
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "SAP 지식"
+                                                title = "[$($item.topic)] $($item.title)"
+                                                summary = $snip
+                                                targetView = "sap-suite"
+                                                id = $item.id
+                                            })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 5. Stock Debate Logs
+                            $stockFile = Join-Path $dataDir "stockDebateLogs.json"
+                            if (Test-Path $stockFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($stockFile, [System.Text.Encoding]::UTF8)
+                                    $stockList = $raw | ConvertFrom-Json
+                                    foreach ($item in $stockList) {
+                                        $sc = 0
+                                        $txt = "$($item.stockName) $($item.stockCode) $($item.summary) $($item.consensus)".ToLower()
+                                        foreach ($t in $qTokens) {
+                                            if ($t.Length -ge 2 -and $txt.Contains($t)) { $sc += 3 }
+                                        }
+                                        if ($sc -gt 0) {
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "주식 분석"
+                                                title = "$($item.stockName) 분석 리포트"
+                                                summary = if ($item.summary) { $item.summary } else { $item.consensus }
+                                                targetView = "stock-debate"
+                                                id = $item.id
+                                            })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            $sortedMatches = $matchedList | Sort-Object score -Descending | Select-Object -First 6
+                            $topArray = @()
+                            if ($sortedMatches) {
+                                foreach ($m in $sortedMatches) { $topArray += $m }
+                            }
+
+                            $aiAnswer = ""
+                            $geminiKey = Get-GeminiApiKey
+                            if ($null -ne $geminiKey -and $geminiKey.Length -gt 10) {
+                                try {
+                                    $contextSnip = ""
+                                    $cIdx = 1
+                                    foreach ($it in $topArray) {
+                                        $contextSnip += "[데이터 $cIdx] ($($it.type)) 제목: $($it.title)`n요약: $($it.summary)`n`n"
+                                        $cIdx++
+                                    }
+                                    $promptSys = "당신은 마당(Portal Bang) 플랫폼의 수석 AI 데이터 비서입니다. 사용자의 질문에 대해 포털 내 검색된 데이터를 적극 참조하여 친절하고 정확하며 핵심을 짚는 한국어로 답변을 작성하세요. 사족이나 불필요한 인사는 생략하고 질문에 대한 답변 및 핵심 요약을 바로 제공하세요."
+                                    $promptUser = $(if (-not [string]::IsNullOrWhiteSpace($contextSnip)) { "[포털 검색 데이터베이스 결과]`n$contextSnip`n`n" }) + "[사용자 질문]: $cleanQ"
+
+                                    $gBody = [PSCustomObject]@{
+                                        system_instruction = [PSCustomObject]@{ parts = @([PSCustomObject]@{ text = $promptSys }) }
+                                        contents = @([PSCustomObject]@{ role = "user"; parts = @([PSCustomObject]@{ text = $promptUser }) })
+                                        generationConfig = [PSCustomObject]@{ temperature = 0.3; maxOutputTokens = 2048 }
+                                    } | ConvertTo-Json -Depth 6
+
+                                    $gUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$geminiKey"
+                                    $gRes = Invoke-RestMethod -Uri $gUrl -Method Post -ContentType "application/json" -Body ([System.Text.Encoding]::UTF8.GetBytes($gBody)) -TimeoutSec 10 -ErrorAction SilentlyContinue
+                                    if ($gRes -and $gRes.candidates -and $gRes.candidates[0].content.parts) {
+                                        $aiAnswer = $gRes.candidates[0].content.parts[0].text
+                                    }
+                                } catch {}
+                            }
+
+                            if ([string]::IsNullOrWhiteSpace($aiAnswer)) {
+                                if ($topArray.Count -gt 0) {
+                                    $aiAnswer = "포털 전체 데이터베이스에서 **`"$cleanQ`"**에 관한 연관 데이터 총 **$($matchedList.Count)건**을 발견했습니다.`n`n아래의 추천 결과 카드를 클릭하시면 해당 메뉴 및 상세 정보로 즉시 이동합니다:"
+                                } else {
+                                    $aiAnswer = "포털 전체 데이터에서 **`"$cleanQ`"**에 대한 직접적인 일치 항목을 찾지 못했습니다.`n`n추천 검색어: 'Blogger', 'Gemini', 'SAP', '삼성전자', '트렌딩' 등으로 검색해 보세요."
+                                }
+                            }
+
+                            $searchChatResult = [PSCustomObject]@{
+                                success = $true
+                                answer = $aiAnswer
+                                items = $topArray
+                                totalMatches = $matchedList.Count
+                                timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                            }
+                        }
+                    } catch {}
+                }
+                if ($null -eq $searchChatResult) {
+                    $searchChatResult = [PSCustomObject]@{
+                        success = $false
+                        message = "검색 처리 중 오류가 발생했거나 검색어가 비어 있습니다."
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders ($searchChatResult | ConvertTo-Json -Depth 5 -Compress)
+            }
+        }
         elseif ($urlPath -eq "/api/analyze-ai-term") {
 
             if ($method -eq "POST") {
@@ -2761,6 +2966,7 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                 configured = [bool]($cObj.clientId -and $cObj.clientSecret)
                 isAutoTradingEnabled = [bool]($cObj.isAutoTradingEnabled)
                 currentPosition = $jObj.currentPosition
+                customStrategies = $jObj.customStrategies
                 history = $jObj.history
                 stats = $jObj.stats
                 lastCheckAt = $jObj.lastCheckAt

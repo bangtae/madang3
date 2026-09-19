@@ -1,6 +1,132 @@
 // data/initialSapNews.js - Auto-updated by SAP Agent
 window.PORTAL_DATA_SAP_NEWS = [
     {
+        "id":  "sap_news_a3755def",
+        "title":  "고급 이벤트 메시 어댑터 - 배포 중 PKIX 경로 구축이 실패했습니다.",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/advanced-event-mesh-adapter-pkix-path-building-failed-during-deployment/qaq-p/14487828",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "전문가 여러분, 안녕하세요. SMF/JCSMP 프로토콜을 사용하여 Solace 기반 이벤트 브로커에 연결하기 위해 SAP Integration Suite(클라우드 통합)에서 AEM(Advanced Event Mesh) 어댑터를 구성하려고 합니다.",
+        "published_at":  "2026-09-18T16:36:57Z"
+    },
+    {
+        "id":  "sap_news_ba64b626",
+        "title":  "Integration Suite가 포함된 MCP 서버는 OAuth2SAMLBearer를 통해 S/4HANA Public Cloud API를 노출합니다.",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/mcp-server-with-integration-suite-expose-s-4hana-public-cloud-api-via/ba-p/14487408",
+        "category":  "Migration",
+        "summary":  "소개/시나리오 이 게시물에서는 OAuth2 SAML Bearer Assertion을 사용하여 S/4HANA API와 안전하게 통신하도록 SAP Integration Suite를 통해 MCP 서버를 구성하는 방법을 설명합니다. 이 접근 방식은 ...",
+        "published_at":  "2026-09-19T02:37:23Z"
+    },
+    {
+        "id":  "sap_news_cf2dab13",
+        "title":  "SAP Integration Suite에서 올바른 IBM MQ 송신자 어댑터 변형 선택",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/choose-the-right-ibm-mq-sender-adapter-variant-in-sap-integration-suite/ba-p/14487673",
+        "category":  "Migration",
+        "summary":  "소개: JMS 폴링, JMS 구독 또는 JMS 구독 순서대로 SAP Integration Suite의 IBM MQ 송신자 어댑터는 IBM MQ 큐에서 메시지를 소비하고 다음 작업을 수행하기 위한 여러 옵션을 제공합니다.",
+        "published_at":  "2026-09-18T13:26:02Z"
+    },
+    {
+        "id":  "sap_news_6b5d6573",
+        "title":  "온프레미스 파일 공유에서 파일을 검색하는 가장 좋은 방법(PI 작업 교체)",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/best-method-to-retrieve-files-from-on-premise-file-share-pi-job-replacement/qaq-p/14486852",
+        "category":  "Migration",
+        "summary":  "우리 회사는 온프레미스 파일 공유에서 파일을 선택하고 SFTP를 공급업체에 전달하는 기존 PI 작업을 대체하고 있습니다. 이 PI 작업을 교체해야 하지만 동일한 기능을 유지해야 합니다. CPI는 사진을 찍을 수 없습니다 ...",
+        "published_at":  "2026-09-17T12:52:38Z"
+    },
+    {
+        "id":  "sap_news_89585230",
+        "title":  "Git을 사용한 SAP Cloud 통합 아티팩트의 버전 제어 및 백업 - 단계별 가이드",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/artificial-intelligence-blogs-posts/version-control-and-backup-of-sap-cloud-integration-artifacts-with-git-step/ba-p/14486629",
+        "category":  "Best Practice",
+        "summary":  "SAP Cloud Integration 작업 시 통합 흐름 및 테넌트 외부의 기타 아티팩트에 대한 백업을 유지하는 것이 좋습니다. Git은 이를 간단한 방법으로 수행하도록 도와줍니다. 우리가 만들 때마다...",
+        "published_at":  "2026-09-17T16:54:09Z"
+    },
+    {
+        "id":  "sap_news_78fbc510",
+        "title":  "SAP Cloud Integration 내부 살펴보기: 스캐너를 사용하는 런타임",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/peeking-inside-sap-cloud-integration-a-runtime-where-used-scanner/ba-p/14486781",
+        "category":  "Migration",
+        "summary":  "소개 SAP Cloud Integration은 작업자 런타임 내에 배포된 아티팩트에 대한 놀라운 양의 정보를 저장합니다. 통합 흐름, 메시지 매핑, 스크립트 컬렉션 및 어댑터...",
+        "published_at":  "2026-09-18T04:43:09Z"
+    },
+    {
+        "id":  "sap_news_00414c3a",
+        "title":  "표시 오류를 표시하는 ISuite 기능 – Integration Suite",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/isuite-features-showing-display-error-integration-suite/qaq-p/14486736",
+        "category":  "Migration",
+        "summary":  "표시 오류를 표시하는 ISuite 기능 - Integration Suite는 누구나 이 오류 팝업에 대해 알고 있습니다.",
+        "published_at":  "2026-09-17T10:40:32Z"
+    },
+    {
+        "id":  "sap_news_19679775",
+        "title":  "SAP Integration Suite에서 Discover 패키지를 찾고 있습니다.",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/looking-for-discover-package-in-sap-integration-suite/qaq-p/14486139",
+        "category":  "Migration",
+        "summary":  "안녕하세요 팀, 저는 SAP Integration Suite를 미들웨어로 통해 SAP Service Cloud 버전 2와 SAP SuccessFactors Position Management를 통합하는 작업을 진행하고 있습니다. 하지만 통합할 패키지를 찾을 수 없습니다...",
+        "published_at":  "2026-09-16T13:34:28Z"
+    },
+    {
+        "id":  "sap_news_2ef68735",
+        "title":  "자격증 시험 안내 C_CPI_2601",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/sap-learning-q-a/guidance-on-certification-exam-c-cpi-2601/qaq-p/14486161",
+        "category":  "Migration",
+        "summary":  "안녕하세요, 저는 SAP를 처음 접하고 학습 허브를 통해 C_CPI_2601 Integration Developer 자격증 시험을 준비하고 있습니다. 새로운 시스템 평가 기반 시험이 정확히 어떻게 진행되는지 알고 싶었습니다.",
+        "published_at":  "2026-09-16T13:54:20Z"
+    },
+    {
+        "id":  "sap_news_e1a7224f",
+        "title":  "CTMS 스토리지 활용도가 82%에 도달함 - 스토리지 최적화에 필요한 지침",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/ctms-storage-utilization-reached-82-guidance-required-for-storage/qaq-p/14486279",
+        "category":  "Migration",
+        "summary":  "우리는 무료 플랜에서 SAP Cloud Transport Management(CTMS)를 사용하고 있으며 약 82%(0.49GB 중 0.4GB)의 스토리지 사용률을 관찰했습니다. 우리는 다음에 대한 SAP의 지침을 원합니다: 트래픽 식별...",
+        "published_at":  "2026-09-16T16:46:33Z"
+    },
+    {
+        "id":  "sap_news_a7ffe5e5",
+        "title":  "SuccessFactors ONB2.0 및 LMS와 Adobe Sign 통합",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/human-capital-management-q-a/adobe-sign-integration-with-successfactors-onb2-0-amp-lms/qaq-p/14486363",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "안녕하세요 여러분. Adobe Sign을 SuccessFactors Onboarding 2.0 및 LMS와 통합해야 한다는 요구 사항이 있습니다. 우리는 이 통합이 이전에 성공적으로 구현되었는지 궁금했습니다.",
+        "published_at":  "2026-09-16T21:07:20Z"
+    },
+    {
+        "id":  "sap_news_0b767075",
+        "title":  "BTP 평가판 - 요청된 런타임 위치(클라우드 통합)는 테넌트에 대해 지원되지 않습니다.",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/btp-trial-requested-runtime-location-cloudintegration-is-not-supported-for/qaq-p/14486432",
+        "category":  "Migration",
+        "summary":  "안녕하세요. 저는 SAP BTP 평가판 계정에서 SAP Integration Suite를 사용하고 있습니다. 내 클라우드 통합 기능이 활성으로 표시되지만 통합 흐름을 배포할 수 없습니다. iFlow를 배포하면 다음을 받습니다.",
+        "published_at":  "2026-09-17T02:29:54Z"
+    },
+    {
+        "id":  "sap_news_2e3ac6f8",
+        "title":  "사용자 정의 BOR 개체를 기반으로 사용자 정의 RAP 이벤트를 고급 이벤트 메시로 보내는 방법",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/how-to-send-custom-rap-events-to-advanced-event-mesh-based-on-a-custom-bor/ba-p/14483387",
+        "category":  "Best Practice",
+        "summary":  "사용자 정의 BOR 개체를 기반으로 하는 사용자 정의 RAP 이벤트 개요 SAP S/4HANA의 EEE(Enterprise Event Enablement)를 사용하면 SAP Advanced Event ...와 같은 이벤트 브로커에 비즈니스 이벤트를 게시할 수 있습니다.",
+        "published_at":  "2026-09-17T03:36:20Z"
+    },
+    {
+        "id":  "sap_news_a70f44fc",
+        "title":  "Integration Advisor – EDI 페이로드를 기반으로 단순화된 MIG 생성",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/integration-advisor-simplified-mig-creation-based-on-edi-payload/ba-p/14486224",
+        "category":  "Best Practice",
+        "summary":  "작지만 매우 유용한 새 기능을 발표하게 되어 기쁩니다. 새 메시지 구현 지침(MIG)을 생성할 때 사용할 수 있는 샘플 페이로드가 있는 경우 우리 애플리케이션에서 적합한 기능을 제안할 것입니다.",
+        "published_at":  "2026-09-17T08:56:57Z"
+    },
+    {
         "id":  "sap_news_2cc03a21",
         "title":  "SAP의 실시간 데이터 복제 옵션: 목록 범위를 좁히는 네 가지 질문",
         "source":  "SAP Community",

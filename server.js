@@ -1152,6 +1152,7 @@ app.get('/api/trading/journal', async (req, res) => {
       configured: Boolean(cfg.clientId && cfg.clientSecret),
       isAutoTradingEnabled: Boolean(cfg.isAutoTradingEnabled),
       currentPosition: journal.currentPosition,
+      customStrategies: journal.customStrategies || [],
       history: journal.history || [],
       stats: journal.stats || {},
       lastCheckAt: journal.lastCheckAt
@@ -1164,6 +1165,7 @@ app.get('/api/trading/journal', async (req, res) => {
       configured: Boolean(cfg.clientId && cfg.clientSecret),
       isAutoTradingEnabled: Boolean(cfg.isAutoTradingEnabled),
       currentPosition: journal.currentPosition,
+      customStrategies: journal.customStrategies || [],
       history: journal.history || [],
       stats: journal.stats || {},
       lastCheckAt: journal.lastCheckAt,
@@ -1240,6 +1242,153 @@ app.get('/api/trading/test-connection', async (req, res) => {
       success: false,
       error: e.message
     });
+  }
+});
+
+// (8) 관리자 맞춤 전략 신규 등록 (10만원 제한 해제, 독립 다중 포지션 감시)
+app.post('/api/trading/custom-strategy', (req, res) => {
+  try {
+    const result = stockAutoTrader.registerCustomStrategy(req.body || {});
+    res.json({ success: true, message: '맞춤 전략이 등록되었습니다.', strategy: result });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// (9) 관리자 맞춤 전략 수정 (목표가, 손절가, 물타기, 수량 등)
+app.put('/api/trading/custom-strategy/:id', (req, res) => {
+  try {
+    const result = stockAutoTrader.updateCustomStrategy(req.params.id, req.body || {});
+    res.json({ success: true, message: '맞춤 전략이 수정되었습니다.', strategy: result });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// (10) 관리자 맞춤 전략 목록 조회
+app.get('/api/trading/custom-strategies', (req, res) => {
+  try {
+    const strategies = stockAutoTrader.getCustomStrategies();
+    res.json({ success: true, strategies });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// (10) 관리자 맞춤 전략 취소
+app.delete('/api/trading/custom-strategy/:id', (req, res) => {
+  try {
+    const force = req.query.force === 'true';
+    const result = stockAutoTrader.cancelCustomStrategy(req.params.id, force);
+    res.json({ success: true, message: '전략 감시가 취소되었습니다.', strategy: result });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// (11) [NEW] 국장 개장 실시간 거래대금 1위 초단타(Scalping) 엔진 제어
+app.post('/api/trading/scalping/start', async (req, res) => {
+  try {
+    const manual = req.body?.manual === true;
+    const result = await stockAutoTrader.startScalping(manual);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/trading/scalping/stop', (req, res) => {
+  try {
+    const result = stockAutoTrader.stopScalping();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/trading/scalping/status', (req, res) => {
+  try {
+    const status = stockAutoTrader.getScalpingStatus();
+    res.json({ success: true, status });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// (12) [NEW] 국장 09:00 개장 자동 실행 스케줄 설정
+app.post('/api/trading/scalping/auto-schedule', (req, res) => {
+  try {
+    const enabled = req.body?.enabled === true;
+    const result = stockAutoTrader.setAutoSchedule(enabled);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// (13) [NEW] 거래소 세션별(NXT, KRX, US) 실시간 상태 및 시간표 조회
+app.get('/api/trading/market-sessions', (req, res) => {
+  try {
+    const currentSession = tossInvestClient.getCurrentMarketSession();
+    const isDst = tossInvestClient.isUsDstActive();
+    res.json({
+      success: true,
+      currentSession,
+      isUsDstActive: isDst,
+      serverTime: new Date().toISOString(),
+      sessionsSchedule: [
+        {
+          id: 'nxt_pre',
+          name: 'NXT 프리마켓',
+          exchange: 'NXT (넥스트레이드)',
+          time: '08:00 ~ 08:50',
+          type: '접속매매 (실시간 체결)',
+          description: '정규장 전 갭상승/호재 종목 조기 포착 (🥈 골든타임 2순위)'
+        },
+        {
+          id: 'nxt_suspended_1',
+          name: 'NXT 신규 호가 정지',
+          exchange: 'NXT',
+          time: '08:50 ~ 09:00',
+          type: '취소 주문만 가능',
+          description: '시가 대표성 보호 목적 호가 정지 (KRX 동시호가 진행)'
+        },
+        {
+          id: 'krx_regular',
+          name: '국내 정규장 & NXT 메인',
+          exchange: 'KRX & NXT',
+          time: '09:00 ~ 15:20',
+          type: '정규 접속매매',
+          description: '09:00~09:30 거래대금/변동성 최고점 (🥇 최강 골든타임 1순위)'
+        },
+        {
+          id: 'closing_auction',
+          name: '장마감 동시호가',
+          exchange: 'KRX & NXT',
+          time: '15:20 ~ 15:30',
+          type: '종가 결정 동시호가 (NXT 호가정지)',
+          description: '종가 결정 배분'
+        },
+        {
+          id: 'after_market',
+          name: 'NXT 애프터마켓 & KRX 시간외',
+          exchange: 'NXT & KRX',
+          time: '15:30 ~ 20:00 (15:40부터 실시간)',
+          type: '종가/시간외/단일가',
+          description: '야간 20시까지 거래 지속'
+        },
+        {
+          id: 'us_regular',
+          name: '미국 정규장',
+          exchange: 'NYSE & NASDAQ',
+          time: isDst ? '22:30 ~ 익일 05:00' : '23:30 ~ 익일 06:00',
+          type: '미국 정규장',
+          description: '글로벌 테크주 시황 모니터링 (🥉 골든타임 3순위)'
+        }
+      ]
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -1830,6 +1979,42 @@ try {
   console.warn('[DART Corp Codes Load Error]', e.message);
 }
 
+function lookupKrxStock(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  if (!s) return null;
+  if (/^\d{6}$/.test(s)) {
+    return { code: s, name: krxStockMap[s] || s };
+  }
+  const clean = s.replace(/\s+/g, '');
+  
+  // 1. 완전 일치 (대소문자, 공백 제거)
+  if (krxStockMap[s]) return { code: krxStockMap[s], name: s };
+  if (krxStockMap[clean]) return { code: krxStockMap[clean], name: s };
+  
+  // 2. DART 기업 매핑
+  if (dartCorpCodes[s]?.stock_code) return { code: dartCorpCodes[s].stock_code, name: s };
+  if (dartCorpCodes[clean]?.stock_code) return { code: dartCorpCodes[clean].stock_code, name: s };
+
+  // 3. 접두사/약칭 매칭 (예: '삼화콘덴서' -> '삼화콘덴서공업', '현대차' -> '현대자동차')
+  for (const [name, code] of Object.entries(krxStockMap)) {
+    if (name.startsWith(s) || name.startsWith(clean)) {
+      return { code, name };
+    }
+  }
+
+  // 4. 부분 포함 매칭 (문자열 길이가 3글자 이상일 때)
+  if (clean.length >= 3) {
+    for (const [name, code] of Object.entries(krxStockMap)) {
+      if (name.includes(clean)) {
+        return { code, name };
+      }
+    }
+  }
+
+  return null;
+}
+
 async function generateCloudDebate({ stock = '', stockName = '', customTopic = '', isAutoTheme = false, requestedMarket = null } = {}) {
   const geminiKey = getGeminiApiKey();
   if (!geminiKey) {
@@ -1858,17 +2043,24 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
   const session = getCurrentMarketSession(new Date());
   let targetMarket = requestedMarket || (isAutoTheme ? session.market : null);
 
-  // 미장(US) 후보군 또는 티커 매칭 (lookupUsStock 우선 대조)
-  const matchedUsObj = lookupUsStock(rawStock) || lookupUsStock(resolvedName);
-  const usCandidate = matchedUsObj || ((rawStock || resolvedName) ? US_THEME_CANDIDATES.find(c =>
-    (rawStock && c.code.toUpperCase() === rawStock.toUpperCase()) ||
-    (rawStock && c.name.toLowerCase().includes(rawStock.toLowerCase())) ||
-    (resolvedName && c.name.toLowerCase().includes(resolvedName.toLowerCase()))
-  ) : null);
+  // 1. 국장(KRX) 우선 매칭 시도
+  const matchedKr = lookupKrxStock(rawStock) || lookupKrxStock(resolvedName);
+
+  // 2. 미장(US) 후보군 또는 티커 매칭 (국장 종목이 아니거나 명시적으로 US 요청 시)
+  let matchedUsObj = null;
+  let usCandidate = null;
+  if (!matchedKr || requestedMarket === 'US') {
+    matchedUsObj = lookupUsStock(rawStock) || lookupUsStock(resolvedName);
+    usCandidate = matchedUsObj || ((rawStock || resolvedName) ? US_THEME_CANDIDATES.find(c =>
+      (rawStock && c.code.toUpperCase() === rawStock.toUpperCase()) ||
+      (rawStock && c.name.toLowerCase().includes(rawStock.toLowerCase())) ||
+      (resolvedName && c.name.toLowerCase().includes(resolvedName.toLowerCase()))
+    ) : null);
+  }
 
   const isUsStock = isAutoTheme 
     ? (targetMarket === 'US')
-    : (requestedMarket === 'US' || Boolean(usCandidate) || (/^[A-Z]{1,5}$/i.test(rawStock) && !defaultMap[rawStock] && !krxStockMap[rawStock]));
+    : (requestedMarket === 'US' || (Boolean(usCandidate) && !matchedKr) || (/^[A-Z]{1,5}$/i.test(rawStock) && !defaultMap[rawStock] && !krxStockMap[rawStock] && !matchedKr));
 
   // 기존 토론 목록을 조회하여 아직 발굴되지 않은 신규 종목 우선 선정
   let existingDebates = [];
@@ -1939,7 +2131,10 @@ async function generateCloudDebate({ stock = '', stockName = '', customTopic = '
       resolvedName = candidate.name;
       if (!customTopic) customTopic = candidate.topic;
     } else {
-      if (/^\d{6}$/.test(rawStock)) {
+      if (matchedKr) {
+        resolvedCode = matchedKr.code;
+        resolvedName = matchedKr.name;
+      } else if (/^\d{6}$/.test(rawStock)) {
         resolvedCode = rawStock;
         resolvedName = reverseMap[rawStock] || '';
       } else {
@@ -2520,18 +2715,29 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
     });
   }
 
-  // 1. 미장 종목 감지 및 티커 자동 정규화 (Yahoo/SEC EDGAR 실시간 연계)
-  const matchedUs = lookupUsStock(stock) || lookupUsStock(stockName);
-  if (matchedUs) {
-    stock = matchedUs.code;
-    if (!stockName) stockName = matchedUs.name;
+  // 1. 국장(KRX) 우선 매칭 시도 (한글 종목명, 6자리 코드, 사명 약칭/접미사 등)
+  const matchedKr = lookupKrxStock(stock) || lookupKrxStock(stockName);
+  if (matchedKr) {
+    stock = matchedKr.code;
+    if (!stockName) stockName = matchedKr.name;
   }
 
-  const isUsStockInput = Boolean(matchedUs) || Boolean(US_THEME_CANDIDATES.find(c => 
-    c.code.toUpperCase() === stock.toUpperCase() || 
-    c.name.toLowerCase().includes(stock.toLowerCase()) || 
-    (stockName && c.name.toLowerCase().includes(stockName.toLowerCase()))
-  )) || (/^[A-Z]{1,5}$/i.test(stock) && !krxStockMap[stock]);
+  // 2. 국장 종목이 아닐 때에 한해 미장 종목 감지 및 티커 자동 정규화
+  let isUsStockInput = false;
+  if (!matchedKr) {
+    const matchedUs = lookupUsStock(stock) || lookupUsStock(stockName);
+    if (matchedUs) {
+      stock = matchedUs.code;
+      if (!stockName) stockName = matchedUs.name;
+      isUsStockInput = true;
+    } else {
+      isUsStockInput = Boolean(US_THEME_CANDIDATES.find(c => 
+        (stock && c.code.toUpperCase() === stock.toUpperCase()) || 
+        (stock && c.name.toLowerCase().includes(stock.toLowerCase())) || 
+        (stockName && c.name.toLowerCase().includes(stockName.toLowerCase()))
+      )) || (/^[A-Z]{1,5}$/i.test(stock) && !krxStockMap[stock]);
+    }
+  }
 
   if (isUsStockInput) {
     try {
@@ -2543,7 +2749,7 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
       });
     } catch (cloudErr) {
       console.error('[Debate Trigger US Cloud Engine Error]', cloudErr);
-      return res.status(500).json({ success: false, error: cloudErr.message });
+      return res.status(500).json({ success: false, message: cloudErr.message, error: cloudErr.message });
     }
   }
 
@@ -2610,7 +2816,7 @@ app.post('/api/stock-debates/trigger', async (req, res) => {
     });
   } catch (cloudErr) {
     console.error('[Debate Trigger Cloud Engine Error]', cloudErr);
-    return res.status(500).json({ success: false, error: cloudErr.message });
+    return res.status(500).json({ success: false, message: cloudErr.message, error: cloudErr.message });
   }
 });
 
@@ -3062,6 +3268,212 @@ app.post('/api/sap-consulting', async (req, res) => {
     res.json({ success: true, answer, timestamp: new Date().toISOString() });
   } catch (e) {
     res.json({ success: false, message: `서버 처리 오류: ${e.message}` });
+  }
+});
+
+/**
+ * 포털 전체 데이터 검색 & AI 챗봇 통합 엔드포인트 (/api/portal-search-chat)
+ */
+app.post('/api/portal-search-chat', async (req, res) => {
+  const { question } = req.body || {};
+  if (!question || !question.trim()) {
+    return res.status(400).json({ success: false, message: '검색하거나 질문할 내용을 입력해주세요.' });
+  }
+
+  try {
+    const qClean = question.trim();
+    const tokens = qClean.toLowerCase().split(/\s+/).filter(w => w.length >= 2);
+    const matchedItems = [];
+
+    const readJsonSafe = (fileName) => {
+      try {
+        const p = path.join(__dirname, 'data', fileName);
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, 'utf8').replace(/^\uFEFF/, '').trim();
+          return JSON.parse(raw);
+        }
+      } catch (err) {}
+      return [];
+    };
+
+    // 1. APIs
+    const apis = readJsonSafe('apis.json');
+    if (Array.isArray(apis)) {
+      for (const item of apis) {
+        let score = 0;
+        const text = `${item.title || ''} ${item.category || ''} ${(item.tags || []).join(' ')} ${item.docsUrl || ''}`.toLowerCase();
+        for (const tok of tokens) {
+          if (text.includes(tok)) score += 3;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: 'API',
+            title: item.title,
+            summary: item.docsUrl || item.category || '포털 등록 API',
+            targetView: 'api-info',
+            id: item.id
+          });
+        }
+      }
+    }
+
+    // 2. AI Models
+    const aiModels = readJsonSafe('aiModels.json');
+    if (Array.isArray(aiModels)) {
+      for (const item of aiModels) {
+        let score = 0;
+        const text = `${item.title || ''} ${item.developer || ''} ${item.category || ''} ${item.summary || ''} ${(item.tags || []).join(' ')}`.toLowerCase();
+        for (const tok of tokens) {
+          if (text.includes(tok)) score += 3;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: 'AI 모델',
+            title: item.title,
+            summary: item.summary || item.description || 'AI 모델 도감',
+            targetView: 'ai-models',
+            id: item.id
+          });
+        }
+      }
+    }
+
+    // 3. AI Terms
+    const aiTerms = readJsonSafe('aiTerms.json');
+    if (Array.isArray(aiTerms)) {
+      for (const item of aiTerms) {
+        let score = 0;
+        const text = `${item.term || ''} ${item.summary || ''} ${item.category || ''}`.toLowerCase();
+        for (const tok of tokens) {
+          if (text.includes(tok)) score += 3;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: 'AI 용어',
+            title: item.term,
+            summary: item.summary || item.definition || 'AI 용어 설명',
+            targetView: 'ai-terms',
+            id: item.id
+          });
+        }
+      }
+    }
+
+    // 4. SAP Knowledge & News
+    const sapKnow = readJsonSafe('sapKnowledge.json');
+    if (Array.isArray(sapKnow)) {
+      for (const item of sapKnow) {
+        let score = 0;
+        const text = `${item.title || ''} ${item.topic || ''} ${(item.tags || []).join(' ')} ${item.content || ''}`.toLowerCase();
+        for (const tok of tokens) {
+          if (text.includes(tok)) score += 3;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: 'SAP 지식',
+            title: `[${item.topic || 'SAP'}] ${item.title}`,
+            summary: (item.content || '').slice(0, 120) + '...',
+            targetView: 'sap-suite',
+            id: item.id
+          });
+        }
+      }
+    }
+
+    // 5. Stock Debates & Reports
+    const stockDebates = readJsonSafe('stockDebateLogs.json');
+    if (Array.isArray(stockDebates)) {
+      for (const item of stockDebates) {
+        let score = 0;
+        const text = `${item.stockName || ''} ${item.stockCode || ''} ${item.summary || ''} ${item.consensus || ''}`.toLowerCase();
+        for (const tok of tokens) {
+          if (text.includes(tok)) score += 3;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: '주식 분석',
+            title: `${item.stockName || item.stockCode} 분석 리포트`,
+            summary: item.summary || item.consensus || '5대 에이전트 주식 심층 분석',
+            targetView: 'stock-debate',
+            id: item.id
+          });
+        }
+      }
+    }
+
+    matchedItems.sort((a, b) => b.score - a.score);
+    const topItems = matchedItems.slice(0, 6);
+
+    // Gemini API 호출 시도
+    const geminiKey = getGeminiApiKey();
+    let aiAnswer = '';
+
+    if (geminiKey) {
+      try {
+        const systemPrompt = `당신은 마당(Portal Bang) 플랫폼의 수석 AI 데이터 비서입니다.
+사용자의 질문에 대해 포털 내 검색된 데이터를 적극 참조하여 친절하고 정확하며 핵심을 짚는 한국어로 답변을 작성하세요.
+사족이나 불필요한 인사는 생략하고 질문에 대한 답변 및 핵심 요약을 바로 제공하세요.
+검색된 데이터 항목이 있을 경우 이를 인용하여 안내하고, 추가적인 통찰이나 활용 팁도 덧붙여주세요.`;
+
+        const contextSnippet = topItems.map((item, idx) => 
+          `[데이터 ${idx + 1}] (${item.type}) 제목: ${item.title}\n요약: ${item.summary}`
+        ).join('\n\n');
+
+        const userPrompt = `${contextSnippet ? `[포털 검색 데이터베이스 결과]\n${contextSnippet}\n\n` : ''}[사용자 질문]: ${qClean}`;
+
+        const payload = {
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+        };
+
+        const modelList = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+        for (const m of modelList) {
+          try {
+            const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${geminiKey}`;
+            const r = await fetch(gUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const d = await r.json();
+            if (d.candidates?.[0]?.content?.parts?.[0]?.text) {
+              aiAnswer = d.candidates[0].content.parts[0].text;
+              break;
+            }
+          } catch (e) {}
+        }
+      } catch (geminiErr) {
+        console.warn('[PortalChatbot] Gemini call error:', geminiErr.message);
+      }
+    }
+
+    // Gemini 답변이 없거나 실패한 경우 로컬 인텔리전트 요약 합성
+    if (!aiAnswer) {
+      if (topItems.length > 0) {
+        aiAnswer = `포털 전체 데이터베이스에서 **"${qClean}"**에 관한 연관 데이터 총 **${matchedItems.length}건**을 발견했습니다.\n\n아래의 추천 결과 카드를 클릭하시면 해당 메뉴 및 상세 정보로 즉시 이동합니다:`;
+      } else {
+        aiAnswer = `포털 전체 데이터에서 **"${qClean}"**에 대한 직접적인 일치 항목을 찾지 못했습니다.\n\n추천 검색어: 'Blogger', 'Gemini', 'SAP', '삼성전자', '트렌딩' 등으로 검색해 보세요.`;
+      }
+    }
+
+    return res.json({
+      success: true,
+      answer: aiAnswer,
+      items: topItems,
+      totalMatches: matchedItems.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: `챗봇 검색 처리 중 오류가 발생했습니다: ${error.message}`
+    });
   }
 });
 

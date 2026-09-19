@@ -37,6 +37,20 @@ window.StockDebateModel = {
     const cleanQ = q.replace(/\s+/g, '');
     if (krxMap[cleanQ]) return krxMap[cleanQ];
 
+    // 1-1. 접두사/약칭 매칭 (예: '삼화콘덴서' -> '삼화콘덴서공업', '현대차' -> '현대자동차')
+    for (const [name, code] of Object.entries(krxMap)) {
+      if (name.startsWith(q) || name.startsWith(cleanQ)) {
+        return code;
+      }
+    }
+    if (cleanQ.length >= 3) {
+      for (const [name, code] of Object.entries(krxMap)) {
+        if (name.includes(cleanQ)) {
+          return code;
+        }
+      }
+    }
+
     // 2. 미국 대표 종목 (US Big Tech & 서학개미 주요 종목)
     const usMap = {
       'NVDA': 'NVDA', '엔비디아': 'NVDA', 'NVIDIA': 'NVDA',
@@ -121,6 +135,9 @@ window.StockDebateModel = {
     const krxMap = window.PORTAL_KRX_STOCK_MAP || {};
     for (const [name, code] of Object.entries(krxMap)) {
       if (code === q) return name;
+    }
+    for (const [name, code] of Object.entries(krxMap)) {
+      if (name.startsWith(q) || name.startsWith(q.replace(/\s+/g, ''))) return name;
     }
     if (/^\d{6}$/.test(q)) return q;
     return q;
@@ -370,9 +387,17 @@ window.StockDebateModel = {
           // 비동기 백그라운드 소집 시 3초 후 데이터 재동기화
           setTimeout(() => { this.loadDebates(); }, 3000);
         }
-        return { success: true, result, debate: result.debate, code: resolvedCode, message: result.message };
       } else {
-        return { success: false, message: '서버 연결 실패 또는 에이전트 응답 지연' };
+        let errDetail = '서버 연결 실패 또는 에이전트 응답 지연';
+        if (res) {
+          try {
+            const errJson = await res.json();
+            if (errJson && (errJson.message || errJson.error)) {
+              errDetail = errJson.message || errJson.error;
+            }
+          } catch (e) {}
+        }
+        return { success: false, message: errDetail };
       }
     } catch (e) {
       return { success: false, message: e.message };
