@@ -35,6 +35,9 @@ $githubTrendingJsFile = Join-Path $dataDir "initialGithubTrending.js"
 $stockJournalDataFile = Join-Path $dataDir "stockTradingJournal.json"
 $tossConfigDataFile = Join-Path $dataDir "tossConfig.json"
 $churchNewsDataFile = Join-Path $dataDir "church_news.json"
+$planetWorldDataFile = Join-Path $dataDir "planet_world.json"
+$planetUploadDir = Join-Path $root "uploads\planet"
+if (-not (Test-Path $planetUploadDir)) { New-Item -ItemType Directory -Path $planetUploadDir -Force | Out-Null }
 
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
@@ -1314,6 +1317,145 @@ while ($true) {
                 Send-JsonResponse $stream $corsHeaders $newJson
             } catch {
                 Send-JsonResponse $stream $corsHeaders ('{"status":"error","message":"' + $_.Exception.Message.Replace('"', '\"') + '"}')
+            }
+        }
+        elseif ($urlPath -eq "/api/planet/world") {
+            if ($method -eq "GET") {
+                if (Test-Path $planetWorldDataFile) {
+                    $pJson = [System.IO.File]::ReadAllText($planetWorldDataFile, [System.Text.Encoding]::UTF8)
+                    Send-JsonResponse $stream $corsHeaders $pJson
+                } else {
+                    Send-JsonResponse $stream $corsHeaders '{"buildings":[],"characters":[]}'
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        [System.IO.File]::WriteAllText($planetWorldDataFile, $postData, $Utf8NoBom)
+                    }
+                }
+                Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+            else {
+                Send-JsonResponse $stream $corsHeaders '{"error":"Method not allowed"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/planet/search") {
+            $q = ""
+            if ($parts[1] -match 'q=([^&]+)') {
+                $q = [System.Uri]::UnescapeDataString($matches[1]).Trim()
+            }
+            if (-not (Test-Path $planetWorldDataFile)) {
+                Send-JsonResponse $stream $corsHeaders '{"query":"","results":[]}'
+            } else {
+                $rawP = [System.IO.File]::ReadAllText($planetWorldDataFile, [System.Text.Encoding]::UTF8)
+                $pObj = $rawP | ConvertFrom-Json
+                $matchedBuildings = @()
+                $matchedChars = @()
+                if ($q) {
+                    $lowerQ = $q.ToLower()
+                    if ($pObj.buildings) {
+                        foreach ($b in $pObj.buildings) {
+                            $tStr = ($b.name + " " + $b.title + " " + $b.desc + " " + ($b.tags -join " ")).ToLower()
+                            if ($tStr.Contains($lowerQ)) { $matchedBuildings += $b }
+                        }
+                    }
+                    if ($pObj.characters) {
+                        foreach ($c in $pObj.characters) {
+                            $cStr = ($c.name + " " + $c.speech + " " + $c.creator).ToLower()
+                            if ($cStr.Contains($lowerQ)) { $matchedChars += $c }
+                        }
+                    }
+                } else {
+                    $matchedBuildings = $pObj.buildings
+                    $matchedChars = $pObj.characters
+                }
+                $resObj = [PSCustomObject]@{
+                    query = $q
+                    total = ($matchedBuildings.Count + $matchedChars.Count)
+                    buildings = $matchedBuildings
+                    characters = $matchedChars
+                }
+                $resJson = $resObj | ConvertTo-Json -Depth 5
+                Send-JsonResponse $stream $corsHeaders $resJson
+            }
+        }
+        elseif ($urlPath -eq "/api/planet/upload") {
+            if ($method -eq "POST") {
+                try {
+                    $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                    $postData = if ($headerBodySplit.Length -eq 2) { $headerBodySplit[1] } else { "" }
+                    $payload = $postData | ConvertFrom-Json
+                    
+                    # Read existing world
+                    $rawP = [System.IO.File]::ReadAllText($planetWorldDataFile, [System.Text.Encoding]::UTF8)
+                    $pObj = $rawP | ConvertFrom-Json
+                    
+                    $nowStr = (Get-Date).ToString("yyyy-MM-dd")
+                    $imgUrl = $payload.imageUrl
+                    
+                    # If base64 provided, save to disk
+                    if ($payload.imageBase64 -and $payload.imageBase64.Contains(",")) {
+                        $base64Data = $payload.imageBase64.Substring($payload.imageBase64.IndexOf(",") + 1)
+                        $fileExt = ".png"
+                        if ($payload.imageBase64 -match 'image/jpeg') { $fileExt = ".jpg" }
+                        elseif ($payload.imageBase64 -match 'image/webp') { $fileExt = ".webp" }
+                        $fileName = "item_" + (Get-Date).ToString("yyyyMMddHHmmssfff") + $fileExt
+                        $filePath = Join-Path $planetUploadDir $fileName
+                        $bytes = [System.Convert]::FromBase64String($base64Data)
+                        [System.IO.File]::WriteAllBytes($filePath, $bytes)
+                        $imgUrl = "/uploads/planet/$fileName"
+                    }
+                    
+                    if ($payload.isCharacter) {
+                        # Create NPC Character
+                        $newChar = [PSCustomObject]@{
+                            id = "c-" + [Guid]::NewGuid().ToString().Substring(0, 8)
+                            name = if ($payload.name) { $payload.name } else { "별빛 요정" }
+                            species = "drawing"
+                            creator = if ($payload.creator) { $payload.creator } else { "우리아이" }
+                            lat = if ($payload.lat) { [double]$payload.lat } else { ((Get-Random -Minimum -50 -Maximum 50)) }
+                            lon = if ($payload.lon) { [double]$payload.lon } else { ((Get-Random -Minimum -170 -Maximum 170)) }
+                            speed = 0.007
+                            bounceSpeed = 0.08
+                            scale = 1.4
+                            speech = if ($payload.speech) { $payload.speech } else { "우와! 내가 새로운 별에 태어났어!" }
+                            imageUrl = $imgUrl
+                            createdAt = $nowStr
+                        }
+                        $pObj.characters += $newChar
+                        $newJson = $pObj | ConvertTo-Json -Depth 6
+                        [System.IO.File]::WriteAllText($planetWorldDataFile, $newJson, $Utf8NoBom)
+                        Send-JsonResponse $stream $corsHeaders ($newChar | ConvertTo-Json -Depth 5)
+                    } else {
+                        # Create SimCity Building
+                        $newBuilding = [PSCustomObject]@{
+                            id = "b-" + [Guid]::NewGuid().ToString().Substring(0, 8)
+                            name = if ($payload.name) { $payload.name } else { "새로운 타운하우스" }
+                            category = if ($payload.category) { $payload.category } else { "family" }
+                            type = if ($payload.type) { $payload.type } else { "cozy_house" }
+                            color = if ($payload.color) { $payload.color } else { "#f97316" }
+                            lat = if ($payload.lat) { [double]$payload.lat } else { ((Get-Random -Minimum -50 -Maximum 50)) }
+                            lon = if ($payload.lon) { [double]$payload.lon } else { ((Get-Random -Minimum -170 -Maximum 170)) }
+                            height = if ($payload.height) { [double]$payload.height } else { 3.0 }
+                            title = if ($payload.title) { $payload.title } else { "새로운 추억과 기록" }
+                            desc = if ($payload.desc) { $payload.desc } else { "행성 위에 새롭게 건축된 기록 보관소입니다." }
+                            tags = if ($payload.tags) { $payload.tags } else { @("새기록") }
+                            createdAt = $nowStr
+                            imageUrl = $imgUrl
+                        }
+                        $pObj.buildings += $newBuilding
+                        $newJson = $pObj | ConvertTo-Json -Depth 6
+                        [System.IO.File]::WriteAllText($planetWorldDataFile, $newJson, $Utf8NoBom)
+                        Send-JsonResponse $stream $corsHeaders ($newBuilding | ConvertTo-Json -Depth 5)
+                    }
+                } catch {
+                    Send-JsonResponse $stream $corsHeaders ('{"status":"error","message":"' + $_.Exception.Message.Replace('"', '\"') + '"}')
+                }
+            } else {
+                Send-JsonResponse $stream $corsHeaders '{"error":"Method not allowed"}'
             }
         }
         elseif ($urlPath -eq "/api/auth/google/url") {

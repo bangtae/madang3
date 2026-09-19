@@ -161,6 +161,160 @@ app.get('/api/my-ip', (req, res) => {
   res.json({ ip: cleanIp || rawIp });
 });
 
+// 교회 최신 소식 API
+app.get('/api/church-news', (req, res) => {
+  const filePath = path.join(dataDir, 'church_news.json');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  res.json({ suwon: { items: [], quickLinks: [] }, gapck: { items: [], quickLinks: [] } });
+});
+
+app.post('/api/church-news/sync', (req, res) => {
+  const filePath = path.join(dataDir, 'church_news.json');
+  try {
+    let data = {};
+    if (fs.existsSync(filePath)) {
+      data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+    data.lastUpdated = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 🌍 3D 행성 월드 (Planet SimCity & Archive) API
+const planetWorldFile = path.join(dataDir, 'planet_world.json');
+const planetUploadDir = path.join(__dirname, 'uploads', 'planet');
+if (!fs.existsSync(planetUploadDir)) {
+  fs.mkdirSync(planetUploadDir, { recursive: true });
+}
+
+app.get('/api/planet/world', (req, res) => {
+  if (fs.existsSync(planetWorldFile)) {
+    return res.sendFile(planetWorldFile);
+  }
+  res.json({ buildings: [], characters: [] });
+});
+
+app.post('/api/planet/world', (req, res) => {
+  try {
+    fs.writeFileSync(planetWorldFile, JSON.stringify(req.body, null, 2), 'utf8');
+    res.json({ status: 'ok' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/planet/search', (req, res) => {
+  const q = (req.query.q || '').trim().toLowerCase();
+  if (!fs.existsSync(planetWorldFile)) {
+    return res.json({ query: q, total: 0, buildings: [], characters: [] });
+  }
+  try {
+    const raw = fs.readFileSync(planetWorldFile, 'utf8');
+    const pObj = JSON.parse(raw);
+    let matchedBuildings = [];
+    let matchedChars = [];
+
+    if (q) {
+      if (Array.isArray(pObj.buildings)) {
+        matchedBuildings = pObj.buildings.filter(b => {
+          const t = `${b.name || ''} ${b.title || ''} ${b.desc || ''} ${(b.tags || []).join(' ')}`.toLowerCase();
+          return t.includes(q);
+        });
+      }
+      if (Array.isArray(pObj.characters)) {
+        matchedChars = pObj.characters.filter(c => {
+          const t = `${c.name || ''} ${c.speech || ''} ${c.creator || ''}`.toLowerCase();
+          return t.includes(q);
+        });
+      }
+    } else {
+      matchedBuildings = pObj.buildings || [];
+      matchedChars = pObj.characters || [];
+    }
+
+    res.json({
+      query: q,
+      total: matchedBuildings.length + matchedChars.length,
+      buildings: matchedBuildings,
+      characters: matchedChars
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/planet/upload', (req, res) => {
+  try {
+    const payload = req.body || {};
+    let data = { buildings: [], characters: [] };
+    if (fs.existsSync(planetWorldFile)) {
+      try { data = JSON.parse(fs.readFileSync(planetWorldFile, 'utf8')); } catch (e) {}
+    }
+    if (!Array.isArray(data.buildings)) data.buildings = [];
+    if (!Array.isArray(data.characters)) data.characters = [];
+
+    const nowStr = new Date().toISOString().substring(0, 10);
+    let imgUrl = payload.imageUrl || '';
+
+    // Handle base64 image save
+    if (payload.imageBase64 && payload.imageBase64.includes(',')) {
+      const parts = payload.imageBase64.split(',');
+      const ext = payload.imageBase64.includes('image/jpeg') ? '.jpg' :
+                  payload.imageBase64.includes('image/webp') ? '.webp' : '.png';
+      const fileName = `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}${ext}`;
+      const filePath = path.join(planetUploadDir, fileName);
+      fs.writeFileSync(filePath, Buffer.from(parts[1], 'base64'));
+      imgUrl = `/uploads/planet/${fileName}`;
+    }
+
+    if (payload.isCharacter) {
+      const newChar = {
+        id: `c-${Date.now()}`,
+        name: payload.name || '별빛 요정',
+        species: 'drawing',
+        creator: payload.creator || '우리아이',
+        lat: typeof payload.lat === 'number' ? payload.lat : (Math.random() * 80 - 40),
+        lon: typeof payload.lon === 'number' ? payload.lon : (Math.random() * 320 - 160),
+        speed: 0.007,
+        bounceSpeed: 0.08,
+        scale: 1.4,
+        speech: payload.speech || '우와! 내가 새로운 별에 태어났어!',
+        imageUrl: imgUrl,
+        createdAt: nowStr
+      };
+      data.characters.push(newChar);
+      fs.writeFileSync(planetWorldFile, JSON.stringify(data, null, 2), 'utf8');
+      return res.json(newChar);
+    } else {
+      const newBuilding = {
+        id: `b-${Date.now()}`,
+        name: payload.name || '새로운 타운하우스',
+        category: payload.category || 'family',
+        type: payload.type || 'cozy_house',
+        color: payload.color || '#f97316',
+        lat: typeof payload.lat === 'number' ? payload.lat : (Math.random() * 80 - 40),
+        lon: typeof payload.lon === 'number' ? payload.lon : (Math.random() * 320 - 160),
+        height: typeof payload.height === 'number' ? payload.height : 3.0,
+        title: payload.title || '새로운 추억과 기록',
+        desc: payload.desc || '행성 위에 새롭게 건축된 기록 보관소입니다.',
+        tags: Array.isArray(payload.tags) ? payload.tags : ['새기록'],
+        createdAt: nowStr,
+        imageUrl: imgUrl
+      };
+      data.buildings.push(newBuilding);
+      fs.writeFileSync(planetWorldFile, JSON.stringify(data, null, 2), 'utf8');
+      return res.json(newBuilding);
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // IP 화이트리스트 조회/저장
 app.get('/api/allowed-ips', (req, res) => {
   if (fs.existsSync(allowedIpsFile)) {

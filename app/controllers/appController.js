@@ -53,6 +53,12 @@ window.AppController = {
     if (window.ChurchNewsView) {
       window.ChurchNewsView.init();
     }
+    if (window.PlanetWorldModel) {
+      await window.PlanetWorldModel.init();
+    }
+    if (window.PlanetWorldView) {
+      window.PlanetWorldView.init();
+    }
     if (window.PortalChatbotView) {
       window.PortalChatbotView.init();
     }
@@ -1311,6 +1317,7 @@ window.AppController = {
       'stock-blog': 'invest',
       'blogger-news': 'invest',
       'stock-journal': 'invest',
+      'planet-world': 'life',
       'church-news': 'life',
       'monster-wave': 'life',
       'monster-defense': 'life',
@@ -1334,7 +1341,7 @@ window.AppController = {
       'agent-builder': 'agent-builder',
       'work': 'sap-terms',
       'invest': 'stock-temp',
-      'life': 'church-news',
+      'life': 'planet-world',
       'admin': 'ip-whitelist'
     };
     return map[topView] || 'dashboard';
@@ -1432,6 +1439,7 @@ window.AppController = {
     const viewMonsterDefense = document.getElementById('view-monster-defense');
     const viewMonsterWave = document.getElementById('view-monster-wave');
     const viewChurchNews = document.getElementById('view-church-news');
+    const viewPlanetWorld = document.getElementById('view-planet-world');
 
     const hideAllViews = () => {
       if (viewDashboard) viewDashboard.classList.add('hidden');
@@ -1464,16 +1472,25 @@ window.AppController = {
       if (viewMonsterDefense) viewMonsterDefense.classList.add('hidden');
       if (viewMonsterWave) viewMonsterWave.classList.add('hidden');
       if (viewChurchNews) viewChurchNews.classList.add('hidden');
+      if (viewPlanetWorld) viewPlanetWorld.classList.add('hidden');
     };
 
-    // 다른 뷰로 이동 시 게임 루프 일시정지 (리소스 절약)
+    // 다른 뷰로 이동 시 게임 루프 및 3D 렌더 루프 일시정지 (리소스 절약)
     if (sideView !== 'monster-defense' && window.MonsterDefenseView) {
       window.MonsterDefenseView.pause();
+    }
+    if (sideView !== 'planet-world' && window.PlanetWorldView) {
+      window.PlanetWorldView.pause();
     }
 
     hideAllViews();
 
-    if (sideView === 'church-news') {
+    if (sideView === 'planet-world') {
+      if (viewPlanetWorld) viewPlanetWorld.classList.remove('hidden');
+      if (window.PlanetWorldView) {
+        window.PlanetWorldView.resume();
+      }
+    } else if (sideView === 'church-news') {
       if (viewChurchNews) viewChurchNews.classList.remove('hidden');
       if (window.ChurchNewsView) window.ChurchNewsView.render();
     } else if (sideView === 'monster-wave') {
