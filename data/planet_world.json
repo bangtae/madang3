@@ -95,33 +95,43 @@
                       },
                       {
                           "id":  "b-e18dc447",
-                          "name":  "???",
+                          "name":  "달콤한 베이커리 & 디저트 카페",
                           "category":  "family",
                           "type":  "cozy_house",
-                          "color":  "#f97316",
+                          "color":  "#ec4899",
                           "lat":  32,
                           "lon":  -113,
-                          "height":  3,
-                          "title":  "새로운 추억과 기록",
-                          "desc":  "행성 위에 새롭게 건축된 기록 보관소입니다.",
-                          "tags":  "새기록",
+                          "height":  2.8,
+                          "title":  "주말 베이킹 & 맛있는 간식 파티",
+                          "desc":  "가족과 함께 구운 쿠키와 향긋한 빵 냄새가 가득한 타이쿤 디저트 카페입니다.",
+                          "tags":  [
+                                       "베이커리",
+                                       "카페",
+                                       "디저트",
+                                       "추억"
+                                   ],
                           "createdAt":  "2026-09-20",
-                          "imageUrl":  null
+                          "imageUrl":  "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500&auto=format&fit=crop&q=60"
                       },
                       {
                           "id":  "b-8e14a4d5",
-                          "name":  "test",
-                          "category":  "family",
-                          "type":  "cozy_house",
-                          "color":  "#f97316",
+                          "name":  "롤러코스터 & 테마 어드벤처",
+                          "category":  "travel",
+                          "type":  "observatory",
+                          "color":  "#6366f1",
                           "lat":  -9,
                           "lon":  154,
-                          "height":  3,
-                          "title":  "새로운 추억과 기록",
-                          "desc":  "행성 위에 새롭게 건축된 기록 보관소입니다.",
-                          "tags":  "새기록",
+                          "height":  3.6,
+                          "title":  "신나는 놀이공원 어드벤처 월드",
+                          "desc":  "환상의 롤러코스터와 회전목마가 있는 짜릿한 테마파크 어트랙션 구역입니다.",
+                          "tags":  [
+                                       "놀이공원",
+                                       "롤러코스터",
+                                       "타이쿤",
+                                       "어드벤처"
+                                   ],
                           "createdAt":  "2026-09-20",
-                          "imageUrl":  null
+                          "imageUrl":  "https://images.unsplash.com/photo-1513889961551-628c1e5e2ee9?w=500&auto=format&fit=crop&q=60"
                       }
                   ],
     "characters":  [

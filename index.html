@@ -1952,102 +1952,87 @@
 
         </section>
 
-        <!-- 뷰: 행성 월드 (3D 소행성 & 심시티 & 아이 그림 캐릭터 월드) -->
-        <section id="view-planet-world" class="content-view hidden" style="position: relative;">
-          <!-- 상단 대시보드 헤더 -->
-          <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-            <div>
-              <h2 style="display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1.55rem; color: #f8fafc; font-weight: 800;">
-                <span style="font-size: 1.8rem; filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.6));">🌍</span> 
-                <span>행성 월드 (심시티 &amp; 드로잉 행성)</span>
-              </h2>
-              <p style="margin: 4px 0 0 0; font-size: 0.88rem; color: #94a3b8;">
-                내 노트북 로컬 저장소의 자료가 건물이 되고, 아이가 그린 그림이 살아 숨쉬며 행성을 뛰어노는 3D 인터랙티브 월드입니다.
-              </p>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <div id="planet-stats-bar" style="display: flex; gap: 8px; font-size: 0.82rem; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.1); padding: 6px 14px; border-radius: 20px; backdrop-filter: blur(8px);">
-                <span style="color: #38bdf8;">🏢 건물: <strong id="planet-stat-buildings">0</strong></span>
-                <span style="color: #64748b;">|</span>
-                <span style="color: #f472b6;">🎨 캐릭터: <strong id="planet-stat-characters">0</strong></span>
-                <span style="color: #64748b;">|</span>
-                <span style="color: #34d399;">🌐 인구: <strong id="planet-stat-population">0</strong>명</span>
-              </div>
-              <button type="button" id="btn-planet-open-upload" class="btn btn-primary planet-admin-only" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 700; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">
-                <span>🚀</span> 자료 / 아이 그림 올리기
-              </button>
-              <div class="planet-guest-only" style="display: none; align-items: center; gap: 6px; font-size: 0.8rem; color: #94a3b8; background: rgba(15, 23, 42, 0.7); padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
-                <span>🔒 탐색 모드 (자료 업로드는 관리자 전용)</span>
-              </div>
-              <button type="button" id="btn-planet-reset-view" class="btn btn-secondary" style="padding: 8px 14px; border-radius: 8px; font-size: 0.85rem;" title="카메라 위치 초기화">
-                🔄 뷰 리셋
-              </button>
-            </div>
-          </div>
-
-          <!-- 행성 검색 & 필터 툴바 -->
-          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; background: rgba(30, 41, 59, 0.6); padding: 10px 16px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08);">
-            <div style="position: relative; flex: 1; min-width: 220px;">
-              <input type="text" id="planet-search-input" class="form-input" placeholder="🔍 건물, 자료명, 아이 그림 캐릭터, 키워드 검색..." style="width: 100%; border-radius: 8px; padding: 8px 14px 8px 36px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.12); color: #f8fafc; font-size: 0.9rem;" />
-              <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 0.9rem; opacity: 0.6;">🔍</span>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button type="button" class="btn btn-secondary btn-sm planet-filter-btn active" data-filter="all" style="padding: 6px 12px; font-size: 0.82rem; border-radius: 6px;">전체</button>
-              <button type="button" class="btn btn-secondary btn-sm planet-filter-btn" data-filter="building" style="padding: 6px 12px; font-size: 0.82rem; border-radius: 6px;">🏢 심시티 건물</button>
-              <button type="button" class="btn btn-secondary btn-sm planet-filter-btn" data-filter="character" style="padding: 6px 12px; font-size: 0.82rem; border-radius: 6px;">🎨 아이 캐릭터</button>
-            </div>
-            <div id="planet-search-status" style="font-size: 0.8rem; color: #94a3b8; margin-left: auto;">
-              총 <span id="planet-total-count" style="color: #38bdf8; font-weight: 700;">0</span>개 개체 탐색됨
-            </div>
-          </div>
-
-          <!-- 3D 뷰포트 컨테이너 -->
-          <div id="planet-viewport-card" style="position: relative; width: 100%; height: 640px; background: radial-gradient(ellipse at center, #0f172a 0%, #030712 100%); border-radius: 16px; overflow: hidden; border: 1px solid rgba(56, 189, 248, 0.25); box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8), 0 10px 30px rgba(0, 0, 0, 0.5);">
-            <!-- Three.js 캔버스가 삽입될 영역 -->
+        <!-- 뷰: 행성 월드 (타이쿤 테마파크 & 클라우드 행성 디오라마) -->
+        <section id="view-planet-world" class="content-view hidden" style="position: relative; padding: 0; margin: 0; width: 100%;">
+          <!-- 풀스크린 3D 뷰포트 컨테이너 -->
+          <div id="planet-viewport-card" style="position: relative; width: 100%; height: calc(100vh - 74px); min-height: 520px; background: radial-gradient(ellipse at center, #0f172a 0%, #030712 100%); border-radius: 14px; overflow: hidden; border: 1px solid rgba(56, 189, 248, 0.2); box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.9), 0 10px 30px rgba(0, 0, 0, 0.5);">
+            <!-- Three.js 캔버스 영역 -->
             <div id="planet-canvas-container" style="width: 100%; height: 100%; cursor: grab;"></div>
 
-            <!-- 조작 가이드 안내 (좌측 상단 오버레이) -->
-            <div style="position: absolute; top: 16px; left: 16px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(6px); pointer-events: none; max-width: 280px;">
-              <div style="font-size: 0.78rem; font-weight: 700; color: #38bdf8; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
-                <span>🎮</span> 행성 인터랙션 조작법
+            <!-- [우측 상단] 미니멀 플로팅 컨트롤 바 -->
+            <div style="position: absolute; top: 14px; right: 14px; display: flex; align-items: center; gap: 8px; z-index: 20; flex-wrap: wrap; justify-content: flex-end;">
+              <!-- 자료 통계 뱃지 -->
+              <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.12); padding: 7px 14px; border-radius: 20px; backdrop-filter: blur(10px); font-size: 0.82rem; color: #cbd5e1; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);">
+                <span>🪐</span>
+                <span>보관 자료 <strong id="planet-stat-total" style="color: #38bdf8; font-weight: 800;">0</strong></span>
               </div>
-              <ul style="margin: 0; padding-left: 16px; font-size: 0.75rem; color: #cbd5e1; line-height: 1.45;">
-                <li>마우스 좌클릭 + 드래그: <strong>행성 360° 회전</strong></li>
-                <li>마우스 휠 스크롤: <strong>줌인 / 줌아웃</strong></li>
-                <li>건물/캐릭터 클릭: <strong>카메라 줌 &amp; 상세 열람</strong></li>
-                <li>아이 캐릭터 클릭: <strong>재미있는 음성 말풍선 대사</strong></li>
-              </ul>
+
+              <!-- 검색 슬라이드 인풋 -->
+              <div id="planet-search-box" style="position: relative; display: flex; align-items: center;">
+                <input type="text" id="planet-search-input" class="form-input" placeholder="자료 / 그림 검색..." style="width: 0; opacity: 0; padding: 0; border: none; border-radius: 20px; background: rgba(15, 23, 42, 0.9); color: #f8fafc; font-size: 0.85rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;" />
+                <button type="button" id="btn-planet-toggle-search" class="btn btn-secondary" style="padding: 7px 12px; border-radius: 20px; font-size: 0.85rem; backdrop-filter: blur(10px); background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.15);" title="검색창 열기">
+                  🔍
+                </button>
+              </div>
+
+              <!-- 관리자 전용: 자료 / 그림 올리기 버튼 -->
+              <button type="button" id="btn-planet-open-upload" class="btn btn-primary planet-admin-only" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; background: linear-gradient(135deg, #0284c7, #3b82f6); box-shadow: 0 4px 16px rgba(2, 132, 199, 0.45); border: 1px solid rgba(255,255,255,0.2);">
+                <span>🚀</span> 자료 올리기
+              </button>
+
+              <!-- 카메라 뷰 리셋 -->
+              <button type="button" id="btn-planet-reset-view" class="btn btn-secondary" style="padding: 7px 12px; border-radius: 20px; font-size: 0.85rem; backdrop-filter: blur(10px); background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.15);" title="카메라 위치 초기화">
+                🔄
+              </button>
             </div>
 
-            <!-- 포커스 인포 배너 (클릭 시 하단에 표시) -->
-            <div id="planet-focus-banner" style="display: none; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 30px; padding: 8px 24px; backdrop-filter: blur(10px); box-shadow: 0 10px 25px rgba(0,0,0,0.6); align-items: center; gap: 14px; z-index: 10;">
-              <span id="planet-focus-icon" style="font-size: 1.4rem;">🏢</span>
-              <div>
-                <div id="planet-focus-name" style="font-size: 0.95rem; font-weight: 700; color: #f8fafc;">건물 이름</div>
-                <div id="planet-focus-sub" style="font-size: 0.75rem; color: #94a3b8;">심시티 카테고리 정보</div>
+            <!-- [좌측 상단] 은은한 미니멀 타이쿤 로고 워터마크 -->
+            <div style="position: absolute; top: 16px; left: 16px; z-index: 10; pointer-events: none; user-select: none;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.5rem; filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8));">🌍</span>
+                <div>
+                  <div style="font-size: 1.05rem; font-weight: 800; color: #f8fafc; letter-spacing: -0.3px; text-shadow: 0 2px 10px rgba(0,0,0,0.8);">PLANET PARK</div>
+                  <div style="font-size: 0.72rem; color: #94a3b8; letter-spacing: 0.5px;">Cloud Tycoon World</div>
+                </div>
               </div>
-              <button type="button" id="btn-planet-focus-detail" class="btn btn-secondary btn-sm" style="padding: 4px 12px; font-size: 0.78rem; border-radius: 14px; margin-left: 10px;">
-                자세히 보기
-              </button>
+            </div>
+
+            <!-- [홀로그램 상세 카드] 건물이나 캐릭터 터치 시 팝업 -->
+            <div id="planet-hologram-card" style="display: none; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 440px; background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(56, 189, 248, 0.5); border-radius: 18px; padding: 16px; backdrop-filter: blur(16px); box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 30px rgba(56, 189, 248, 0.2); z-index: 30; transition: all 0.3s ease;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span id="holo-icon" style="font-size: 1.6rem;">🏢</span>
+                  <div>
+                    <h4 id="holo-title" style="margin: 0; font-size: 1.05rem; color: #f8fafc; font-weight: 700;">자료 이름</h4>
+                    <span id="holo-subtitle" style="font-size: 0.75rem; color: #94a3b8;">분류 태그</span>
+                  </div>
+                </div>
+                <button type="button" id="btn-holo-close" style="background: transparent; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; padding: 0 4px; line-height: 1;">&times;</button>
+              </div>
+
+              <!-- 이미지 썸네일 액자 -->
+              <div id="holo-img-box" style="width: 100%; height: 160px; background: rgba(0, 0, 0, 0.4); border-radius: 12px; overflow: hidden; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.08);">
+                <img id="holo-img" style="width: 100%; height: 100%; object-fit: contain;" alt="자료 사진" />
+              </div>
+
+              <!-- 설명 / 대사 -->
+              <p id="holo-desc" style="margin: 0 0 14px 0; font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; max-height: 70px; overflow-y: auto;"></p>
+
+              <!-- 하단 액션 버튼 바 -->
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <a id="holo-download-link" href="#" target="_blank" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; padding: 7px 12px; border-radius: 10px; font-size: 0.8rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span>💾</span> 원본 보기 / 다운로드
+                </a>
+                <button type="button" id="btn-holo-confirm" class="btn btn-primary btn-sm" style="padding: 7px 18px; border-radius: 10px; font-size: 0.8rem; font-weight: 700;">
+                  닫기
+                </button>
+              </div>
             </div>
 
             <!-- 캐릭터 말풍선 툴팁 오버레이 -->
-            <div id="planet-speech-bubble" style="display: none; position: absolute; background: rgba(255, 255, 255, 0.95); color: #0f172a; padding: 10px 16px; border-radius: 14px; font-size: 0.88rem; font-weight: 700; max-width: 240px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); pointer-events: none; z-index: 20; border: 2px solid #38bdf8; transition: opacity 0.2s;">
-              <div id="planet-bubble-text">안녕! 나는 우주토끼야!</div>
-              <div style="position: absolute; bottom: -8px; left: 24px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #38bdf8;"></div>
-            </div>
-          </div>
-
-          <!-- 하단: 행성 월드 전체 개체 리스트 & 검색 결과 그리드 -->
-          <div style="margin-top: 24px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-              <h3 style="font-size: 1.15rem; color: #f1f5f9; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                <span>📋</span> 행성에 등록된 건축물 및 주민 목록
-              </h3>
-              <span style="font-size: 0.8rem; color: #64748b;">항목을 클릭하면 행성 카메라가 해당 위치로 자동 회전합니다.</span>
-            </div>
-            <div id="planet-items-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px;">
-              <!-- 동적 렌더링 카드들 -->
+            <div id="planet-speech-bubble" style="display: none; position: absolute; background: rgba(255, 255, 255, 0.95); color: #0f172a; padding: 9px 15px; border-radius: 14px; font-size: 0.84rem; font-weight: 700; max-width: 220px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); pointer-events: none; z-index: 25; border: 2px solid #38bdf8; transition: opacity 0.2s;">
+              <div id="planet-bubble-text">안녕! 나는 공원 마스코트야!</div>
+              <div style="position: absolute; bottom: -8px; left: 20px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #38bdf8;"></div>
             </div>
           </div>
         </section>
@@ -2918,11 +2903,11 @@
   <script src="app/views/uiView.js?v=2.4"></script>
   <script src="app/models/churchNewsModel.js"></script>
   <script src="app/views/churchNewsView.js"></script>
-  <script src="app/models/planetWorldModel.js?v=2.0"></script>
-  <script src="app/views/planetWorldView.js?v=2.0"></script>
-  <script src="app/views/portalChatbotView.js?v=1.1"></script>
-  <script src="app/controllers/appController.js?v=2.7"></script>
-  <script src="app/main.js?v=2.6"></script>
+  <script src="app/models/planetWorldModel.js?v=3.0"></script>
+  <script src="app/views/planetWorldView.js?v=3.0"></script>
+  <script src="app/views/portalChatbotView.js?v=1.2"></script>
+  <script src="app/controllers/appController.js?v=3.0"></script>
+  <script src="app/main.js?v=3.0"></script>
 
   <!-- 포털 AI 통합 검색 챗봇 플로팅 드로어 위젯 -->
   <div id="portalChatbotWidget" class="portal-chatbot-container hidden" aria-hidden="true">

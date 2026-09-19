@@ -244,69 +244,172 @@ window.PlanetWorldView = {
 
   createBuildingMesh(data) {
     const group = new THREE.Group();
-    const height = data.height || 3.0;
     const col = new THREE.Color(data.color || '#f97316');
 
-    if (data.type === 'lighthouse') {
-      // 등대
-      const towerGeo = new THREE.CylinderGeometry(0.5, 0.9, height, 16);
-      const towerMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 });
-      const tower = new THREE.Mesh(towerGeo, towerMat);
-      tower.position.y = height / 2;
-      group.add(tower);
+    // 1. [디오라마 베이스 타일] 잔디 타일 & 보도블록 테두리
+    const tileBaseGeo = new THREE.BoxGeometry(2.6, 0.15, 2.6);
+    const tileBaseMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.9 }); // 보도블록
+    const tileBase = new THREE.Mesh(tileBaseGeo, tileBaseMat);
+    tileBase.position.y = 0.08;
+    tileBase.receiveShadow = true;
+    group.add(tileBase);
 
-      const topGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.8, 16);
-      const topMat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.3 });
-      const top = new THREE.Mesh(topGeo, topMat);
-      top.position.y = height + 0.4;
-      group.add(top);
-    } else if (data.type === 'observatory') {
-      // 천문대 & 연구소
-      const baseGeo = new THREE.CylinderGeometry(1.2, 1.3, height * 0.7, 16);
-      const baseMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.6 });
-      const base = new THREE.Mesh(baseGeo, baseMat);
-      base.position.y = (height * 0.7) / 2;
-      group.add(base);
+    const lawnGeo = new THREE.BoxGeometry(2.4, 0.12, 2.4);
+    const lawnMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.8 }); // 푸른 잔디
+    const lawn = new THREE.Mesh(lawnGeo, lawnMat);
+    lawn.position.y = 0.16;
+    lawn.receiveShadow = true;
+    group.add(lawn);
 
-      const domeGeo = new THREE.SphereGeometry(1.2, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.5);
-      const domeMat = new THREE.MeshStandardMaterial({ color: col, metalness: 0.4, roughness: 0.3 });
-      const dome = new THREE.Mesh(domeGeo, domeMat);
-      dome.position.y = height * 0.7;
-      group.add(dome);
-    } else if (data.type === 'bank_tower') {
-      // 금융 타워 / 마천루
-      const towerGeo = new THREE.BoxGeometry(1.4, height, 1.4);
-      const towerMat = new THREE.MeshStandardMaterial({ color: col, metalness: 0.6, roughness: 0.2 });
-      const tower = new THREE.Mesh(towerGeo, towerMat);
-      tower.position.y = height / 2;
-      group.add(tower);
+    // 2. [미니어처 타이쿤 건물 본체]
+    const bHeight = 1.4;
+    const bodyGeo = new THREE.BoxGeometry(1.7, bHeight, 1.5);
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0xffedd5, // 따뜻한 크림 베이지
+      roughness: 0.6
+    });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.set(0, 0.2 + bHeight / 2, -0.15);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    group.add(body);
 
-      const spireGeo = new THREE.ConeGeometry(0.4, 1.2, 8);
-      const spireMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-      const spire = new THREE.Mesh(spireGeo, spireMat);
-      spire.position.y = height + 0.6;
-      group.add(spire);
+    // 문 & 미니 창문
+    const doorGeo = new THREE.PlaneGeometry(0.45, 0.7);
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
+    const door = new THREE.Mesh(doorGeo, doorMat);
+    door.position.set(0, 0.2 + 0.35, 0.61);
+    group.add(door);
+
+    // 3. [아기자기한 타이쿤 캐노피 / 기와 지붕]
+    const roofGeo = new THREE.ConeGeometry(1.45, 0.9, 4);
+    const roofMat = new THREE.MeshStandardMaterial({
+      color: col,
+      roughness: 0.4
+    });
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.set(0, 0.2 + bHeight + 0.4, -0.15);
+    roof.rotation.y = Math.PI / 4;
+    roof.castShadow = true;
+    group.add(roof);
+
+    // 4. 🌟 [핵심: 업로드 자료 실제 사진 썸네일 대형 간판 (Billboard Sign)]
+    const frameGeo = new THREE.BoxGeometry(1.6, 1.2, 0.08);
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.7, roughness: 0.2 });
+    const signFrame = new THREE.Mesh(frameGeo, frameMat);
+    signFrame.position.set(0, 0.2 + bHeight + 1.25, 0.25);
+    signFrame.rotation.x = -0.15; // 살짝 위를 향해 보기 편하게 틸트
+    group.add(signFrame);
+
+    // 지지대 봉 2개
+    [-0.5, 0.5].forEach(posX => {
+      const poleGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.8, 8);
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 });
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.set(posX, 0.2 + bHeight + 0.5, 0.15);
+      group.add(pole);
+    });
+
+    // 썸네일 캔버스/텍스처 면
+    const photoGeo = new THREE.PlaneGeometry(1.48, 1.08);
+    const photoMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const photoMesh = new THREE.Mesh(photoGeo, photoMat);
+    photoMesh.position.set(0, 0, 0.045);
+    signFrame.add(photoMesh);
+
+    // 업로드된 실제 이미지 로드 & 텍스처 맵핑
+    if (data.imageUrl && data.imageUrl.length > 5) {
+      new THREE.TextureLoader().load(
+        data.imageUrl,
+        (tex) => {
+          tex.generateMipmaps = true;
+          photoMat.map = tex;
+          photoMat.needsUpdate = true;
+        },
+        undefined,
+        () => {
+          // 실패 시 다이내믹 캔버스 텍스처로 폴백
+          photoMat.map = this.createTitleCanvasTexture(data.name || data.title || '자료', col.getHexString());
+          photoMat.needsUpdate = true;
+        }
+      );
     } else {
-      // 아늑한 우리집 (cozy_house 기본형)
-      const bodyGeo = new THREE.BoxGeometry(1.6, height * 0.6, 1.6);
-      const bodyMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.7 });
-      const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.position.y = (height * 0.6) / 2;
-      group.add(body);
-
-      const roofGeo = new THREE.ConeGeometry(1.4, height * 0.5, 4);
-      const roofMat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.4 });
-      const roof = new THREE.Mesh(roofGeo, roofMat);
-      roof.position.y = height * 0.6 + (height * 0.5) / 2;
-      roof.rotation.y = Math.PI / 4;
-      group.add(roof);
+      photoMat.map = this.createTitleCanvasTexture(data.name || data.title || '자료', col.getHexString());
     }
+
+    // 5. [테마파크 미니 데코: 가로등 & 꼬마 나무]
+    // 우측 앞 미니 가로등
+    const lampPoleGeo = new THREE.CylinderGeometry(0.03, 0.04, 0.9, 8);
+    const lampPoleMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+    const lampPole = new THREE.Mesh(lampPoleGeo, lampPoleMat);
+    lampPole.position.set(0.9, 0.45, 0.9);
+    group.add(lampPole);
+
+    const lampBulbGeo = new THREE.SphereGeometry(0.12, 8, 8);
+    const lampBulbMat = new THREE.MeshStandardMaterial({
+      color: 0xfef08a,
+      emissive: 0xfef08a,
+      emissiveIntensity: 0.9
+    });
+    const lampBulb = new THREE.Mesh(lampBulbGeo, lampBulbMat);
+    lampBulb.position.set(0.9, 0.9, 0.9);
+    group.add(lampBulb);
+
+    // 좌측 뒤 미니 나무
+    const trunkGeo = new THREE.CylinderGeometry(0.06, 0.08, 0.4, 8);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.position.set(-0.9, 0.3, -0.9);
+    group.add(trunk);
+
+    const foliageGeo = new THREE.ConeGeometry(0.45, 0.9, 8);
+    const foliageMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.7 });
+    const foliage = new THREE.Mesh(foliageGeo, foliageMat);
+    foliage.position.set(-0.9, 0.75, -0.9);
+    group.add(foliage);
 
     // 메쉬 유저데이터에 건물 데이터 보관 (클릭 감지용)
     group.userData = { type: 'building', data: data };
-    group.children.forEach(c => { c.userData = group.userData; });
+    group.traverse(c => { c.userData = group.userData; });
 
     return group;
+  },
+
+  /**
+   * 사진이 없을 때 아기자기한 타이쿤 간판용 CanvasTexture 생성기
+   */
+  createTitleCanvasTexture(titleText, hexColor) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 192;
+    const ctx = canvas.getContext('2d');
+
+    // 그라데이션 배경
+    const grad = ctx.createLinearGradient(0, 0, 256, 192);
+    grad.addColorStop(0, `#${hexColor}`);
+    grad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 256, 192);
+
+    // 네온 테두리
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(4, 4, 248, 184);
+
+    // 아이콘 & 텍스트
+    ctx.font = 'bold 36px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText('🏛️', 128, 70);
+
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(titleText.substring(0, 8), 128, 120);
+
+    ctx.font = '16px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('CLICK TO VIEW', 128, 155);
+
+    return new THREE.CanvasTexture(canvas);
   },
 
   createCharacterSprite(cData) {
@@ -457,45 +560,74 @@ window.PlanetWorldView = {
   },
 
   showBuildingDetail(bData) {
-    const modal = document.getElementById('planet-detail-modal');
-    if (!modal) return;
-
-    document.getElementById('planet-modal-title').textContent = bData.title || bData.name;
-    document.getElementById('planet-modal-category').textContent = `구역: ${bData.category || '심시티 타운'}`;
-    document.getElementById('planet-modal-desc').textContent = bData.desc || '보관된 상세 정보가 없습니다.';
-    document.getElementById('planet-modal-date').textContent = `건축일자: ${bData.createdAt || ''}`;
-
-    const tagsContainer = document.getElementById('planet-modal-tags');
-    if (tagsContainer) {
-      tagsContainer.innerHTML = (bData.tags || []).map(t => `<span class="planet-badge">#${t}</span>`).join('');
-    }
-
-    const imgEl = document.getElementById('planet-modal-image');
-    if (imgEl) {
-      if (bData.imageUrl) {
-        imgEl.src = bData.imageUrl;
-        imgEl.style.display = 'block';
-      } else {
-        imgEl.style.display = 'none';
-      }
-    }
-
-    modal.classList.remove('hidden');
+    this.openHologramCard(bData, false);
   },
 
   /**
-   * 특정 건물로 카메라 자동 줌인 & 회전 포커싱
+   * 🌟 [핵심 인터랙션] 건물 또는 캐릭터 클릭 시 홀로그램 카드 팝업 & 카메라 줌인 비행
    */
-  focusOnBuilding(bData) {
-    const pos = this.latLonToVector3(bData.lat, bData.lon, this.planetRadius);
-    const camTarget = pos.clone().normalize().multiplyScalar(28);
+  openHologramCard(itemData, isCharacter = false) {
+    const card = document.getElementById('planet-hologram-card');
+    if (!card) return;
+
+    const iconEl = document.getElementById('holo-icon');
+    const titleEl = document.getElementById('holo-title');
+    const subEl = document.getElementById('holo-subtitle');
+    const imgEl = document.getElementById('holo-img');
+    const imgBox = document.getElementById('holo-img-box');
+    const descEl = document.getElementById('holo-desc');
+    const dlLink = document.getElementById('holo-download-link');
+
+    if (iconEl) iconEl.textContent = isCharacter ? '🎨' : '🏢';
+    if (titleEl) titleEl.textContent = itemData.title || itemData.name || '보관 자료';
+    if (subEl) {
+      subEl.textContent = isCharacter
+        ? `아이 그림 마스코트 · 작가: ${itemData.creator || '우리아이'}`
+        : `타이쿤 디오라마 건물 · 테마: ${itemData.category || '기록'}`;
+    }
+
+    if (imgEl && imgBox) {
+      if (itemData.imageUrl) {
+        imgEl.src = itemData.imageUrl;
+        imgBox.style.display = 'flex';
+      } else {
+        imgBox.style.display = 'none';
+      }
+    }
+
+    if (descEl) {
+      descEl.textContent = itemData.desc || itemData.speech || '보관된 상세 정보가 없습니다.';
+    }
+
+    if (dlLink) {
+      if (itemData.imageUrl) {
+        dlLink.href = itemData.imageUrl;
+        dlLink.style.display = 'inline-flex';
+      } else {
+        dlLink.style.display = 'none';
+      }
+    }
+
+    card.style.display = 'block';
+
+    // 카메라 부드러운 줌인 비행
+    this.focusOnEntity(itemData);
+  },
+
+  /**
+   * 특정 건물 또는 캐릭터로 카메라 부드러운 줌인 & 비행
+   */
+  focusOnEntity(data) {
+    if (typeof data.lat !== 'number' || typeof data.lon !== 'number') return;
+    const pos = this.latLonToVector3(data.lat, data.lon, this.planetRadius);
+    const camTarget = pos.clone().normalize().multiplyScalar(26);
 
     this.animatingCamera = true;
     const startPos = this.camera.position.clone();
     let progress = 0;
 
     const animStep = () => {
-      progress += 0.035;
+      progress += 0.04;
       this.camera.position.lerpVectors(startPos, camTarget, progress);
       this.camera.lookAt(0, 0, 0);
 
@@ -503,10 +635,14 @@ window.PlanetWorldView = {
         requestAnimationFrame(animStep);
       } else {
         this.animatingCamera = false;
-        this.showBuildingDetail(bData);
       }
     };
     animStep();
+  },
+
+  focusOnBuilding(bData) {
+    this.focusOnEntity(bData);
+    this.openHologramCard(bData, false);
   },
 
   startLoop() {
@@ -521,7 +657,7 @@ window.PlanetWorldView = {
 
       // 행성 자전 (은은하게 서서히 회전)
       if (this.planetMesh && !this.animatingCamera) {
-        this.planetMesh.rotation.y += 0.0008;
+        this.planetMesh.rotation.y += 0.0006;
       }
 
       // 우주 별빛 반짝임
@@ -628,7 +764,7 @@ window.PlanetWorldView = {
           reader.onload = async (evt) => {
             const rawBase64 = evt.target.result;
             this.originalRawBase64 = rawBase64;
-            
+
             // 이미지인 경우 자동 배경 투명화 처리
             if (file.type.startsWith('image/')) {
               try {
@@ -708,9 +844,10 @@ window.PlanetWorldView = {
           alert(`✨ '${name}'(이)가 행성에 성공적으로 배치되었습니다!`);
         }
 
-        // 방금 생성된 건물로 카메라 포커싱
+        // 방금 생성된 건물로 카메라 포커싱 & 홀로그램 카드 오픈
         if (payload.id) {
-          this.focusOnEntity(payload.id);
+          this.focusOnEntity(payload);
+          this.openHologramCard(payload, payload.isCharacter);
         }
       } catch (err) {
         alert('업로드 처리 중 오류가 발생했습니다: ' + err.message);
@@ -728,104 +865,80 @@ window.PlanetWorldView = {
       btnSubmitUpload.addEventListener('click', handleUploadSubmit);
     }
 
-    // 5. 검색바 입력 & 포커싱
+    // 4. 홀로그램 카드 닫기 버튼
+    const btnHoloClose = document.getElementById('btn-holo-close');
+    const btnHoloConfirm = document.getElementById('btn-holo-confirm');
+    const holoCard = document.getElementById('planet-hologram-card');
+    const closeHolo = () => { if (holoCard) holoCard.style.display = 'none'; };
+
+    if (btnHoloClose) btnHoloClose.addEventListener('click', closeHolo);
+    if (btnHoloConfirm) btnHoloConfirm.addEventListener('click', closeHolo);
+
+    // 5. 검색창 슬라이드 토글
+    const btnToggleSearch = document.getElementById('btn-planet-toggle-search');
     const searchInput = document.getElementById('planet-search-input');
-    const searchBtn = document.getElementById('btn-planet-search');
-    const searchResultsDropdown = document.getElementById('planet-search-results');
+    let searchOpen = false;
 
-    const doSearch = async () => {
-      const q = searchInput.value.trim();
-      const res = await window.PlanetWorldModel.searchItems(q);
-
-      if (searchResultsDropdown) {
-        if (!q || res.total === 0) {
-          searchResultsDropdown.classList.add('hidden');
-          return;
+    if (btnToggleSearch && searchInput) {
+      btnToggleSearch.addEventListener('click', () => {
+        searchOpen = !searchOpen;
+        if (searchOpen) {
+          searchInput.style.width = '180px';
+          searchInput.style.opacity = '1';
+          searchInput.style.padding = '6px 12px';
+          searchInput.style.border = '1px solid rgba(56, 189, 248, 0.4)';
+          searchInput.style.pointerEvents = 'auto';
+          searchInput.focus();
+        } else {
+          searchInput.style.width = '0';
+          searchInput.style.opacity = '0';
+          searchInput.style.padding = '0';
+          searchInput.style.border = 'none';
+          searchInput.style.pointerEvents = 'none';
         }
-        searchResultsDropdown.classList.remove('hidden');
-        searchResultsDropdown.innerHTML = `
-          ${res.buildings.map(b => `
-            <div class="planet-search-item" data-id="${b.id}" data-type="building">
-              <span class="badge-icon">🏢</span>
-              <div class="item-text">
-                <div class="item-title">${b.title || b.name}</div>
-                <div class="item-sub">${b.desc || ''}</div>
-              </div>
-            </div>
-          `).join('')}
-          ${res.characters.map(c => `
-            <div class="planet-search-item" data-id="${c.id}" data-type="character">
-              <span class="badge-icon">🐰</span>
-              <div class="item-text">
-                <div class="item-title">${c.name}</div>
-                <div class="item-sub">${c.speech || ''}</div>
-              </div>
-            </div>
-          `).join('')}
-        `;
+      });
 
-        searchResultsDropdown.querySelectorAll('.planet-search-item').forEach(el => {
-          el.addEventListener('click', () => {
-            const id = el.getAttribute('data-id');
-            const targetBuilding = res.buildings.find(b => b.id === id);
-            if (targetBuilding) {
-              this.focusOnBuilding(targetBuilding);
-            }
-            searchResultsDropdown.classList.add('hidden');
-          });
-        });
-      }
-    };
+      const doSearch = async () => {
+        const q = searchInput.value.trim();
+        if (!q) return;
+        const res = await window.PlanetWorldModel.searchItems(q);
+        if (res && res.total > 0) {
+          const match = res.buildings[0] || res.characters[0];
+          if (match) {
+            this.openHologramCard(match, !match.category);
+          }
+        } else {
+          if (window.UiView && window.UiView.showToast) {
+            window.UiView.showToast(`'${q}' 관련 자료를 찾을 수 없습니다.`);
+          }
+        }
+      };
 
-    if (searchBtn && searchInput) {
-      searchBtn.addEventListener('click', doSearch);
       searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
-      searchInput.addEventListener('input', () => { if (searchInput.value.length > 1) doSearch(); });
     }
 
-    // 6. 상세 모달 닫기
-    const detailModal = document.getElementById('planet-detail-modal');
-    const btnCloseDetail = document.getElementById('btn-planet-detail-close');
-    if (btnCloseDetail && detailModal) {
-      btnCloseDetail.addEventListener('click', () => detailModal.classList.add('hidden'));
+    // 6. 뷰 리셋 버튼
+    const btnResetView = document.getElementById('btn-planet-reset-view');
+    if (btnResetView) {
+      btnResetView.addEventListener('click', () => {
+        const defaultPos = new THREE.Vector3(0, 8, 36);
+        this.animatingCamera = true;
+        const startPos = this.camera.position.clone();
+        let progress = 0;
+        const step = () => {
+          progress += 0.05;
+          this.camera.position.lerpVectors(startPos, defaultPos, progress);
+          this.camera.lookAt(0, 0, 0);
+          if (progress < 1) requestAnimationFrame(step);
+          else this.animatingCamera = false;
+        };
+        step();
+      });
     }
-  },
-
-  handleSelectedFile(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      this.originalRawBase64 = e.target.result;
-      const chkRemoveBg = document.getElementById('planet-chk-remove-bg');
-      this.applyBackgroundFilter(this.originalRawBase64, chkRemoveBg ? chkRemoveBg.checked : true);
-    };
-    reader.readAsDataURL(file);
-  },
-
-  applyBackgroundFilter(rawBase64, doRemoveBg) {
-    const previewContainer = document.getElementById('planet-preview-container');
-    const previewImg = document.getElementById('planet-preview-img');
-
-    if (!doRemoveBg) {
-      this.processedImageBase64 = rawBase64;
-      if (previewImg) previewImg.src = rawBase64;
-      if (previewContainer) previewContainer.classList.remove('hidden');
-      return;
-    }
-
-    const tempImg = new Image();
-    tempImg.onload = () => {
-      const transparentDataUrl = window.PlanetWorldModel.processTransparentBackground(tempImg, 45);
-      this.processedImageBase64 = transparentDataUrl;
-      if (previewImg) previewImg.src = transparentDataUrl;
-      if (previewContainer) previewContainer.classList.remove('hidden');
-    };
-    tempImg.src = rawBase64;
   },
 
   updateHUDCounts(buildingCount, charCount) {
-    const elB = document.getElementById('planet-hud-building-count');
-    const elC = document.getElementById('planet-hud-char-count');
-    if (elB) elB.textContent = `${buildingCount}개 건축`;
-    if (elC) elC.textContent = `${charCount}명 캐릭터`;
+    const elTotal = document.getElementById('planet-stat-total');
+    if (elTotal) elTotal.textContent = `${buildingCount + charCount}`;
   }
 };
