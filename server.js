@@ -322,6 +322,47 @@ app.post('/api/planet/upload', (req, res) => {
   }
 });
 
+app.post('/api/planet/delete', (req, res) => {
+  try {
+    const roleHeader = req.headers['x-portal-role'] || '';
+    const payload = req.body || {};
+    
+    // 관리자 권한 검증: 오직 최고 관리자(x-portal-role: admin)만 삭제 가능
+    if (roleHeader !== 'admin' && payload.role !== 'admin') {
+      return res.status(403).json({ success: false, message: '🔒 최고 관리자만 자료를 삭제(철거)할 수 있습니다.' });
+    }
+
+    const targetId = payload.id;
+    if (!targetId) {
+      return res.status(400).json({ success: false, message: '삭제할 대상의 ID가 필요합니다.' });
+    }
+
+    let data = { buildings: [], characters: [] };
+    if (fs.existsSync(planetWorldFile)) {
+      try { data = JSON.parse(fs.readFileSync(planetWorldFile, 'utf8')); } catch (e) {}
+    }
+    if (!Array.isArray(data.buildings)) data.buildings = [];
+    if (!Array.isArray(data.characters)) data.characters = [];
+
+    const prevBCount = data.buildings.length;
+    const prevCCount = data.characters.length;
+
+    data.buildings = data.buildings.filter(b => b.id !== targetId);
+    data.characters = data.characters.filter(c => c.id !== targetId);
+
+    const deleted = (data.buildings.length < prevBCount) || (data.characters.length < prevCCount);
+    if (deleted) {
+      data.lastUpdated = new Date().toISOString().replace('T', ' ').substring(0, 19);
+      fs.writeFileSync(planetWorldFile, JSON.stringify(data, null, 2), 'utf8');
+      return res.json({ success: true, message: '성공적으로 철거(삭제)되었습니다.', id: targetId });
+    } else {
+      return res.status(404).json({ success: false, message: '해당 대상을 찾을 수 없습니다.' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // IP 화이트리스트 조회/저장
 app.get('/api/allowed-ips', (req, res) => {
   if (fs.existsSync(allowedIpsFile)) {

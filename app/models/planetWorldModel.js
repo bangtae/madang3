@@ -64,7 +64,7 @@ window.PlanetWorldModel = {
   getPlanetConfig() {
     return this.data?.planetConfig || {
       name: "아이와 함께 만드는 행성 지구",
-      radius: 12,
+      radius: 8.5,
       seaColor: "#0284c7",
       landColor: "#15803d",
       atmosphereColor: "#38bdf8"
@@ -304,6 +304,60 @@ window.PlanetWorldModel = {
 
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
     return payload;
+  },
+
+  async deleteItem(itemId) {
+    if (!itemId) throw new Error('삭제할 대상의 ID가 필요합니다.');
+
+    const rawUser = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+    let isAdmin = false;
+    if (rawUser) {
+      try {
+        const u = JSON.parse(rawUser);
+        isAdmin = u && !u.isGuest;
+      } catch (e) {}
+    }
+    if (!isAdmin) {
+      throw new Error('🔒 최고 관리자만 자료를 철거(삭제)할 수 있습니다.');
+    }
+
+    try {
+      const res = await fetch('/api/planet/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-portal-role': 'admin'
+        },
+        body: JSON.stringify({ id: itemId, role: 'admin' })
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (this.data) {
+          if (Array.isArray(this.data.buildings)) {
+            this.data.buildings = this.data.buildings.filter(b => b.id !== itemId);
+          }
+          if (Array.isArray(this.data.characters)) {
+            this.data.characters = this.data.characters.filter(c => c.id !== itemId);
+          }
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+        }
+        return result;
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || '삭제 요청 처리에 실패했습니다.');
+      }
+    } catch (err) {
+      if (this.data) {
+        if (Array.isArray(this.data.buildings)) {
+          this.data.buildings = this.data.buildings.filter(b => b.id !== itemId);
+        }
+        if (Array.isArray(this.data.characters)) {
+          this.data.characters = this.data.characters.filter(c => c.id !== itemId);
+        }
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+      }
+      return { success: true, localOnly: true };
+    }
   },
 
   async searchItems(query) {

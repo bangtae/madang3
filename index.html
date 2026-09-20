@@ -2021,8 +2021,11 @@
               <!-- 하단 액션 버튼 바 -->
               <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                 <a id="holo-download-link" href="#" target="_blank" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; padding: 7px 12px; border-radius: 10px; font-size: 0.8rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-                  <span>💾</span> 원본 보기 / 다운로드
+                  <span>💾</span> 원본 보기
                 </a>
+                <button type="button" id="btn-holo-delete" class="btn btn-danger btn-sm planet-admin-only" style="padding: 7px 14px; border-radius: 10px; font-size: 0.8rem; font-weight: 700; background: #dc2626; border: 1px solid #ef4444; color: #fff; display: inline-flex; align-items: center; gap: 4px;" title="이 자료/건물 영구 철거">
+                  <span>🗑️</span> 철거
+                </button>
                 <button type="button" id="btn-holo-confirm" class="btn btn-primary btn-sm" style="padding: 7px 18px; border-radius: 10px; font-size: 0.8rem; font-weight: 700;">
                   닫기
                 </button>
@@ -2903,11 +2906,11 @@
   <script src="app/views/uiView.js?v=2.4"></script>
   <script src="app/models/churchNewsModel.js"></script>
   <script src="app/views/churchNewsView.js"></script>
-  <script src="app/models/planetWorldModel.js?v=3.0"></script>
-  <script src="app/views/planetWorldView.js?v=3.0"></script>
+  <script src="app/models/planetWorldModel.js?v=3.1"></script>
+  <script src="app/views/planetWorldView.js?v=3.1"></script>
   <script src="app/views/portalChatbotView.js?v=1.2"></script>
-  <script src="app/controllers/appController.js?v=3.0"></script>
-  <script src="app/main.js?v=3.0"></script>
+  <script src="app/controllers/appController.js?v=3.1"></script>
+  <script src="app/main.js?v=3.1"></script>
 
   <!-- 포털 AI 통합 검색 챗봇 플로팅 드로어 위젯 -->
   <div id="portalChatbotWidget" class="portal-chatbot-container hidden" aria-hidden="true">

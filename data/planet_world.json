@@ -2,7 +2,7 @@
     "lastUpdated":  "2026-09-20 06:15:00",
     "planetConfig":  {
                          "name":  "아이와 함께 만드는 행성 지구",
-                         "radius":  12,
+                         "radius":  8.5,
                          "theme":  "earth_vibrant",
                          "seaColor":  "#0284c7",
                          "landColor":  "#15803d",

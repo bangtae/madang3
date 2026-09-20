@@ -1481,6 +1481,55 @@ while ($true) {
                 Send-JsonResponse $stream $corsHeaders '{"error":"Method not allowed"}'
             }
         }
+        elseif ($urlPath -eq "/api/planet/delete") {
+            if ($method -eq "POST") {
+                try {
+                    $roleHeader = ""
+                    if ($requestText -match '(?i)x-portal-role:\s*([^\r\n]+)') {
+                        $roleHeader = $matches[1].Trim()
+                    }
+                    if ($roleHeader -ne "admin") {
+                        Send-ForbiddenResponse $stream $corsHeaders "관리자만 자료를 삭제(철거)할 수 있습니다."
+                        continue
+                    }
+
+                    $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                    $postData = if ($headerBodySplit.Length -eq 2) { $headerBodySplit[1] } else { "" }
+                    $payload = $postData | ConvertFrom-Json
+
+                    $targetId = $payload.id
+                    if (-not $targetId) {
+                        Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"ID required"}'
+                        continue
+                    }
+
+                    $rawP = [System.IO.File]::ReadAllText($planetWorldDataFile, [System.Text.Encoding]::UTF8)
+                    $pObj = $rawP | ConvertFrom-Json
+
+                    $prevBCount = @($pObj.buildings).Count
+                    $prevCCount = @($pObj.characters).Count
+
+                    $pObj.buildings = @($pObj.buildings | Where-Object { $_.id -ne $targetId })
+                    $pObj.characters = @($pObj.characters | Where-Object { $_.id -ne $targetId })
+
+                    $newBCount = @($pObj.buildings).Count
+                    $newCCount = @($pObj.characters).Count
+
+                    if ($newBCount -lt $prevBCount -or $newCCount -lt $prevCCount) {
+                        $pObj.lastUpdated = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                        $newJson = $pObj | ConvertTo-Json -Depth 6
+                        [System.IO.File]::WriteAllText($planetWorldDataFile, $newJson, $Utf8NoBom)
+                        Send-JsonResponse $stream $corsHeaders ('{"success":true,"message":"Deleted","id":"' + $targetId + '"}')
+                    } else {
+                        Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"Item not found"}'
+                    }
+                } catch {
+                    Send-JsonResponse $stream $corsHeaders ('{"status":"error","message":"' + $_.Exception.Message.Replace('"', '\"') + '"}')
+                }
+            } else {
+                Send-JsonResponse $stream $corsHeaders '{"error":"Method not allowed"}'
+            }
+        }
         elseif ($urlPath -eq "/api/auth/google/url") {
             $clientId = Get-EnvValue "GOOGLE_CLIENT_ID" ""
             $redirectUri = "http://localhost:8080/api/auth/google/callback"
