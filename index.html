@@ -51,6 +51,119 @@
       display: inline-flex !important;
     }
 
+    /* 🪐 플래닛 파크 상단 통합 슬림 HUD 바 스타일 (모바일 겹침 원천 방지) */
+    .planet-top-hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      z-index: 25;
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+    .planet-hud-brand,
+    .planet-hud-actions > * {
+      pointer-events: auto;
+    }
+    .planet-hud-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .planet-hud-logo-icon {
+      font-size: 1.45rem;
+      filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.8));
+      line-height: 1;
+    }
+    .planet-hud-title {
+      font-size: 0.98rem;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.3px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+      line-height: 1.15;
+    }
+    .planet-hud-sub {
+      font-size: 0.68rem;
+      color: #94a3b8;
+      letter-spacing: 0.4px;
+      line-height: 1.15;
+    }
+    .planet-hud-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      justify-content: flex-end;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+    .planet-hud-badge {
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 6px 11px;
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+      white-space: nowrap;
+    }
+
+    /* 모바일 반응형: 화면 폭이 좁아질 때 (<= 640px) */
+    @media (max-width: 640px) {
+      .planet-top-hud {
+        top: 10px;
+        left: 8px;
+        right: 8px;
+        gap: 6px;
+      }
+      .planet-hud-sub {
+        display: none !important;
+      }
+      .planet-hud-title {
+        font-size: 0.82rem;
+      }
+      .planet-badge-label {
+        display: none !important;
+      }
+      .planet-upload-text {
+        display: none !important;
+      }
+      .planet-hud-upload-btn {
+        padding: 6px 10px !important;
+      }
+      .planet-hud-badge {
+        padding: 6px 8px !important;
+        font-size: 0.78rem !important;
+      }
+    }
+
+    /* 초소형 모바일 (<= 380px) */
+    @media (max-width: 380px) {
+      .planet-hud-title-box {
+        display: none !important;
+      }
+      .planet-hud-logo-icon {
+        font-size: 1.35rem;
+      }
+      .planet-top-hud {
+        gap: 4px;
+      }
+      .planet-hud-actions {
+        gap: 4px;
+      }
+    }
+
     /* 교회 최신소식 스타일 */
     .church-quick-card {
       display: flex;
@@ -1959,41 +2072,43 @@
             <!-- Three.js 캔버스 영역 -->
             <div id="planet-canvas-container" style="width: 100%; height: 100%; cursor: grab;"></div>
 
-            <!-- [우측 상단] 미니멀 플로팅 컨트롤 바 -->
-            <div style="position: absolute; top: 14px; right: 14px; display: flex; align-items: center; gap: 8px; z-index: 20; flex-wrap: wrap; justify-content: flex-end;">
-              <!-- 자료 통계 뱃지 -->
-              <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.12); padding: 7px 14px; border-radius: 20px; backdrop-filter: blur(10px); font-size: 0.82rem; color: #cbd5e1; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);">
-                <span>🪐</span>
-                <span>보관 자료 <strong id="planet-stat-total" style="color: #38bdf8; font-weight: 800;">0</strong></span>
-              </div>
-
-              <!-- 검색 슬라이드 인풋 -->
-              <div id="planet-search-box" style="position: relative; display: flex; align-items: center;">
-                <input type="text" id="planet-search-input" class="form-input" placeholder="자료 / 그림 검색..." style="width: 0; opacity: 0; padding: 0; border: none; border-radius: 20px; background: rgba(15, 23, 42, 0.9); color: #f8fafc; font-size: 0.85rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;" />
-                <button type="button" id="btn-planet-toggle-search" class="btn btn-secondary" style="padding: 7px 12px; border-radius: 20px; font-size: 0.85rem; backdrop-filter: blur(10px); background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.15);" title="검색창 열기">
-                  🔍
-                </button>
-              </div>
-
-              <!-- 관리자 전용: 자료 / 그림 올리기 버튼 -->
-              <button type="button" id="btn-planet-open-upload" class="btn btn-primary planet-admin-only" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; background: linear-gradient(135deg, #0284c7, #3b82f6); box-shadow: 0 4px 16px rgba(2, 132, 199, 0.45); border: 1px solid rgba(255,255,255,0.2);">
-                <span>🚀</span> 자료 올리기
-              </button>
-
-              <!-- 카메라 뷰 리셋 -->
-              <button type="button" id="btn-planet-reset-view" class="btn btn-secondary" style="padding: 7px 12px; border-radius: 20px; font-size: 0.85rem; backdrop-filter: blur(10px); background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.15);" title="카메라 위치 초기화">
-                🔄
-              </button>
-            </div>
-
-            <!-- [좌측 상단] 은은한 미니멀 타이쿤 로고 워터마크 -->
-            <div style="position: absolute; top: 16px; left: 16px; z-index: 10; pointer-events: none; user-select: none;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 1.5rem; filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8));">🌍</span>
-                <div>
-                  <div style="font-size: 1.05rem; font-weight: 800; color: #f8fafc; letter-spacing: -0.3px; text-shadow: 0 2px 10px rgba(0,0,0,0.8);">PLANET PARK</div>
-                  <div style="font-size: 0.72rem; color: #94a3b8; letter-spacing: 0.5px;">Cloud Tycoon World</div>
+            <!-- [상단 통합 슬림 HUD 바: 모바일 겹침 원천 차단] -->
+            <div class="planet-top-hud">
+              <!-- 좌측: 로고 & 타이틀 -->
+              <div class="planet-hud-brand">
+                <span class="planet-hud-logo-icon">🌍</span>
+                <div class="planet-hud-title-box">
+                  <div class="planet-hud-title">PLANET PARK</div>
+                  <div class="planet-hud-sub">Cloud Tycoon World</div>
                 </div>
+              </div>
+
+              <!-- 우측: 콤팩트 컨트롤 액션들 -->
+              <div class="planet-hud-actions">
+                <!-- 자료 통계 뱃지 -->
+                <div class="planet-hud-badge" title="보관된 자료 수">
+                  <span>🪐</span>
+                  <span class="planet-badge-label">보관</span>
+                  <strong id="planet-stat-total" style="color: #38bdf8; font-weight: 800;">0</strong>
+                </div>
+
+                <!-- 검색 슬라이드 인풋 -->
+                <div id="planet-search-box" style="position: relative; display: flex; align-items: center;">
+                  <input type="text" id="planet-search-input" class="form-input" placeholder="검색..." style="width: 0; opacity: 0; padding: 0; border: none; border-radius: 20px; background: rgba(15, 23, 42, 0.95); color: #f8fafc; font-size: 0.82rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;" />
+                  <button type="button" id="btn-planet-toggle-search" class="btn btn-secondary planet-hud-btn" style="padding: 6px 10px; border-radius: 20px; font-size: 0.82rem; backdrop-filter: blur(10px); background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.15);" title="검색창 열기">
+                    🔍
+                  </button>
+                </div>
+
+                <!-- 관리자 전용: 자료 / 그림 올리기 버튼 -->
+                <button type="button" id="btn-planet-open-upload" class="btn btn-primary planet-admin-only planet-hud-upload-btn" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; background: linear-gradient(135deg, #0284c7, #3b82f6); box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45); border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;" title="자료/그림 올리기">
+                  <span>🚀</span><span class="planet-upload-text"> 자료 올리기</span>
+                </button>
+
+                <!-- 카메라 뷰 리셋 -->
+                <button type="button" id="btn-planet-reset-view" class="btn btn-secondary planet-hud-btn" style="padding: 6px 10px; border-radius: 20px; font-size: 0.82rem; backdrop-filter: blur(10px); background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.15);" title="카메라 위치 초기화">
+                  🔄
+                </button>
               </div>
             </div>
 
@@ -2906,11 +3021,11 @@
   <script src="app/views/uiView.js?v=2.4"></script>
   <script src="app/models/churchNewsModel.js"></script>
   <script src="app/views/churchNewsView.js"></script>
-  <script src="app/models/planetWorldModel.js?v=3.1"></script>
-  <script src="app/views/planetWorldView.js?v=3.1"></script>
+  <script src="app/models/planetWorldModel.js?v=3.2"></script>
+  <script src="app/views/planetWorldView.js?v=3.2"></script>
   <script src="app/views/portalChatbotView.js?v=1.2"></script>
-  <script src="app/controllers/appController.js?v=3.1"></script>
-  <script src="app/main.js?v=3.1"></script>
+  <script src="app/controllers/appController.js?v=3.2"></script>
+  <script src="app/main.js?v=3.2"></script>
 
   <!-- 포털 AI 통합 검색 챗봇 플로팅 드로어 위젯 -->
   <div id="portalChatbotWidget" class="portal-chatbot-container hidden" aria-hidden="true">

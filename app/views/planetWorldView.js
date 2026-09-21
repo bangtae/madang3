@@ -1149,9 +1149,10 @@ window.PlanetWorldView = {
       btnToggleSearch.addEventListener('click', () => {
         searchOpen = !searchOpen;
         if (searchOpen) {
-          searchInput.style.width = '180px';
+          const isMobile = window.innerWidth <= 640;
+          searchInput.style.width = isMobile ? '110px' : '170px';
           searchInput.style.opacity = '1';
-          searchInput.style.padding = '6px 12px';
+          searchInput.style.padding = isMobile ? '5px 10px' : '6px 12px';
           searchInput.style.border = '1px solid rgba(56, 189, 248, 0.4)';
           searchInput.style.pointerEvents = 'auto';
           searchInput.focus();
