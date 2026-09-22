@@ -59,6 +59,9 @@ window.AppController = {
     if (window.PlanetWorldView) {
       window.PlanetWorldView.init();
     }
+    if (window.BookmarkView) {
+      window.BookmarkView.init();
+    }
     if (window.PortalChatbotView) {
       window.PortalChatbotView.init();
     }
@@ -1310,6 +1313,7 @@ window.AppController = {
   getTopViewForSide(sideView) {
     const map = {
       'dashboard': 'main',
+      'bookmarks': 'main',
       'api-info': 'api',
       'ai-models': 'ai',
       'ai-terms': 'ai',
@@ -1427,6 +1431,7 @@ window.AppController = {
 
     // 본문 섹션 표시/숨김
     const viewDashboard = document.getElementById('view-dashboard');
+    const viewBookmarks = document.getElementById('view-bookmarks');
     const viewApiInfo = document.getElementById('view-api-info');
     const viewAiModels = document.getElementById('view-ai-models');
     const viewAiTerms = document.getElementById('view-ai-terms');
@@ -1450,6 +1455,7 @@ window.AppController = {
 
     const hideAllViews = () => {
       if (viewDashboard) viewDashboard.classList.add('hidden');
+      if (viewBookmarks) viewBookmarks.classList.add('hidden');
       if (viewApiInfo) viewApiInfo.classList.add('hidden');
       if (viewAiModels) viewAiModels.classList.add('hidden');
       if (viewAiTerms) viewAiTerms.classList.add('hidden');
@@ -1557,6 +1563,9 @@ window.AppController = {
     } else if (sideView === 'dashboard') {
       if (viewDashboard) viewDashboard.classList.remove('hidden');
       this.refreshAllViews();
+    } else if (sideView === 'bookmarks') {
+      if (viewBookmarks) viewBookmarks.classList.remove('hidden');
+      if (window.BookmarkView) window.BookmarkView.render();
     } else if (sideView === 'api-info') {
       if (viewApiInfo) viewApiInfo.classList.remove('hidden');
       this.applySearchAndFilter();

@@ -4268,6 +4268,32 @@ app.post('/api/portal-search-chat', async (req, res) => {
       }
     }
 
+    // 6. Chrome Bookmarks (크롬 즐겨찾기 사이트)
+    const bookmarksData = readJsonSafe('chromeBookmarks.json');
+    const bookmarkList = bookmarksData && Array.isArray(bookmarksData.bookmarks) ? bookmarksData.bookmarks : (Array.isArray(bookmarksData) ? bookmarksData : []);
+    if (bookmarkList.length > 0) {
+      for (const bm of bookmarkList) {
+        let score = 0;
+        const text = `${bm.title || ''} ${bm.domain || ''} ${bm.folderPath || ''} ${bm.url || ''}`.toLowerCase();
+        for (const tok of tokens) {
+          if (!tok || tok.length < 2) continue;
+          if (bm.title && bm.title.toLowerCase().includes(tok)) score += 6;
+          if (bm.domain && bm.domain.toLowerCase().includes(tok)) score += 4;
+          if (text.includes(tok)) score += 2;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: '크롬 즐겨찾기',
+            title: `⭐ ${bm.title || bm.domain}`,
+            summary: `${bm.folderPath ? `[${bm.folderPath}] ` : ''}${bm.url}`,
+            targetView: 'bookmarks',
+            id: bm.id || bm.url
+          });
+        }
+      }
+    }
+
     matchedItems.sort((a, b) => b.score - a.score);
     const topItems = matchedItems.slice(0, 6);
 

@@ -1,4 +1,4 @@
-# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
+﻿# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
 param([int]$Port = 8080)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -3111,6 +3111,38 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                                     id = $hist.id
                                                 })
                                             }
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 6. Chrome Bookmarks (크롬 즐겨찾기)
+                            $bookmarksFile = Join-Path $dataDir "chromeBookmarks.json"
+                            if (Test-Path $bookmarksFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($bookmarksFile, [System.Text.Encoding]::UTF8)
+                                    $bmData = $raw | ConvertFrom-Json
+                                    $bList = if ($bmData.bookmarks) { $bmData.bookmarks } else { $bmData }
+                                    foreach ($bm in $bList) {
+                                        $sc = 0
+                                        $txt = "$($bm.title) $($bm.domain) $($bm.folderPath) $($bm.url)".ToLower()
+                                        foreach ($t in $qTokens) {
+                                            if ($t.Length -ge 2) {
+                                                if ($bm.title -and $bm.title.ToLower().Contains($t)) { $sc += 6 }
+                                                elseif ($bm.domain -and $bm.domain.ToLower().Contains($t)) { $sc += 4 }
+                                                elseif ($txt.Contains($t)) { $sc += 2 }
+                                            }
+                                        }
+                                        if ($sc -gt 0) {
+                                            $fPrefix = if ($bm.folderPath) { "[$($bm.folderPath)] " } else { "" }
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "크롬 즐겨찾기"
+                                                title = "⭐ $(if ($bm.title) { $bm.title } else { $bm.domain })"
+                                                summary = "$fPrefix$($bm.url)"
+                                                targetView = "bookmarks"
+                                                id = if ($bm.id) { $bm.id } else { $bm.url }
+                                            })
                                         }
                                     }
                                 } catch {}

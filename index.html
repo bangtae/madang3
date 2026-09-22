@@ -385,6 +385,9 @@
               <button class="nav-side-btn active" data-side="dashboard">
                 <span class="icon">📊</span> 대시보드
               </button>
+              <button class="nav-side-btn" data-side="bookmarks">
+                <span class="icon">⭐</span> 북마크 사이트
+              </button>
             </li>
             <li class="menu-item hidden" id="side-menu-api">
               <button class="nav-side-btn" data-side="api-info">
@@ -583,6 +586,52 @@
             </div>
           </div>
 
+        </section>
+
+        <!-- 뷰: 크롬 북마크 사이트 N단 탐색기 -->
+        <section id="view-bookmarks" class="content-view hidden">
+          <div class="view-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <h2>⭐ 북마크 사이트</h2>
+                <span class="badge" id="bookmark-total-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.82rem; padding: 3px 10px; border-radius: 12px; font-weight: 600;">총 0개</span>
+              </div>
+              <p>크롬 브라우저에 즐겨찾기된 모든 사이트를 N단 폴더 트리와 카드로 탐색하고 검색하세요.</p>
+            </div>
+            <div class="bookmark-search-bar" style="position: relative; width: 320px; max-width: 100%;">
+              <input type="text" id="bookmark-search-input" class="search-input" placeholder="사이트명, URL, 도메인, 폴더 검색..." style="width: 100%; padding: 9px 36px 9px 36px; border-radius: 8px; font-size: 0.9rem;" />
+              <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">🔍</span>
+              <button type="button" id="bookmark-search-clear" class="btn-clear hidden" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer;">✕</button>
+            </div>
+          </div>
+
+          <!-- 북마크 탐색기 2열 레이아웃: 좌측 N단 트리 + 우측 카드 갤러리 -->
+          <div class="bookmark-explorer-layout">
+            <!-- 좌측 N단 폴더 트리 패널 -->
+            <div class="bookmark-tree-panel card">
+              <div class="tree-panel-header">
+                <span class="tree-panel-title">📁 북마크 폴더 계층</span>
+                <button type="button" class="btn-xs-action" id="btn-tree-collapse-all" title="모든 폴더 접기/펼치기">모두 접기</button>
+              </div>
+              <div class="bookmark-tree-container" id="bookmark-tree-container">
+                <!-- 동적 렌더링 -->
+              </div>
+            </div>
+
+            <!-- 우측 본문 카드 갤러리 패널 -->
+            <div class="bookmark-content-panel">
+              <div class="bookmark-content-header card">
+                <div class="bookmark-breadcrumb" id="bookmark-breadcrumb">
+                  <span class="breadcrumb-item active" data-path="전체">🏠 전체 북마크</span>
+                </div>
+                <div class="bookmark-current-count" id="bookmark-current-count">-개 사이트</div>
+              </div>
+
+              <div class="bookmark-cards-grid" id="bookmark-cards-container">
+                <!-- 동적 렌더링 -->
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- 뷰 2: API 정보 관리 -->
@@ -3196,6 +3245,7 @@
   <script src="data/initialSapNews.js?v=2.4"></script>
   <script src="data/initialSapKnowledge.js?v=2.4"></script>
   <script src="data/initialGithubTrending.js?v=2.4"></script>
+  <script src="data/initialBookmarks.js?v=1.0"></script>
   <!-- Supabase JS Client SDK CDN (무료 클라우드 DB 연동) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app/core/config.js?v=2.4"></script>
@@ -3230,6 +3280,7 @@
   <script src="app/views/churchNewsView.js"></script>
   <script src="app/models/planetWorldModel.js?v=3.8"></script>
   <script src="app/views/planetWorldView.js?v=3.8"></script>
+  <script src="app/views/bookmarkView.js?v=1.0"></script>
   <script src="app/views/portalChatbotView.js?v=1.2"></script>
   <script src="app/controllers/appController.js?v=3.6"></script>
   <script src="app/main.js?v=3.6"></script>

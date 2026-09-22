@@ -234,6 +234,7 @@
         '투자심의의결': 'type-council',
         '실전 매매일지': 'type-journal',
         'K-증시': 'type-stock',
+        '크롬 즐겨찾기': 'type-stock',
         '소식': 'type-api'
       };
 
@@ -492,6 +493,32 @@
                 id: hist.id
               });
             }
+          }
+        }
+      }
+
+      // 6. 크롬 즐겨찾기 북마크 검색
+      const bmData = window.PORTAL_DATA_BOOKMARKS;
+      const bmarks = (bmData && Array.isArray(bmData.bookmarks)) ? bmData.bookmarks : [];
+      if (bmarks.length > 0) {
+        for (const bm of bmarks) {
+          let score = 0;
+          const text = `${bm.title || ''} ${bm.domain || ''} ${bm.folderPath || ''} ${bm.url || ''}`.toLowerCase();
+          for (const tok of tokens) {
+            if (!tok || tok.length < 2) continue;
+            if (bm.title && bm.title.toLowerCase().includes(tok)) score += 6;
+            if (bm.domain && bm.domain.toLowerCase().includes(tok)) score += 4;
+            if (text.includes(tok)) score += 2;
+          }
+          if (score > 0) {
+            results.push({
+              score,
+              type: '크롬 즐겨찾기',
+              title: `⭐ ${bm.title || bm.domain}`,
+              summary: `${bm.folderPath ? `[${bm.folderPath}] ` : ''}${bm.url}`,
+              targetView: 'bookmarks',
+              id: bm.id || bm.url
+            });
           }
         }
       }

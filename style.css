@@ -6955,3 +6955,361 @@ input:disabled + .slider {
     border-radius: 16px;
   }
 }
+
+/* =========================================================
+   ⭐ 크롬 북마크 N단 계층 탐색기 스타일
+   ========================================================= */
+.bookmark-explorer-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 14px;
+}
+
+/* 좌측 N단 트리 패널 */
+.bookmark-tree-panel {
+  width: 320px;
+  flex-shrink: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: calc(100vh - 200px);
+  position: sticky;
+  top: 80px;
+}
+
+.tree-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.tree-panel-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #f8fafc;
+}
+
+.bookmark-tree-container {
+  padding: 8px 6px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.tree-node-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-node-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  font-size: 0.86rem;
+  color: #cbd5e1;
+}
+
+.tree-node-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+}
+
+.tree-node-item.active {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.tree-toggle-arrow {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.72rem;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tree-toggle-arrow:hover {
+  color: #38bdf8;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tree-toggle-spacer {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.tree-node-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.tree-node-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-node-count {
+  font-size: 0.72rem;
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+}
+
+.tree-node-item.active .tree-node-count {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.tree-children-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 우측 본문 카드 패널 */
+.bookmark-content-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.bookmark-content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  margin: 0;
+}
+
+.bookmark-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+  color: #94a3b8;
+}
+
+.breadcrumb-item {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.breadcrumb-item:hover {
+  color: #38bdf8;
+}
+
+.breadcrumb-item.active {
+  color: #f8fafc;
+  font-weight: 600;
+  cursor: default;
+}
+
+.breadcrumb-sep {
+  color: #475569;
+  font-size: 0.8rem;
+}
+
+.bookmark-current-count {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.bookmark-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.bookmark-card {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.bookmark-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.bookmark-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bookmark-favicon-wrap {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.bookmark-favicon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.bookmark-domain-badge {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 2px 8px;
+  border-radius: 6px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-copy-bookmark {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.btn-copy-bookmark:hover {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.bookmark-card-title {
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: #f8fafc;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bookmark-card-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.bookmark-card-title a:hover {
+  color: #38bdf8;
+}
+
+.bookmark-card-folder {
+  margin-bottom: 12px;
+}
+
+.folder-tag {
+  font-size: 0.74rem;
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.5);
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmark-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.btn-open-site {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #38bdf8;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  transition: all 0.2s;
+}
+
+.btn-open-site:hover {
+  background: rgba(56, 189, 248, 0.25);
+  color: #7dd3fc;
+}
+
+.bookmark-empty-box {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: #94a3b8;
+}
+
+.btn-xs-action {
+  font-size: 0.76rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-xs-action:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+@media screen and (max-width: 860px) {
+  .bookmark-explorer-layout {
+    flex-direction: column;
+  }
+  .bookmark-tree-panel {
+    width: 100%;
+    max-height: 280px;
+    position: static;
+  }
+}
+
