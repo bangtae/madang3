@@ -6966,9 +6966,9 @@ input:disabled + .slider {
   margin-top: 14px;
 }
 
-/* 좌측 N단 트리 패널 */
+/* 좌측 사이트 분야 카테고리 패널 */
 .bookmark-tree-panel {
-  width: 320px;
+  width: 300px;
   flex-shrink: 0;
   padding: 0;
   display: flex;
@@ -6995,96 +6995,85 @@ input:disabled + .slider {
 }
 
 .bookmark-tree-container {
-  padding: 8px 6px;
+  padding: 8px;
   overflow-y: auto;
   flex: 1;
-}
-
-.tree-node-row {
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 
-.tree-node-item {
+.category-nav-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 6px;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
-  font-size: 0.86rem;
-  color: #cbd5e1;
+  border: 1px solid transparent;
 }
 
-.tree-node-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #f8fafc;
+.category-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(2px);
 }
 
-.tree-node-item.active {
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  font-weight: 600;
+.category-nav-item.active {
+  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.15);
 }
 
-.tree-toggle-arrow {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  font-size: 0.72rem;
-  width: 18px;
-  height: 18px;
+.cat-icon {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.cat-info {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.tree-toggle-arrow:hover {
-  color: #38bdf8;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.tree-toggle-spacer {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-.tree-node-icon {
-  font-size: 0.95rem;
-  flex-shrink: 0;
-}
-
-.tree-node-name {
+  flex-direction: column;
   flex: 1;
+  min-width: 0;
+}
+
+.cat-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #e2e8f0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.tree-node-count {
+.category-nav-item.active .cat-name {
+  color: #38bdf8;
+}
+
+.cat-desc {
   font-size: 0.72rem;
   color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.cat-count {
+  font-size: 0.74rem;
+  color: #94a3b8;
   background: rgba(15, 23, 42, 0.6);
-  padding: 1px 6px;
-  border-radius: 8px;
-  margin-left: 4px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  font-weight: 500;
 }
 
-.tree-node-item.active .tree-node-count {
+.category-nav-item.active .cat-count {
+  background: rgba(56, 189, 248, 0.25);
   color: #38bdf8;
-  background: rgba(56, 189, 248, 0.2);
-}
-
-.tree-children-wrap {
-  display: flex;
-  flex-direction: column;
+  font-weight: 600;
 }
 
 /* 우측 본문 카드 패널 */
@@ -7185,6 +7174,18 @@ input:disabled + .slider {
   width: 16px;
   height: 16px;
   object-fit: contain;
+}
+
+.bookmark-category-badge {
+  font-size: 0.72rem;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
 .bookmark-domain-badge {

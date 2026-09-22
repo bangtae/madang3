@@ -596,22 +596,22 @@
                 <h2>⭐ 북마크 사이트</h2>
                 <span class="badge" id="bookmark-total-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.82rem; padding: 3px 10px; border-radius: 12px; font-weight: 600;">총 0개</span>
               </div>
-              <p>크롬 브라우저에 즐겨찾기된 모든 사이트를 N단 폴더 트리와 카드로 탐색하고 검색하세요.</p>
+              <p>크롬 즐겨찾기 사이트를 10대 핵심 분야별로 스마트 분류하여 편리하게 탐색하고 검색하세요.</p>
             </div>
             <div class="bookmark-search-bar" style="position: relative; width: 320px; max-width: 100%;">
-              <input type="text" id="bookmark-search-input" class="search-input" placeholder="사이트명, URL, 도메인, 폴더 검색..." style="width: 100%; padding: 9px 36px 9px 36px; border-radius: 8px; font-size: 0.9rem;" />
+              <input type="text" id="bookmark-search-input" class="search-input" placeholder="사이트명, URL, 도메인, 분야 검색..." style="width: 100%; padding: 9px 36px 9px 36px; border-radius: 8px; font-size: 0.9rem;" />
               <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">🔍</span>
               <button type="button" id="bookmark-search-clear" class="btn-clear hidden" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer;">✕</button>
             </div>
           </div>
 
-          <!-- 북마크 탐색기 2열 레이아웃: 좌측 N단 트리 + 우측 카드 갤러리 -->
+          <!-- 북마크 2열 레이아웃: 좌측 분야별 카테고리 + 우측 사이트 카드 갤러리 -->
           <div class="bookmark-explorer-layout">
-            <!-- 좌측 N단 폴더 트리 패널 -->
+            <!-- 좌측 분야별 카테고리 패널 -->
             <div class="bookmark-tree-panel card">
               <div class="tree-panel-header">
-                <span class="tree-panel-title">📁 북마크 폴더 계층</span>
-                <button type="button" class="btn-xs-action" id="btn-tree-collapse-all" title="모든 폴더 접기/펼치기">모두 접기</button>
+                <span class="tree-panel-title">🏷️ 사이트 분야 카테고리</span>
+                <span style="font-size: 0.78rem; color: #94a3b8;">11개 분류</span>
               </div>
               <div class="bookmark-tree-container" id="bookmark-tree-container">
                 <!-- 동적 렌더링 -->

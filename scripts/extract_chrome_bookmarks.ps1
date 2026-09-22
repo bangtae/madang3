@@ -24,6 +24,46 @@ function Get-Domain([string]$url) {
     }
 }
 
+function Classify-Bookmark([string]$folderPath, [string]$title, [string]$domain) {
+    $f = if ($folderPath) { $folderPath.ToLower() } else { '' }
+    $t = if ($title) { $title.ToLower() } else { '' }
+    $d = if ($domain) { $domain.ToLower() } else { '' }
+    $all = "$f $t $d"
+
+    if ($f -match 'ai서비스|인공지능' -or $all -match 'chatgpt|openai|claude|gemini|anthropic|huggingface|midjourney|generative|perplexity|sora') {
+        return @{ id = 'ai'; name = '🤖 AI & 신기술' }
+    }
+    if ($f -match '디벨러퍼|개발' -or $all -match 'github|gitlab|stackoverflow|docker|kubernetes|developer|npm|pypi|w3schools|mdn|spring|abap|vscode|console|aws|gcp|azure') {
+        return @{ id = 'dev'; name = '💻 개발 & IT 기술' }
+    }
+    if ($f -match '크립토|가상화폐|비트코인' -or $all -match 'crypto|coin|upbit|bithumb|binance|metamask|token|defi|blockchain') {
+        return @{ id = 'crypto'; name = '🪙 가상화폐' }
+    }
+    if ($f -match '릴 에스테이트|부동산|아파트|청약' -or $all -match 'hogangnono|asil|부동산|realty|apt|land|zigbang|dabang|applyhome') {
+        return @{ id = 'realestate'; name = '🏢 부동산 & 청약' }
+    }
+    if ($f -match '스탁|투자|애낼리시스|파이낸스' -or $all -match 'stock|증권|dart|krx|etf|invest|kospi|kosdaq|finance|sec\.gov|fnguide|seekingalpha') {
+        return @{ id = 'stock'; name = '📈 주식 & 투자' }
+    }
+    if ($f -match '레이버|노동|노무' -or $all -match 'notion|slack|jira|trello|confluence|asana|productivity|monday|workplace') {
+        return @{ id = 'work'; name = '💼 업무 & 생산성' }
+    }
+    if ($f -match '콘텐츠|마케팅|디자인' -or $all -match 'design|figma|canva|marketing|advertising|adobe|behance|dribbble|unsplash|youtube') {
+        return @{ id = 'contents'; name = '🎨 콘텐츠 & 마케팅' }
+    }
+    if ($f -match '샤핑|쇼핑|유용한생활' -or $all -match 'shopping|coupang|11st|gmarket|naver\.com\/shopping|smartstore|aliexpress|amazon') {
+        return @{ id = 'life'; name = '🛒 쇼핑 & 생활 편의' }
+    }
+    if ($f -match '스터디|공부|강의|교육' -or $all -match 'study|inflearn|udemy|coursera|fastcampus|class101|edx|nomadcoders') {
+        return @{ id = 'study'; name = '📚 교육 & 스터디' }
+    }
+    if ($f -match '인포|인사이트|미디어|뉴스' -or $all -match 'news|media|insight|brunch|medium|naver\.com\/news|daum\.net|hankyung|mk\.co') {
+        return @{ id = 'news'; name = '📰 뉴스 & 인사이트' }
+    }
+
+    return @{ id = 'etc'; name = '📁 기타 & 유틸리티' }
+}
+
 function Traverse-Node($node, $currentPath) {
     $fName = $node.name
     $isRootContainer = ($fName -eq "북마크바" -or $fName -eq "북마크" -or $fName -eq "기타 북마크" -or $fName -eq "모바일 북마크")
@@ -38,13 +78,17 @@ function Traverse-Node($node, $currentPath) {
             if ($child.type -eq "url") {
                 $finalFolder = if ($newPath) { $newPath } else { "기본 북마크" }
                 $domain = Get-Domain $child.url
+                $title = if ($child.name) { $child.name } else { $domain }
+                $cat = Classify-Bookmark $finalFolder $title $domain
                 $bm = [ordered]@{
-                    id         = "bm_$($script:bIdCounter)"
-                    title      = if ($child.name) { $child.name } else { $domain }
-                    url        = $child.url
-                    domain     = $domain
-                    folderPath = $finalFolder
-                    dateAdded  = $child.date_added
+                    id           = "bm_$($script:bIdCounter)"
+                    title        = $title
+                    url          = $child.url
+                    domain       = $domain
+                    category     = $cat.id
+                    categoryName = $cat.name
+                    folderPath   = $finalFolder
+                    dateAdded    = $child.date_added
                 }
                 $script:bIdCounter++
                 [void]$allBookmarks.Add($bm)
