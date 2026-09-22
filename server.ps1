@@ -2867,6 +2867,29 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                 Send-JsonResponse $stream $corsHeaders ($consultingResult | ConvertTo-Json -Depth 5 -Compress)
             }
         }
+        # ⭐ 크롬 북마크 실시간 동기화 API
+        elseif ($urlPath -eq "/api/bookmarks/sync" -and $method -eq "POST") {
+            $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+            if ($headerBodySplit.Length -eq 2) {
+                try {
+                    $bmPayload = $headerBodySplit[1] | ConvertFrom-Json
+                    if ($bmPayload.bookmarks) {
+                        $jsonPath = Join-Path $dataDir "chromeBookmarks.json"
+                        [System.IO.File]::WriteAllText($jsonPath, ($bmPayload | ConvertTo-Json -Depth 20), [System.Text.Encoding]::UTF8)
+
+                        $jsPath = Join-Path $dataDir "initialBookmarks.js"
+                        $jsContent = "// data/initialBookmarks.js - Extracted Chrome Bookmarks`nwindow.PORTAL_DATA_BOOKMARKS = " + ($bmPayload | ConvertTo-Json -Depth 20) + ";`n"
+                        [System.IO.File]::WriteAllText($jsPath, $jsContent, [System.Text.Encoding]::UTF8)
+
+                        $respBody = @{ success = $true; count = $bmPayload.bookmarks.Count; updatedAt = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") } | ConvertTo-Json
+                        Send-JsonResponse $stream $corsHeaders $respBody
+                        continue
+                    }
+                } catch {}
+            }
+            Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"동기화 실패"}' "400 Bad Request"
+            continue
+        }
         elseif ($urlPath -eq "/api/portal-search-chat") {
             if ($method -eq "POST") {
                 $headerBodySplit = $requestText -split "\r?\n\r?\n", 2

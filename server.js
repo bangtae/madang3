@@ -186,6 +186,38 @@ app.post('/api/church-news/sync', (req, res) => {
   }
 });
 
+// ⭐ 크롬 북마크 실시간 동기화 API
+app.post('/api/bookmarks/sync', (req, res) => {
+  try {
+    const { bookmarks, tree, totalCount } = req.body || {};
+    if (!Array.isArray(bookmarks)) {
+      return res.status(400).json({ success: false, message: '유효한 북마크 데이터 목록이 전달되지 않았습니다.' });
+    }
+
+    const payload = {
+      totalCount: totalCount || bookmarks.length,
+      updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      tree: tree || null,
+      bookmarks: bookmarks
+    };
+
+    // 1. chromeBookmarks.json 갱신
+    const jsonPath = path.join(dataDir, 'chromeBookmarks.json');
+    fs.writeFileSync(jsonPath, JSON.stringify(payload, null, 2), 'utf8');
+
+    // 2. initialBookmarks.js 정적 번들 파일 갱신
+    const jsPath = path.join(dataDir, 'initialBookmarks.js');
+    const jsContent = `// data/initialBookmarks.js - Extracted Chrome Bookmarks\nwindow.PORTAL_DATA_BOOKMARKS = ${JSON.stringify(payload, null, 2)};\n`;
+    fs.writeFileSync(jsPath, jsContent, 'utf8');
+
+    console.log(`[Bookmarks] Synced ${bookmarks.length} bookmarks successfully at ${payload.updatedAt}`);
+    return res.json({ success: true, count: bookmarks.length, updatedAt: payload.updatedAt });
+  } catch (err) {
+    console.error('[Bookmarks Sync Error]:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 🌍 3D 행성 월드 (Planet SimCity & Archive) API
 const planetWorldFile = path.join(dataDir, 'planet_world.json');
 const planetUploadDir = path.join(__dirname, 'uploads', 'planet');
