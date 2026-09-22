@@ -865,12 +865,105 @@ class TossInvestClient {
   }
 
   /**
-   * 국장 10만원 이하 거래대금 1위 초단타 타깃 종목 발굴
+   * 다음 미국 정규장(NYSE/NASDAQ) 개장 영업일 계산 (주말/미국공휴일 제외)
    */
-  async findScalpingTargetStock(maxPrice = 100000, excludeSymbols = []) {
+  getNextUsTradingDay(baseDate = new Date()) {
+    const et = this.getEtDate(baseDate);
+    const etMinutes = et.getHours() * 60 + et.getMinutes();
+
+    let candidate = new Date(et.getTime());
+    const isTodayHoliday = candidate.getDay() === 0 || candidate.getDay() === 6 || this.isUsHoliday(candidate);
+
+    // 당일 09:30 ET 개장 이후이거나 오늘이 휴장일이면 다음 날부터 탐색
+    if (etMinutes >= 570 || isTodayHoliday) {
+      candidate.setDate(candidate.getDate() + 1);
+    }
+
+    while (candidate.getDay() === 0 || candidate.getDay() === 6 || this.isUsHoliday(candidate)) {
+      candidate.setDate(candidate.getDate() + 1);
+    }
+
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const m = candidate.getMonth() + 1;
+    const d = candidate.getDate();
+    const dayName = dayNames[candidate.getDay()];
+
+    const baseDayOnly = new Date(et.getFullYear(), et.getMonth(), et.getDate());
+    const candDayOnly = new Date(candidate.getFullYear(), candidate.getMonth(), candidate.getDate());
+    const diffDays = Math.round((candDayOnly - baseDayOnly) / (1000 * 60 * 60 * 24));
+
+    let relativeLabel = '';
+    if (diffDays === 0) relativeLabel = '오늘 밤';
+    else if (diffDays === 1) relativeLabel = '내일 밤';
+    else if (diffDays === 2) relativeLabel = '모레 밤';
+    else relativeLabel = `${diffDays}일 뒤`;
+
+    const isDst = this.isUsDaylightSaving(baseDate);
+    const openTimeStr = isDst ? '22:30' : '23:30';
+
+    return {
+      month: m,
+      day: d,
+      dayName: `${dayName}요일`,
+      diffDays,
+      relativeLabel,
+      openTime: openTimeStr,
+      formattedText: `${relativeLabel}(${m}/${d} ${dayName}) ${openTimeStr}`
+    };
+  }
+
+  /**
+   * 현재 시각 기준 초단타 활성 세션(KR vs US) 및 개장 상태 판정
+   */
+  getCurrentScalpingSession() {
+    const kst = this.getKstDate();
+    const totalMinutes = kst.getHours() * 60 + kst.getMinutes();
+    const isDst = this.isUsDaylightSaving(kst);
+    const usOpenMinutes = isDst ? 22 * 60 + 30 : 23 * 60 + 30; // 서머타임 22:30 / 겨울철 23:30
+
+    // 국장 세션: 07:00 ~ 16:30 (KST 420분 ~ 990분)
+    // 미장 세션: 16:30 ~ 익일 07:00 (KST 990분 이후 또는 420분 이전)
+    const isUsSession = totalMinutes >= 990 || totalMinutes < 420;
+    const market = isUsSession ? 'US' : 'KR';
+    const isOpen = this.isRegularMarketOpen(market);
+
+    let nextOpenPrompt = '';
+    if (isUsSession) {
+      const nextUs = this.getNextUsTradingDay();
+      nextOpenPrompt = nextUs.formattedText;
+    } else {
+      const nextKr = this.getNextKrTradingDay();
+      nextOpenPrompt = `${nextKr.formattedText} 09:00`;
+    }
+
+    return {
+      market, // 'KR' or 'US'
+      isUsSession,
+      isOpen,
+      usOpenMinutes,
+      isDst,
+      nextOpenPrompt,
+      maxPrice: isUsSession ? 100.0 : 100000,
+      currency: isUsSession ? 'USD' : 'KRW',
+      label: isUsSession ? '미장(나스닥/S&P)' : '국장(KRX)'
+    };
+  }
+
+  /**
+   * 한미 초단타 타깃 종목 발굴 (국장 10만원 이하 / 미장 $100 이하 거래대금 상위 1위)
+   * @param {string} market - 'KR' | 'US'
+   * @param {number|null} maxPrice - 국장 기본 100,000 KRW / 미장 기본 100.0 USD
+   * @param {Array<string>} excludeSymbols - 타 전략 중복 제외 심볼 목록
+   */
+  async findScalpingTargetStock(market = 'KR', maxPrice = null, excludeSymbols = []) {
+    const isUs = String(market).toUpperCase() === 'US';
+    const marketCountry = isUs ? 'US' : 'KR';
+    const defaultMaxPrice = isUs ? 100.0 : 100000;
+    const effectiveMaxPrice = (typeof maxPrice === 'number' && maxPrice > 0) ? maxPrice : defaultMaxPrice;
+
     let rankRes = await this.getRankings({
       type: 'MARKET_TRADING_AMOUNT',
-      marketCountry: 'KR',
+      marketCountry,
       duration: 'realtime',
       count: 50,
       excludeInvestmentCaution: true
@@ -880,7 +973,7 @@ class TossInvestClient {
       // 장 시작 직전 또는 장외 시 1d 랭킹으로 보조 조회
       const backupRes = await this.getRankings({
         type: 'MARKET_TRADING_AMOUNT',
-        marketCountry: 'KR',
+        marketCountry,
         duration: '1d',
         count: 50,
         excludeInvestmentCaution: true
@@ -896,7 +989,7 @@ class TossInvestClient {
 
     const excludeSet = new Set((excludeSymbols || []).map(s => String(s || '').trim()).filter(Boolean));
 
-    // 10만원 이하 종목 및 중복 방지 제외 종목(집중운용/맞춤전략) 필터링
+    // 단가 상한 이하 및 중복 방지 제외 종목(집중운용/맞춤전략) 필터링
     const eligible = rankRes.rankings.filter(item => {
       const sym = String(item.symbol || '').trim();
       if (excludeSet.has(sym)) {
@@ -904,7 +997,7 @@ class TossInvestClient {
         return false;
       }
       const price = parseFloat(item.price?.lastPrice || item.lastPrice || (typeof item.price === 'number' ? item.price : 0) || 0);
-      return price > 0 && price <= maxPrice;
+      return price > 0 && price <= effectiveMaxPrice;
     });
 
     if (eligible.length === 0) return null;
@@ -925,8 +1018,8 @@ class TossInvestClient {
     return {
       symbol: topStock.symbol,
       stockName: stockName,
-      market: 'KR',
-      currency: topStock.currency || 'KRW',
+      market: marketCountry,
+      currency: topStock.currency || (isUs ? 'USD' : 'KRW'),
       currentPrice: curPrice,
       changeRate: changeRate,
       tradingAmount: parseFloat(topStock.tradingAmount || 0),

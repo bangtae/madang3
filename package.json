@@ -8,7 +8,8 @@
     "deploy": "gcloud app deploy app.yaml --quiet"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "@google-cloud/storage": "^7.15.0"
   },
   "engines": {
     "node": ">=18.0.0"

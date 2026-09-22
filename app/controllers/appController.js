@@ -457,6 +457,7 @@ window.AppController = {
             { id: "sap-suite", name: "SAP Integration Suite", icon: "⚡", category: "work", statCardId: "card-stat-sap-suite", guest: true, admin: true, description: "SAP Cloud Integration 최신 소식 및 Groovy/iFlow 컨설팅·개발 도우미" },
             { id: "agent-builder", name: "AI 에이전트 Builder", icon: "🧩", category: "ai", guest: true, admin: true, description: "자원 조합 및 시스템 워크플로우 설계도 생성" },
 
+            { id: "threads-live-dashboard", name: "Threads AI 대시보드", icon: "🚀", category: "admin", guest: false, admin: true, description: "Cloudflare 터널 기반 Threads AI 실시간 큐레이션 및 에이전트 모니터링 라이브 콘솔" },
             { id: "ip-whitelist", name: "IP 화이트리스트", icon: "🛡️", category: "admin", guest: false, admin: true, description: "접속 허용 IP 주소 관리" },
             { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
             { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
@@ -1326,6 +1327,7 @@ window.AppController = {
       'monster-wave': 'life',
       'monster-defense': 'life',
       'threads-agent': 'admin',
+      'threads-live-dashboard': 'admin',
       'ip-whitelist': 'admin',
       'ip-blacklist': 'admin',
       'ip-logs': 'admin',
@@ -1440,6 +1442,7 @@ window.AppController = {
     const viewTechStack = document.getElementById('view-tech-stack');
     const viewStockTemp = document.getElementById('view-stock-temp');
     const viewThreadsAgent = document.getElementById('view-threads-agent');
+    const viewThreadsLiveDashboard = document.getElementById('view-threads-live-dashboard');
     const viewMonsterDefense = document.getElementById('view-monster-defense');
     const viewMonsterWave = document.getElementById('view-monster-wave');
     const viewChurchNews = document.getElementById('view-church-news');
@@ -1473,6 +1476,8 @@ window.AppController = {
       const viewStockTradingAdmin = document.getElementById('view-stock-trading-admin');
       if (viewStockTradingAdmin) viewStockTradingAdmin.classList.add('hidden');
       if (viewThreadsAgent) viewThreadsAgent.classList.add('hidden');
+      const viewThreadsLiveDashboard = document.getElementById('view-threads-live-dashboard');
+      if (viewThreadsLiveDashboard) viewThreadsLiveDashboard.classList.add('hidden');
       if (viewMonsterDefense) viewMonsterDefense.classList.add('hidden');
       if (viewMonsterWave) viewMonsterWave.classList.add('hidden');
       if (viewChurchNews) viewChurchNews.classList.add('hidden');
@@ -1509,6 +1514,10 @@ window.AppController = {
     } else if (sideView === 'threads-agent') {
       if (viewThreadsAgent) viewThreadsAgent.classList.remove('hidden');
       this.refreshThreadsAgentView();
+    } else if (sideView === 'threads-live-dashboard') {
+      const viewThreadsLiveDashboard = document.getElementById('view-threads-live-dashboard');
+      if (viewThreadsLiveDashboard) viewThreadsLiveDashboard.classList.remove('hidden');
+      this.initThreadsLiveDashboard();
     } else if (sideView === 'stock-temp') {
       if (viewStockTemp) viewStockTemp.classList.remove('hidden');
       if (window.StockTempModel && window.StockTempView) {
@@ -1662,30 +1671,120 @@ window.AppController = {
   },
 
   /**
+   * [NEW] Threads AI 라이브 대시보드 (Cloudflare 터널 연동 실시간 콘솔) 초기화 및 제어
+   */
+  async initThreadsLiveDashboard() {
+    const frame = document.getElementById('frame-threads-live-dashboard');
+    const newTabLink = document.getElementById('link-threads-dashboard-newtab');
+    const btnRefresh = document.getElementById('btn-threads-dashboard-refresh');
+    const btnEditUrl = document.getElementById('btn-threads-dashboard-edit-url');
+    const urlBox = document.getElementById('threads-dashboard-url-box');
+    const inputUrl = document.getElementById('input-threads-dashboard-url');
+    const btnSaveUrl = document.getElementById('btn-threads-dashboard-save-url');
+    const btnResetUrl = document.getElementById('btn-threads-dashboard-reset-url');
+    const btnCloseUrl = document.getElementById('btn-threads-dashboard-close-url');
+
+    const defaultUrl = 'https://struggle-loud-burlington-trade.trycloudflare.com/';
+    let currentUrl = defaultUrl;
+
+    try {
+      const res = await fetch('/api/threads-dashboard/config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) currentUrl = data.url;
+      }
+    } catch (e) {
+      console.warn('[ThreadsLiveDashboard] Failed to fetch config:', e);
+    }
+
+    if (frame && frame.src !== currentUrl) {
+      frame.src = currentUrl;
+    }
+    if (newTabLink) {
+      newTabLink.href = currentUrl;
+    }
+    if (inputUrl) {
+      inputUrl.value = currentUrl;
+    }
+
+    if (this._threadsDashboardInitialized) return;
+    this._threadsDashboardInitialized = true;
+
+    if (btnRefresh) {
+      btnRefresh.addEventListener('click', () => {
+        if (frame) {
+          const prev = frame.src;
+          frame.src = 'about:blank';
+          setTimeout(() => { frame.src = prev; }, 100);
+        }
+      });
+    }
+
+    if (btnEditUrl && urlBox) {
+      btnEditUrl.addEventListener('click', () => {
+        urlBox.style.display = urlBox.style.display === 'none' ? 'block' : 'none';
+        if (inputUrl) inputUrl.focus();
+      });
+    }
+
+    if (btnCloseUrl && urlBox) {
+      btnCloseUrl.addEventListener('click', () => {
+        urlBox.style.display = 'none';
+      });
+    }
+
+    if (btnSaveUrl && inputUrl) {
+      btnSaveUrl.addEventListener('click', async () => {
+        const val = inputUrl.value.trim();
+        if (!val || !val.startsWith('http')) {
+          alert('올바른 URL(https://...)을 입력해주세요.');
+          return;
+        }
+        try {
+          const res = await fetch('/api/threads-dashboard/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: val })
+          });
+          if (res.ok) {
+            currentUrl = val;
+            if (frame) frame.src = val;
+            if (newTabLink) newTabLink.href = val;
+            if (urlBox) urlBox.style.display = 'none';
+            alert('대시보드 URL이 성공적으로 저장되었습니다.');
+          } else {
+            alert('URL 저장에 실패했습니다.');
+          }
+        } catch (err) {
+          alert('서버 통신 오류: ' + err.message);
+        }
+      });
+    }
+
+    if (btnResetUrl && inputUrl) {
+      btnResetUrl.addEventListener('click', async () => {
+        inputUrl.value = defaultUrl;
+        try {
+          await fetch('/api/threads-dashboard/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: defaultUrl })
+          });
+          currentUrl = defaultUrl;
+          if (frame) frame.src = defaultUrl;
+          if (newTabLink) newTabLink.href = defaultUrl;
+          if (urlBox) urlBox.style.display = 'none';
+          alert('기본 URL로 복원되었습니다.');
+        } catch (e) {}
+      });
+    }
+  },
+
+  /**
    * 메뉴 권한 설정 로드 (API & localStorage)
    */
   async loadMenuConfig() {
-    try {
-      const res = await fetch('/api/menu-config');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          this.menuConfig = data;
-          localStorage.setItem('portal_menu_config', JSON.stringify(data));
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('[AppController] Failed to fetch menu config from API:', e);
-    }
-    const local = localStorage.getItem('portal_menu_config');
-    if (local) {
-      try {
-        this.menuConfig = JSON.parse(local);
-        return;
-      } catch (e) {}
-    }
-    this.menuConfig = [
+    const defaultMenus = [
       { id: "stock-temp", name: "K증시 온도", icon: "☀️", category: "invest", statCardId: "card-stat-stock-temp", guest: true, admin: true, description: "일별 K증시 호재 vs 악재 감정 지수 및 분위기 실시간 요약" },
       { id: "stock-debate", name: "AI 끝장 토론실", icon: "🔥", category: "invest", statCardId: "card-stat-stock-debate", guest: true, admin: true, description: "서브에이전트 5인의 실시간 격론 및 상호 반박 끝장 토론 피드" },
       { id: "stock-blog", name: "배고픈투자씨 데일리", icon: "📰", category: "invest", statCardId: "card-stat-stock-blog", guest: true, admin: true, description: "배고픈투자씨 네이버 블로그 최신 증시분위기 리포트 및 게시글 실시간 연동" },
@@ -1699,6 +1798,7 @@ window.AppController = {
       { id: "github-trending", name: "GitHub 트렌딩 & 오픈소스 레이더", icon: "🐙", category: "work", statCardId: "card-stat-github-trending", guest: true, admin: true, description: "GitHub 최근 인기 급상승 오픈소스 랭킹, 초보자용 활용 가이드 및 madang 시스템 연계 개선 제안" },
       { id: "agent-builder", name: "AI 에이전트 Builder", icon: "🧩", category: "ai", guest: true, admin: true, description: "자원 조합 및 시스템 워크플로우 설계도 생성" },
 
+      { id: "threads-live-dashboard", name: "Threads AI 대시보드", icon: "🚀", category: "admin", guest: false, admin: true, description: "Cloudflare 터널 기반 Threads AI 실시간 큐레이션 및 에이전트 모니터링 라이브 콘솔" },
       { id: "ip-whitelist", name: "IP 화이트리스트", icon: "🛡️", category: "admin", guest: false, admin: true, description: "접속 허용 IP 주소 관리" },
       { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
       { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
@@ -1706,6 +1806,37 @@ window.AppController = {
       { id: "stock-trading-admin", name: "주식 자동매매 제어", icon: "🤖", category: "admin", guest: false, admin: true, description: "토스증권 Open API 기반 끝장토론 의결 종목 10만원 이하 1주 단일 예약매매 및 계좌/API 통합 제어" },
       { id: "menu-config", name: "메뉴 권한 설정", icon: "⚙️", category: "admin", guest: false, admin: true, description: "게스트 및 관리자 모드 메뉴 노출 설정" }
     ];
+
+    try {
+      const res = await fetch('/api/menu-config');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const existingIds = new Set(data.map(i => i.id));
+          defaultMenus.forEach(d => {
+            if (!existingIds.has(d.id)) data.push(d);
+          });
+          this.menuConfig = data;
+          localStorage.setItem('portal_menu_config', JSON.stringify(data));
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[AppController] Failed to fetch menu config from API:', e);
+    }
+    const local = localStorage.getItem('portal_menu_config');
+    if (local) {
+      try {
+        const parsed = JSON.parse(local);
+        const existingIds = new Set(parsed.map(i => i.id));
+        defaultMenus.forEach(d => {
+          if (!existingIds.has(d.id)) parsed.push(d);
+        });
+        this.menuConfig = parsed;
+        return;
+      } catch (e) {}
+    }
+    this.menuConfig = defaultMenus;
   },
 
   /**

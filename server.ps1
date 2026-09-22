@@ -1,4 +1,4 @@
-﻿# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
+# Ultra-Robust Non-Blocking TCP Socket HTTP Server in PowerShell with Whitelist/Blacklist & Access Logging
 param([int]$Port = 8080)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -1395,6 +1395,59 @@ while ($true) {
                 Send-JsonResponse $stream $corsHeaders $resJson
             }
         }
+        elseif ($urlPath -eq "/api/planet/analyze") {
+            if ($method -eq "POST") {
+                try {
+                    $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                    $postData = if ($headerBodySplit.Length -eq 2) { $headerBodySplit[1] } else { "" }
+                    $payload = $postData | ConvertFrom-Json
+                    
+                    $userNote = if ($payload.userNote) { $payload.userNote } else { "" }
+                    $suggestedName = if ($payload.suggestedName) { $payload.suggestedName } else { "자료" }
+                    $forceType = if ($payload.forceType) { $payload.forceType } else { "auto" }
+
+                    $analysisResult = [PSCustomObject]@{
+                        isCharacter = $false
+                        category = "family"
+                        buildingType = "cozy_house"
+                        natureBonus = "lake"
+                        decision = "stack"
+                        title = $suggestedName
+                        speech = "멋진 행성이 점점 더 풍요로워지고 있어!"
+                        color = "#f97316"
+                        message = "도시 디렉터 AI가 기존 주거 타워의 상층부에 새로운 기록실을 증축합니다."
+                    }
+
+                    if ($forceType -eq "character" -or $userNote.Contains("그림") -or $suggestedName.Contains("토끼") -or $suggestedName.Contains("공룡")) {
+                        $analysisResult.isCharacter = $true
+                        $analysisResult.decision = "character"
+                        $analysisResult.message = "아이가 그린 소중한 마스코트가 행성에 소환되었습니다."
+                    } elseif ($userNote.Contains("바다") -or $userNote.Contains("여행")) {
+                        $analysisResult.category = "travel"
+                        $analysisResult.buildingType = "lighthouse"
+                        $analysisResult.color = "#0ea5e9"
+                        $analysisResult.natureBonus = "beach"
+                    } elseif ($userNote.Contains("공부") -or $userNote.Contains("책") -or $userNote.Contains("우주")) {
+                        $analysisResult.category = "study"
+                        $analysisResult.buildingType = "observatory"
+                        $analysisResult.color = "#8b5cf6"
+                        $analysisResult.natureBonus = "forest"
+                    } elseif ($userNote.Contains("돈") -or $userNote.Contains("은행") -or $userNote.Contains("경제")) {
+                        $analysisResult.category = "finance"
+                        $analysisResult.buildingType = "bank_tower"
+                        $analysisResult.color = "#eab308"
+                        $analysisResult.natureBonus = "none"
+                    }
+
+                    $resJson = $analysisResult | ConvertTo-Json -Depth 5
+                    Send-JsonResponse $stream $corsHeaders $resJson
+                } catch {
+                    Send-JsonResponse $stream $corsHeaders ('{"status":"error","message":"' + $_.Exception.Message.Replace('"', '\"') + '"}')
+                }
+            } else {
+                Send-JsonResponse $stream $corsHeaders '{"error":"Method not allowed"}'
+            }
+        }
         elseif ($urlPath -eq "/api/planet/upload") {
             if ($method -eq "POST") {
                 try {
@@ -1415,7 +1468,18 @@ while ($true) {
                     # Read existing world
                     $rawP = [System.IO.File]::ReadAllText($planetWorldDataFile, [System.Text.Encoding]::UTF8)
                     $pObj = $rawP | ConvertFrom-Json
-                    
+                    if (-not $pObj.buildings) { $pObj | Add-Member -MemberType NoteProperty -Name buildings -Value @() }
+                    if (-not $pObj.characters) { $pObj | Add-Member -MemberType NoteProperty -Name characters -Value @() }
+                    if (-not $pObj.nature) { $pObj | Add-Member -MemberType NoteProperty -Name nature -Value @() }
+                    if (-not $pObj.cityStats) {
+                        $pObj | Add-Member -MemberType NoteProperty -Name cityStats -Value ([PSCustomObject]@{
+                            cityName = "메트로폴리스 노바"
+                            population = 12850
+                            totalFloors = 8
+                            cityLevel = "Level 2: 첨단 복합 도시"
+                        })
+                    }
+
                     $nowStr = (Get-Date).ToString("yyyy-MM-dd")
                     $imgUrl = $payload.imageUrl
                     
@@ -1448,31 +1512,68 @@ while ($true) {
                             imageUrl = $imgUrl
                             createdAt = $nowStr
                         }
-                        $pObj.characters += $newChar
-                        $newJson = $pObj | ConvertTo-Json -Depth 6
+                        $pObj.characters = @($pObj.characters) + $newChar
+                        $newJson = $pObj | ConvertTo-Json -Depth 7
                         [System.IO.File]::WriteAllText($planetWorldDataFile, $newJson, $Utf8NoBom)
                         Send-JsonResponse $stream $corsHeaders ($newChar | ConvertTo-Json -Depth 5)
                     } else {
-                        # Create SimCity Building
-                        $newBuilding = [PSCustomObject]@{
-                            id = "b-" + [Guid]::NewGuid().ToString().Substring(0, 8)
-                            name = if ($payload.name) { $payload.name } else { "새로운 타운하우스" }
-                            category = if ($payload.category) { $payload.category } else { "family" }
-                            type = if ($payload.type) { $payload.type } else { "cozy_house" }
-                            color = if ($payload.color) { $payload.color } else { "#f97316" }
-                            lat = if ($payload.lat) { [double]$payload.lat } else { ((Get-Random -Minimum -50 -Maximum 50)) }
-                            lon = if ($payload.lon) { [double]$payload.lon } else { ((Get-Random -Minimum -170 -Maximum 170)) }
-                            height = if ($payload.height) { [double]$payload.height } else { 3.0 }
-                            title = if ($payload.title) { $payload.title } else { "새로운 추억과 기록" }
-                            desc = if ($payload.desc) { $payload.desc } else { "행성 위에 새롭게 건축된 기록 보관소입니다." }
-                            tags = if ($payload.tags) { $payload.tags } else { @("새기록") }
-                            createdAt = $nowStr
-                            imageUrl = $imgUrl
+                        # 🌟 심시티 타워 적층: 동일 분야 타워 검색
+                        $cat = if ($payload.category) { $payload.category } else { "family" }
+                        $targetBuilding = $null
+                        if (-not $payload.forceNewBuilding) {
+                            foreach ($b in @($pObj.buildings)) {
+                                if ($b.category -eq $cat) { $targetBuilding = $b; break }
+                            }
                         }
-                        $pObj.buildings += $newBuilding
-                        $newJson = $pObj | ConvertTo-Json -Depth 6
+
+                        if ($targetBuilding) {
+                            $curFloors = @($targetBuilding.floors)
+                            $newFloorNum = $curFloors.Count + 1
+                            $newFloor = [PSCustomObject]@{
+                                floor = $newFloorNum
+                                id = "rec-" + [Guid]::NewGuid().ToString().Substring(0, 8)
+                                title = if ($payload.title) { $payload.title } else { ($targetBuilding.name + " " + $newFloorNum + "층") }
+                                desc = if ($payload.desc) { $payload.desc } else { "새롭게 증축된 층의 자료입니다." }
+                                tags = if ($payload.tags) { $payload.tags } else { @($cat, "기록") }
+                                createdAt = $nowStr
+                                imageUrl = $imgUrl
+                            }
+                            $targetBuilding.floors = @($newFloor) + $curFloors
+                            $targetBuilding.height = [Math]::Min(6.5, (2.2 + $targetBuilding.floors.Count * 0.7))
+                            $targetBuilding.tier = if ($targetBuilding.floors.Count -ge 5) { 3 } elseif ($targetBuilding.floors.Count -ge 3) { 2 } else { 1 }
+                        } else {
+                            $newFloor = [PSCustomObject]@{
+                                floor = 1
+                                id = "rec-" + [Guid]::NewGuid().ToString().Substring(0, 8)
+                                title = if ($payload.title) { $payload.title } else { "새로운 기록" }
+                                desc = if ($payload.desc) { $payload.desc } else { "행성 위에 새롭게 건축된 기록 보관소입니다." }
+                                tags = if ($payload.tags) { $payload.tags } else { @($cat, "기록") }
+                                createdAt = $nowStr
+                                imageUrl = $imgUrl
+                            }
+                            $newBuilding = [PSCustomObject]@{
+                                id = "b-" + [Guid]::NewGuid().ToString().Substring(0, 8)
+                                name = if ($payload.name) { $payload.name } else { ($cat.ToUpper() + " 타워") }
+                                category = $cat
+                                type = if ($payload.type) { $payload.type } else { "cozy_house" }
+                                tier = 1
+                                color = if ($payload.color) { $payload.color } else { "#f97316" }
+                                lat = if ($payload.lat) { [double]$payload.lat } else { ((Get-Random -Minimum -50 -Maximum 50)) }
+                                lon = if ($payload.lon) { [double]$payload.lon } else { ((Get-Random -Minimum -170 -Maximum 170)) }
+                                height = 2.8
+                                floors = @($newFloor)
+                            }
+                            $pObj.buildings = @($pObj.buildings) + $newBuilding
+                        }
+
+                        # 도시 통계 업데이트
+                        $pObj.cityStats.totalFloors = [int]$pObj.cityStats.totalFloors + 1
+                        $pObj.cityStats.population = [int]$pObj.cityStats.population + (Get-Random -Minimum 150 -Maximum 400)
+
+                        $pObj.lastUpdated = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                        $newJson = $pObj | ConvertTo-Json -Depth 7
                         [System.IO.File]::WriteAllText($planetWorldDataFile, $newJson, $Utf8NoBom)
-                        Send-JsonResponse $stream $corsHeaders ($newBuilding | ConvertTo-Json -Depth 5)
+                        Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"Built successfully"}'
                     }
                 } catch {
                     Send-JsonResponse $stream $corsHeaders ('{"status":"error","message":"' + $_.Exception.Message.Replace('"', '\"') + '"}')
@@ -1498,6 +1599,7 @@ while ($true) {
                     $payload = $postData | ConvertFrom-Json
 
                     $targetId = $payload.id
+                    $buildingId = $payload.buildingId
                     if (-not $targetId) {
                         Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"ID required"}'
                         continue
@@ -1506,18 +1608,42 @@ while ($true) {
                     $rawP = [System.IO.File]::ReadAllText($planetWorldDataFile, [System.Text.Encoding]::UTF8)
                     $pObj = $rawP | ConvertFrom-Json
 
-                    $prevBCount = @($pObj.buildings).Count
-                    $prevCCount = @($pObj.characters).Count
+                    $deleted = $false
 
-                    $pObj.buildings = @($pObj.buildings | Where-Object { $_.id -ne $targetId })
-                    $pObj.characters = @($pObj.characters | Where-Object { $_.id -ne $targetId })
+                    # 1. 층별 단독 철거
+                    if ($buildingId) {
+                        foreach ($b in @($pObj.buildings)) {
+                            if ($b.id -eq $buildingId -and $b.floors) {
+                                $prevLen = @($b.floors).Count
+                                $b.floors = @($b.floors | Where-Object { $_.id -ne $targetId })
+                                if (@($b.floors).Count -lt $prevLen) {
+                                    $deleted = $true
+                                    if (@($b.floors).Count -eq 0) {
+                                        $pObj.buildings = @($pObj.buildings | Where-Object { $_.id -ne $buildingId })
+                                    } else {
+                                        $b.height = [Math]::Min(6.5, (2.2 + $b.floors.Count * 0.7))
+                                        $b.tier = if ($b.floors.Count -ge 5) { 3 } elseif ($b.floors.Count -ge 3) { 2 } else { 1 }
+                                    }
+                                    break
+                                }
+                            }
+                        }
+                    }
 
-                    $newBCount = @($pObj.buildings).Count
-                    $newCCount = @($pObj.characters).Count
+                    # 2. 타워 전체 또는 캐릭터 철거
+                    if (-not $deleted) {
+                        $prevBCount = @($pObj.buildings).Count
+                        $prevCCount = @($pObj.characters).Count
 
-                    if ($newBCount -lt $prevBCount -or $newCCount -lt $prevCCount) {
+                        $pObj.buildings = @($pObj.buildings | Where-Object { $_.id -ne $targetId })
+                        $pObj.characters = @($pObj.characters | Where-Object { $_.id -ne $targetId })
+
+                        $deleted = (@($pObj.buildings).Count -lt $prevBCount) -or (@($pObj.characters).Count -lt $prevCCount)
+                    }
+
+                    if ($deleted) {
                         $pObj.lastUpdated = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-                        $newJson = $pObj | ConvertTo-Json -Depth 6
+                        $newJson = $pObj | ConvertTo-Json -Depth 7
                         [System.IO.File]::WriteAllText($planetWorldDataFile, $newJson, $Utf8NoBom)
                         Send-JsonResponse $stream $corsHeaders ('{"success":true,"message":"Deleted","id":"' + $targetId + '"}')
                     } else {
@@ -2860,27 +2986,131 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                 } catch {}
                             }
 
-                            # 5. Stock Debate Logs
+                            # 5. Stock Debates, Council Reports & Trading Journal (주식 끝장토론, 심의의결, 매매일지)
+                            $CalcStockScore = {
+                                param([string]$name, [string]$code, [string]$other)
+                                $sName = if ($name) { $name.ToLower() } else { "" }
+                                $sCode = if ($code) { $code.ToLower() } else { "" }
+                                $comb = "$sName $sCode $other".ToLower()
+                                $s = 0
+                                foreach ($t in $qTokens) {
+                                    if ($t.Length -lt 2) { continue }
+                                    if ($sCode -and ($sCode -eq $t -or $sCode.Contains($t))) { $s += 12 }
+                                    if ($sName) {
+                                        if ($sName -eq $t) { $s += 15 }
+                                        elseif ($sName.Contains($t) -or $t.Contains($sName)) { $s += 10 }
+                                    }
+                                    if ($comb.Contains($t)) { $s += 3 }
+                                }
+                                return $s
+                            }
+
+                            # 5-1. AI 끝장토론 (stockDebateLogs.json)
                             $stockFile = Join-Path $dataDir "stockDebateLogs.json"
                             if (Test-Path $stockFile) {
                                 try {
                                     $raw = [System.IO.File]::ReadAllText($stockFile, [System.Text.Encoding]::UTF8)
                                     $stockList = $raw | ConvertFrom-Json
                                     foreach ($item in $stockList) {
-                                        $sc = 0
-                                        $txt = "$($item.stockName) $($item.stockCode) $($item.summary) $($item.consensus)".ToLower()
-                                        foreach ($t in $qTokens) {
-                                            if ($t.Length -ge 2 -and $txt.Contains($t)) { $sc += 3 }
-                                        }
+                                        $sName = if ($item.stock_name) { $item.stock_name } else { $item.stockName }
+                                        $sCode = if ($item.item_code) { $item.item_code } else { $item.stockCode }
+                                        $topic = if ($item.topic) { $item.topic } else { "" }
+                                        $actTitle = if ($item.action_title) { $item.action_title } else { "" }
+                                        $verdict = if ($item.verdict_summary) { $item.verdict_summary } else { $item.consensus }
+                                        $otherTxt = "$topic $actTitle $verdict $($item.news_headline)"
+                                        $sc = & $CalcStockScore $sName $sCode $otherTxt
                                         if ($sc -gt 0) {
+                                            $sumTxt = if ($actTitle) { "$actTitle | $verdict" } else { $verdict }
+                                            if (-not $sumTxt) { $sumTxt = $topic }
                                             [void]$matchedList.Add([PSCustomObject]@{
                                                 score = $sc
-                                                type = "주식 분석"
-                                                title = "$($item.stockName) 분석 리포트"
-                                                summary = if ($item.summary) { $item.summary } else { $item.consensus }
+                                                type = "AI 끝장토론"
+                                                title = "[끝장토론] $sName ($sCode)"
+                                                summary = $sumTxt
                                                 targetView = "stock-debate"
                                                 id = $item.id
                                             })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 5-2. 투자심의위원회 최종의결 리포트 (stockCouncilReports.json)
+                            $councilFile = Join-Path $dataDir "stockCouncilReports.json"
+                            if (Test-Path $councilFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($councilFile, [System.Text.Encoding]::UTF8)
+                                    $councilList = $raw | ConvertFrom-Json
+                                    foreach ($item in $councilList) {
+                                        $sName = if ($item.stockName) { $item.stockName } else { $item.stock_name }
+                                        $sCode = if ($item.itemCode) { $item.itemCode } else { $item.item_code }
+                                        $title = if ($item.title) { $item.title } else { "[투자심의] $sName" }
+                                        $summary = if ($item.summary) { $item.summary } else { "$sName 5대 에이전트 투자심의위원회 최종의결서" }
+                                        $sc = & $CalcStockScore $sName $sCode "$title $summary $($item.grade)"
+                                        if ($sc -gt 0) {
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "투자심의의결"
+                                                title = $title
+                                                summary = $summary
+                                                targetView = "stock-debate"
+                                                id = $item.id
+                                            })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 5-3. 실전 매매일지 (stockTradingJournal.json)
+                            $journalFile = Join-Path $dataDir "stockTradingJournal.json"
+                            if (Test-Path $journalFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($journalFile, [System.Text.Encoding]::UTF8)
+                                    $journal = $raw | ConvertFrom-Json
+                                    if ($journal.currentPosition) {
+                                        $cp = $journal.currentPosition
+                                        $sc = & $CalcStockScore $cp.stockName $cp.itemCode "$($cp.debateSummary) $($cp.status)"
+                                        if ($sc -gt 0) {
+                                            $posDetail = "보유량: $($cp.quantity)주 | 평단가: $($cp.averagePrice)원 | 목표가: $($cp.targetPrice)원 | 손절가: $($cp.stopLossPrice)원"
+                                            if ($cp.debateSummary) { $posDetail += " | $($cp.debateSummary)" }
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc + 5
+                                                type = "실전 매매일지"
+                                                title = "[실전보유] $($cp.stockName) ($($cp.itemCode)) 현재 포지션"
+                                                summary = $posDetail
+                                                targetView = "stock-journal"
+                                                id = if ($cp.orderId) { $cp.orderId } else { "current_position" }
+                                            })
+                                        }
+                                    }
+                                    if ($journal.customStrategies) {
+                                        foreach ($strat in $journal.customStrategies) {
+                                            $sc = & $CalcStockScore $strat.stockName $strat.itemCode "$($strat.notes) $($strat.note)"
+                                            if ($sc -gt 0) {
+                                                [void]$matchedList.Add([PSCustomObject]@{
+                                                    score = $sc
+                                                    type = "실전 매매일지"
+                                                    title = "[맞춤전략] $($strat.stockName) ($($strat.itemCode)) 감시 전략"
+                                                    summary = if ($strat.note) { $strat.note } else { "진입가: $($strat.buyTriggerPrice), 상태: $($strat.status)" }
+                                                    targetView = "stock-journal"
+                                                    id = $strat.id
+                                                })
+                                            }
+                                        }
+                                    }
+                                    if ($journal.history) {
+                                        foreach ($hist in $journal.history) {
+                                            $sc = & $CalcStockScore $hist.stockName $hist.itemCode "$($hist.strategyType)"
+                                            if ($sc -gt 0) {
+                                                [void]$matchedList.Add([PSCustomObject]@{
+                                                    score = $sc
+                                                    type = "실전 매매일지"
+                                                    title = "[매매완료] $($hist.stockName) ($($hist.itemCode)) 매매 기록"
+                                                    summary = "수익률: $($hist.returnPct)% | 실현손익: $($hist.realizedPnlKrw)원"
+                                                    targetView = "stock-journal"
+                                                    id = $hist.id
+                                                })
+                                            }
                                         }
                                     }
                                 } catch {}

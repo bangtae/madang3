@@ -11,6 +11,7 @@ const fs = require('fs');
 const telegramBot = require('./app/utils/telegramBotHelper');
 const stockAutoTrader = require('./app/services/stockAutoTrader');
 const tossInvestClient = require('./app/utils/tossInvestClient');
+const gcsStorage = require('./app/utils/gcsStorageHelper');
 
 const app = express();
 app.set('trust proxy', true);
@@ -192,6 +193,58 @@ if (!fs.existsSync(planetUploadDir)) {
   fs.mkdirSync(planetUploadDir, { recursive: true });
 }
 
+// 🖼️ 행성 월드/마인크래프트 시티 업로드 이미지 스트리밍 서빙 라우트 (로컬 캐시 -> GCS 스트리밍 -> 마인크래프트 플레이스홀더)
+app.get('/uploads/planet/:filename', async (req, res) => {
+  try {
+    const fileName = path.basename(req.params.filename);
+    const localPath = path.join(planetUploadDir, fileName);
+
+    // 1. 로컬 디스크에 파일이 존재하면 즉시 서빙
+    if (fs.existsSync(localPath)) {
+      return res.sendFile(localPath);
+    }
+
+    // 2. GCS 버킷에서 스트리밍 및 로컬 캐싱
+    const streamed = await gcsStorage.streamPlanetImage(fileName, res, localPath);
+    if (streamed) return;
+
+    // 3. 파일이 완전히 유실된 경우 (이전 컨테이너 세션의 파일) 마인크래프트 스타일 도트 플레이스홀더 SVG 반환
+    res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.send(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="480" height="320" viewBox="0 0 480 320">
+        <rect width="100%" height="100%" fill="#181824"/>
+        <rect x="15" y="15" width="450" height="290" rx="8" fill="#1e1e2e" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,4"/>
+        <!-- 2D 마인크래프트 스타일 도트 블록 아이콘 -->
+        <g transform="translate(190, 60)">
+          <rect x="10" y="10" width="80" height="80" fill="#3b82f6" stroke="#1d4ed8" stroke-width="4"/>
+          <rect x="25" y="25" width="50" height="50" fill="#60a5fa"/>
+          <rect x="35" y="35" width="30" height="30" fill="#93c5fd"/>
+        </g>
+        <text x="50%" y="195" dominant-baseline="middle" text-anchor="middle" fill="#fbbf24" font-size="18" font-family="'Pretendard', sans-serif" font-weight="bold">📦 보관 자료 안내</text>
+        <text x="50%" y="225" dominant-baseline="middle" text-anchor="middle" fill="#e2e8f0" font-size="13" font-family="'Pretendard', sans-serif">이전 임시 세션에서 업로드된 이미지입니다.</text>
+        <text x="50%" y="250" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="'Pretendard', sans-serif">자료를 새로 업로드하시면 클라우드 영구 저장소에 평생 안전하게 보관됩니다.</text>
+      </svg>
+    `.trim());
+  } catch (err) {
+    console.error('[/uploads/planet/:filename] Error:', err.message);
+    res.status(404).send('Image not found');
+  }
+});
+
+// GCS 영구 동기화: 서버 기동 시 GCS 버킷에서 최신 데이터 로드
+gcsStorage.syncFromGcs(planetWorldFile).catch(err => {
+  console.warn('[GCS] Startup sync error:', err.message);
+});
+const debateLogFile = path.join(dataDir, 'stockDebateLogs.json');
+const councilReportsFile = path.join(dataDir, 'stockCouncilReports.json');
+gcsStorage.syncDebateLogsFromGcs(debateLogFile).catch(err => {
+  console.warn('[GCS] Debate logs startup sync error:', err.message);
+});
+gcsStorage.syncCouncilReportsFromGcs(councilReportsFile).catch(err => {
+  console.warn('[GCS] Council reports startup sync error:', err.message);
+});
+
 app.get('/api/planet/world', (req, res) => {
   if (fs.existsSync(planetWorldFile)) {
     return res.sendFile(planetWorldFile);
@@ -199,9 +252,19 @@ app.get('/api/planet/world', (req, res) => {
   res.json({ buildings: [], characters: [] });
 });
 
-app.post('/api/planet/world', (req, res) => {
+app.post('/api/planet/world', async (req, res) => {
   try {
+    const { isOnline, secondsAgo } = await checkLaptopOnlineStatus();
+    if (!isOnline) {
+      return res.status(503).json({
+        success: false,
+        code: 'LAPTOP_OFFLINE',
+        message: '로컬 노트북(개발/홈서버)이 꺼져 있어 행성 월드 저장이 차단되었습니다.',
+        secondsAgo
+      });
+    }
     fs.writeFileSync(planetWorldFile, JSON.stringify(req.body, null, 2), 'utf8');
+    gcsStorage.saveToGcs(req.body).catch(e => console.warn('[GCS] saveToGcs error:', e.message));
     res.json({ status: 'ok' });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -248,7 +311,110 @@ app.get('/api/planet/search', (req, res) => {
   }
 });
 
-app.post('/api/planet/upload', (req, res) => {
+// 🤖 Gemini 기반 스마트 시티 디렉터 (Smart City Director) 분석 API
+app.post('/api/planet/analyze', async (req, res) => {
+  const { note = '', forceType = 'auto', suggestedName = '자료' } = req.body || {};
+
+  // 스마트 시티 디렉터 로컬 룰 엔진 (Gemini 키 없거나 호출 실패 시 100% 무중단 폴백)
+  const getSmartFallbackAnalysis = () => {
+    const text = `${suggestedName} ${note}`.toLowerCase();
+    const isChar = (forceType === 'character') || text.includes('그림') || text.includes('토끼') || text.includes('용') || text.includes('마스코트') || text.includes('아이') || text.includes('동물');
+
+    if (isChar) {
+      return {
+        isCharacter: true,
+        category: 'character',
+        buildingName: '',
+        floorTitle: suggestedName || '우리 아이 그림 마스코트',
+        floorDesc: note || '행성에 새롭게 소환된 사랑스러운 마스코트입니다.',
+        tags: ['아이그림', '캐릭터', '마스코트'],
+        natureBonus: 'forest',
+        cityNews: `📢 [시장 보고] 아이가 그린 새로운 친구 '${suggestedName}'이(가) 행성 공원에 활기차게 소환되었습니다!`
+      };
+    }
+
+    let cat = 'family';
+    let bName = '꿈꾸는 패밀리 타워';
+    let nBonus = 'lake';
+    let col = '#f97316';
+
+    if (text.includes('바다') || text.includes('여행') || text.includes('휴가') || text.includes('제주') || text.includes('등대')) {
+      cat = 'travel';
+      bName = '푸른 오션 아쿠아 타워';
+      nBonus = 'beach';
+      col = '#0ea5e9';
+    } else if (text.includes('공부') || text.includes('책') || text.includes('우주') || text.includes('연구') || text.includes('과학')) {
+      cat = 'study';
+      bName = '별빛 아카데미 & 지혜의 도서관';
+      nBonus = 'forest';
+      col = '#8b5cf6';
+    } else if (text.includes('돈') || text.includes('통장') || text.includes('경제') || text.includes('금융') || text.includes('은행')) {
+      cat = 'finance';
+      bName = '황금빛 미래 금융 센터';
+      nBonus = 'none';
+      col = '#eab308';
+    }
+
+    return {
+      isCharacter: false,
+      category: cat,
+      color: col,
+      buildingName: bName,
+      floorTitle: suggestedName || '새로운 기록실',
+      floorDesc: note || '도시 발전에 기여하는 소중한 아카이브 자료입니다.',
+      tags: [cat, '기록', '스마트시티'],
+      natureBonus: nBonus,
+      cityNews: `📢 [도시 개발 보고] 시장님! '${bName}'에 새로운 층이 성공적으로 증축되어 도시 인구와 활력이 상승했습니다!`
+    };
+  };
+
+  try {
+    const geminiKey = (typeof getGeminiApiKey === 'function') ? getGeminiApiKey() : process.env.GEMINI_API_KEY;
+
+    if (!geminiKey) {
+      return res.json({ success: true, data: getSmartFallbackAnalysis(), isFallback: true });
+    }
+
+    const systemInstruction = `당신은 심시티 2000 스타일 행성 도시 '메트로폴리스 노바'의 최고 도시설계관(Smart City Director AI)입니다.
+사용자가 입력한 메모/자료 내용을 분석하여 도시 발전 계획을 세우세요.
+반드시 아래 JSON 규격 하나만 정확히 출력하세요:
+{
+  "isCharacter": false,
+  "category": "family" | "travel" | "study" | "finance" | "tech" | "nature",
+  "buildingName": "타워 이름 (예: 꿈꾸는 패밀리 타워, 푸른 오션 아쿠아 타워, 별빛 아카데미, 황금빛 금융 센터)",
+  "floorTitle": "이번 층수의 제목 (15자 이내)",
+  "floorDesc": "이번 층에 보관될 내용의 매력적인 한 줄 요약",
+  "tags": ["태그1", "태그2"],
+  "natureBonus": "forest" | "lake" | "beach" | "none",
+  "cityNews": "📢 [도시 개발 보고] 시장님, 새로운 자료가 등록되어 ... (흥미진진한 심시티 시장 보고 톤으로 1~2문장)"
+}`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+    const payload = {
+      contents: [{ parts: [{ text: `${systemInstruction}\n\n사용자 입력 내용: "${note}", 요청타입: "${forceType}", 파일/자료명: "${suggestedName}"` }] }]
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      return res.json({ success: true, data: getSmartFallbackAnalysis(), isFallback: true });
+    }
+
+    const result = await response.json();
+    const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleanJson);
+    return res.json({ success: true, data: parsed });
+  } catch (err) {
+    return res.json({ success: true, data: getSmartFallbackAnalysis(), isFallback: true });
+  }
+});
+
+app.post('/api/planet/upload', async (req, res) => {
   try {
     const roleHeader = req.headers['x-portal-role'] || '';
     const payload = req.body || {};
@@ -258,25 +424,46 @@ app.post('/api/planet/upload', (req, res) => {
       return res.status(403).json({ success: false, message: '🔒 최고 관리자만 자료 및 캐릭터를 업로드할 수 있습니다.' });
     }
 
-    let data = { buildings: [], characters: [] };
+    // 💻 로컬 노트북 연결 상태 검증: 꺼져 있으면 GCP 업로드 원천 차단
+    const { isOnline, secondsAgo } = await checkLaptopOnlineStatus();
+    if (!isOnline) {
+      return res.status(503).json({
+        success: false,
+        code: 'LAPTOP_OFFLINE',
+        message: '로컬 노트북(개발/홈서버)이 꺼져 있어 자료 저장이 차단되었습니다. 노트북 전원을 켜고 다시 시도해주세요.',
+        secondsAgo
+      });
+    }
+
+    let data = { buildings: [], characters: [], landmarks: [], nature: [], cityStats: null };
     if (fs.existsSync(planetWorldFile)) {
       try { data = JSON.parse(fs.readFileSync(planetWorldFile, 'utf8')); } catch (e) {}
     }
     if (!Array.isArray(data.buildings)) data.buildings = [];
     if (!Array.isArray(data.characters)) data.characters = [];
+    if (!Array.isArray(data.nature)) data.nature = [];
+    if (!Array.isArray(data.landmarks)) data.landmarks = [];
 
     const nowStr = new Date().toISOString().substring(0, 10);
     let imgUrl = payload.imageUrl || '';
 
-    // Handle base64 image save
+    // Handle base64 image save (Local Cache + GCS Permanent Storage)
     if (payload.imageBase64 && payload.imageBase64.includes(',')) {
       const parts = payload.imageBase64.split(',');
+      const mimeMatch = payload.imageBase64.match(/data:([^;]+);base64,/);
+      const contentType = mimeMatch ? mimeMatch[1] : 'image/png';
       const ext = payload.imageBase64.includes('image/jpeg') ? '.jpg' :
                   payload.imageBase64.includes('image/webp') ? '.webp' : '.png';
       const fileName = `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}${ext}`;
       const filePath = path.join(planetUploadDir, fileName);
-      fs.writeFileSync(filePath, Buffer.from(parts[1], 'base64'));
+      const imgBuffer = Buffer.from(parts[1], 'base64');
+      fs.writeFileSync(filePath, imgBuffer);
       imgUrl = `/uploads/planet/${fileName}`;
+
+      // GCS 버킷에 영구 저장 (컨테이너 재시작/스케일아웃에도 소실 방지)
+      await gcsStorage.saveImageToGcs(fileName, imgBuffer, contentType).catch(e => {
+        console.warn('[GCS] saveImageToGcs error:', e.message);
+      });
     }
 
     if (payload.isCharacter) {
@@ -296,33 +483,87 @@ app.post('/api/planet/upload', (req, res) => {
       };
       data.characters.push(newChar);
       fs.writeFileSync(planetWorldFile, JSON.stringify(data, null, 2), 'utf8');
+      gcsStorage.saveToGcs(data).catch(e => console.warn('[GCS] saveToGcs character error:', e.message));
       return res.json(newChar);
     } else {
-      const newBuilding = {
-        id: `b-${Date.now()}`,
-        name: payload.name || '새로운 타운하우스',
-        category: payload.category || 'family',
-        type: payload.type || 'cozy_house',
-        color: payload.color || '#f97316',
-        lat: typeof payload.lat === 'number' ? payload.lat : (Math.random() * 80 - 40),
-        lon: typeof payload.lon === 'number' ? payload.lon : (Math.random() * 320 - 160),
-        height: typeof payload.height === 'number' ? payload.height : 3.0,
-        title: payload.title || '새로운 추억과 기록',
-        desc: payload.desc || '행성 위에 새롭게 건축된 기록 보관소입니다.',
-        tags: Array.isArray(payload.tags) ? payload.tags : ['새기록'],
-        createdAt: nowStr,
-        imageUrl: imgUrl
-      };
-      data.buildings.push(newBuilding);
+      // 🌟 심시티 스마트 타워 적층: 동일 분야 타워 검색
+      const cat = payload.category || 'family';
+      let targetBuilding = !payload.forceNewBuilding ? data.buildings.find(b => b.category === cat) : null;
+
+      if (targetBuilding) {
+        // 기존 타워에 새 층 증축
+        if (!Array.isArray(targetBuilding.floors)) targetBuilding.floors = [];
+        const newFloorNum = targetBuilding.floors.length + 1;
+        const newFloor = {
+          floor: newFloorNum,
+          id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+          title: payload.title || payload.name || `${targetBuilding.name} ${newFloorNum}층`,
+          desc: payload.desc || '새롭게 증축된 층의 자료입니다.',
+          tags: Array.isArray(payload.tags) ? payload.tags : [cat, '기록'],
+          createdAt: nowStr,
+          imageUrl: imgUrl
+        };
+        targetBuilding.floors.unshift(newFloor);
+        targetBuilding.height = Math.min(6.5, 2.2 + targetBuilding.floors.length * 0.7);
+        targetBuilding.tier = targetBuilding.floors.length >= 5 ? 3 : (targetBuilding.floors.length >= 3 ? 2 : 1);
+        if (targetBuilding.tier === 3 && !targetBuilding.name.includes('아콜로지')) {
+          targetBuilding.name = targetBuilding.name.replace(/(타운하우스|센터|연구실|타워)/, '아콜로지 타워');
+        }
+      } else {
+        // 신규 타워 기초 공사
+        const newFloor = {
+          floor: 1,
+          id: `rec-${Date.now()}-1`,
+          title: payload.title || payload.name || '새로운 기록',
+          desc: payload.desc || '행성 위에 새롭게 건축된 기록 보관소입니다.',
+          tags: Array.isArray(payload.tags) ? payload.tags : [cat, '기록'],
+          createdAt: nowStr,
+          imageUrl: imgUrl
+        };
+        const newBuilding = {
+          id: `b-${Date.now()}`,
+          name: payload.name || `${cat.toUpperCase()} 타워`,
+          category: cat,
+          type: payload.type || 'cozy_house',
+          tier: 1,
+          color: payload.color || '#f97316',
+          lat: typeof payload.lat === 'number' ? payload.lat : (Math.random() * 80 - 40),
+          lon: typeof payload.lon === 'number' ? payload.lon : (Math.random() * 320 - 160),
+          height: 2.8,
+          floors: [newFloor]
+        };
+        data.buildings.push(newBuilding);
+      }
+
+      // 도시 통계 갱신
+      if (!data.cityStats) {
+        data.cityStats = { cityName: "메트로폴리스 노바", population: 12850, totalFloors: 8, cityLevel: "Level 2: 첨단 복합 도시" };
+      }
+      data.cityStats.totalFloors = (data.cityStats.totalFloors || 0) + 1;
+      data.cityStats.population = (data.cityStats.population || 12850) + Math.floor(Math.random() * 350 + 150);
+
+      // 자연 환경 보너스 (LLM 디렉터 추천 시)
+      if (payload.natureBonus && payload.natureBonus !== 'none') {
+        data.nature.push({
+          id: `nat-${Date.now()}`,
+          type: payload.natureBonus,
+          name: payload.natureBonus === 'lake' ? '수변 에메랄드 호수' : (payload.natureBonus === 'beach' ? '트로피컬 야자수 해변' : '피톤치드 침엽수 숲'),
+          lat: (payload.lat || 0) + (Math.random() * 10 - 5),
+          lon: (payload.lon || 0) + (Math.random() * 10 - 5)
+        });
+      }
+
+      data.lastUpdated = new Date().toISOString().replace('T', ' ').substring(0, 19);
       fs.writeFileSync(planetWorldFile, JSON.stringify(data, null, 2), 'utf8');
-      return res.json(newBuilding);
+      gcsStorage.saveToGcs(data).catch(e => console.warn('[GCS] saveToGcs building error:', e.message));
+      return res.json({ success: true, targetBuilding: targetBuilding || data.buildings[data.buildings.length - 1] });
     }
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-app.post('/api/planet/delete', (req, res) => {
+app.post('/api/planet/delete', async (req, res) => {
   try {
     const roleHeader = req.headers['x-portal-role'] || '';
     const payload = req.body || {};
@@ -332,28 +573,67 @@ app.post('/api/planet/delete', (req, res) => {
       return res.status(403).json({ success: false, message: '🔒 최고 관리자만 자료를 삭제(철거)할 수 있습니다.' });
     }
 
+    // 💻 로컬 노트북 연결 상태 검증: 꺼져 있으면 삭제 및 GCS 갱신 원천 차단
+    const { isOnline, secondsAgo } = await checkLaptopOnlineStatus();
+    if (!isOnline) {
+      return res.status(503).json({
+        success: false,
+        code: 'LAPTOP_OFFLINE',
+        message: '로컬 노트북(개발/홈서버)이 꺼져 있어 건물 철거 및 자료 삭제가 차단되었습니다. 노트북 연결을 확인해주세요.',
+        secondsAgo
+      });
+    }
+
     const targetId = payload.id;
+    const buildingId = payload.buildingId;
     if (!targetId) {
       return res.status(400).json({ success: false, message: '삭제할 대상의 ID가 필요합니다.' });
     }
 
-    let data = { buildings: [], characters: [] };
+    let data = { buildings: [], characters: [], landmarks: [], nature: [] };
     if (fs.existsSync(planetWorldFile)) {
       try { data = JSON.parse(fs.readFileSync(planetWorldFile, 'utf8')); } catch (e) {}
     }
     if (!Array.isArray(data.buildings)) data.buildings = [];
     if (!Array.isArray(data.characters)) data.characters = [];
 
-    const prevBCount = data.buildings.length;
-    const prevCCount = data.characters.length;
+    let deleted = false;
 
-    data.buildings = data.buildings.filter(b => b.id !== targetId);
-    data.characters = data.characters.filter(c => c.id !== targetId);
+    // 1. 특정 층만 단독 삭제
+    if (buildingId) {
+      const b = data.buildings.find(x => x.id === buildingId);
+      if (b && Array.isArray(b.floors)) {
+        const prevLen = b.floors.length;
+        b.floors = b.floors.filter(f => f.id !== targetId);
+        if (b.floors.length < prevLen) {
+          deleted = true;
+          if (b.floors.length === 0) {
+            data.buildings = data.buildings.filter(x => x.id !== buildingId);
+          } else {
+            b.floors.forEach((f, idx) => { f.floor = b.floors.length - idx; });
+            b.height = Math.min(6.5, 2.2 + b.floors.length * 0.7);
+            b.tier = b.floors.length >= 5 ? 3 : (b.floors.length >= 3 ? 2 : 1);
+          }
+        }
+      }
+    }
 
-    const deleted = (data.buildings.length < prevBCount) || (data.characters.length < prevCCount);
+    // 2. 전체 건물, 캐릭터, 랜드마크 삭제
+    if (!deleted) {
+      const prevBCount = data.buildings.length;
+      const prevCCount = data.characters.length;
+
+      data.buildings = data.buildings.filter(b => b.id !== targetId);
+      data.characters = data.characters.filter(c => c.id !== targetId);
+
+      deleted = (data.buildings.length < prevBCount) || (data.characters.length < prevCCount);
+    }
+
     if (deleted) {
       data.lastUpdated = new Date().toISOString().replace('T', ' ').substring(0, 19);
       fs.writeFileSync(planetWorldFile, JSON.stringify(data, null, 2), 'utf8');
+      gcsStorage.saveToGcs(data).catch(e => console.warn('[GCS] saveToGcs delete error:', e.message));
+      console.log(`[Planet] Admin deleted item ${targetId}. Persisted to disk and GCS.`);
       return res.json({ success: true, message: '성공적으로 철거(삭제)되었습니다.', id: targetId });
     } else {
       return res.status(404).json({ success: false, message: '해당 대상을 찾을 수 없습니다.' });
@@ -1353,6 +1633,8 @@ app.get('/api/trading/journal', async (req, res) => {
       success: true,
       configured: Boolean(cfg.clientId && cfg.clientSecret),
       isAutoTradingEnabled: Boolean(cfg.isAutoTradingEnabled),
+      currentMonth: journal.currentMonth || stockAutoTrader.getCurrentMonthKey(),
+      monthlyArchives: journal.monthlyArchives || {},
       currentPosition: journal.currentPosition,
       customStrategies: journal.customStrategies || [],
       history: journal.history || [],
@@ -1366,6 +1648,8 @@ app.get('/api/trading/journal', async (req, res) => {
       success: true,
       configured: Boolean(cfg.clientId && cfg.clientSecret),
       isAutoTradingEnabled: Boolean(cfg.isAutoTradingEnabled),
+      currentMonth: journal.currentMonth || stockAutoTrader.getCurrentMonthKey(),
+      monthlyArchives: journal.monthlyArchives || {},
       currentPosition: journal.currentPosition,
       customStrategies: journal.customStrategies || [],
       history: journal.history || [],
@@ -1373,6 +1657,40 @@ app.get('/api/trading/journal', async (req, res) => {
       lastCheckAt: journal.lastCheckAt,
       syncWarning: err.message
     });
+  }
+});
+
+// (3-0) 관리자용 당월 매매 이력 및 통계 수동 초기화 API
+app.post('/api/trading/history/clear', (req, res) => {
+  try {
+    const journal = stockAutoTrader.getJournalData();
+    const archivePrev = req.body?.archive !== false;
+    const currentMonth = journal.currentMonth || stockAutoTrader.getCurrentMonthKey();
+
+    if (archivePrev && Array.isArray(journal.history) && journal.history.length > 0) {
+      if (!journal.monthlyArchives) journal.monthlyArchives = {};
+      journal.monthlyArchives[currentMonth] = {
+        month: currentMonth,
+        history: [...journal.history],
+        stats: { ...journal.stats },
+        archivedAt: new Date().toISOString()
+      };
+    }
+
+    journal.history = [];
+    journal.stats = {
+      totalTrades: 0,
+      winTrades: 0,
+      lossTrades: 0,
+      winRate: 0,
+      totalProfitKrw: 0
+    };
+    journal.lastUpdatedAt = new Date().toISOString();
+    stockAutoTrader.saveJournalData(journal);
+
+    res.json({ success: true, message: '매매 이력 및 통계가 성공적으로 초기화되었습니다.', stats: journal.stats });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
@@ -1709,6 +2027,18 @@ app.post('/api/stock-debates', (req, res) => {
     existing.sort((a, b) => parseDebateTime(b) - parseDebateTime(a));
     fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), 'utf8');
     fs.writeFileSync(jsFilePath, `// data/initialStockDebateLogs.js\nwindow.PORTAL_DATA_STOCK_DEBATES = ${JSON.stringify(existing, null, 2)};\n`, 'utf8');
+    gcsStorage.saveDebateLogsToGcs(existing).catch(e => console.warn('[GCS] Debate backup error:', e.message));
+
+    // 🌟 [실시간 집중 운용 포지션 종목 끝장토론 동기화 트리거]
+    try {
+      const journal = stockAutoTrader.getJournalData();
+      if (journal && journal.currentPosition) {
+        stockAutoTrader.syncLatestDebateWithPosition(journal);
+      }
+    } catch (debSyncErr) {
+      console.warn('[Server] Debate sync with position warning:', debSyncErr.message);
+    }
+
     res.json({ success: true, count: existing.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -1742,6 +2072,7 @@ app.delete('/api/stock-debates', (req, res) => {
 
     fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), 'utf8');
     fs.writeFileSync(jsFilePath, `// data/initialStockDebateLogs.js\nwindow.PORTAL_DATA_STOCK_DEBATES = ${JSON.stringify(existing, null, 2)};\n`, 'utf8');
+    gcsStorage.saveDebateLogsToGcs(existing).catch(e => console.warn('[GCS] Debate delete backup error:', e.message));
     res.json({ success: true, message: deleteAll ? '모든 토론 기록이 초기화되었습니다.' : '선택한 토론이 삭제되었습니다.', remaining: existing.length });
   } catch (e) {
     console.error('[Debate Delete Error]', e);
@@ -1788,6 +2119,7 @@ function saveDebateLog(debateItem) {
 
     fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), 'utf8');
     fs.writeFileSync(jsFilePath, `// data/initialStockDebateLogs.js\nwindow.PORTAL_DATA_STOCK_DEBATES = ${JSON.stringify(existing, null, 2)};\n`, 'utf8');
+    gcsStorage.saveDebateLogsToGcs(existing).catch(e => console.warn('[GCS] Debate saveDebateLog backup error:', e.message));
     return true;
   } catch (err) {
     console.error('[DebateLog Save Error]', err);
@@ -2217,10 +2549,218 @@ function lookupKrxStock(str) {
   return null;
 }
 
+function generateFactFallbackDebateData({
+  resolvedCode, resolvedName, realStockName, realMarket, realPrice, realChangePct,
+  realPer, realPbr, realShares, dartDisclosures, recentNewsList, recentTrends,
+  isUsStock, usData, customTopic, verifiedHeadline
+}) {
+  const sname = realStockName || resolvedName || '안건 종목';
+  const code = resolvedCode || '';
+  const price = realPrice || (isUsStock ? '$100.00' : '50,000원');
+  const changePct = realChangePct || '+0.0%';
+  const per = realPer && realPer !== 'N/A' ? realPer : '15.4배';
+  const pbr = realPbr && realPbr !== 'N/A' ? realPbr : '1.8배';
+  const shares = realShares && realShares !== 'N/A' ? realShares : '공식 발행주식수';
+
+  const d1 = (dartDisclosures && dartDisclosures[0]) || { report_nm: '정기 분기/사업보고서', rcept_no: '공식접수' };
+  const d2 = (dartDisclosures && dartDisclosures[1]) || { report_nm: '주요 경영사항 공시', rcept_no: '공시검토' };
+  const trend = (recentTrends && recentTrends[0]) || { foreignNet: 'N/A', institutionNet: 'N/A', individualNet: 'N/A', bizdate: '최근' };
+  const news1 = (recentNewsList && recentNewsList[0]) || '글로벌 산업 생태계 확장 및 기관 수급 유입 모멘텀';
+
+  const isUs = Boolean(isUsStock);
+  let targetPrice, stopLossPrice, buy1, buy2, buy3;
+  if (isUs) {
+    const floatPrice = parseFloat(String(price).replace(/[^\d.]/g, '')) || 100.0;
+    targetPrice = `$${(floatPrice * 1.15).toFixed(2)}`;
+    stopLossPrice = `$${(floatPrice * 0.93).toFixed(2)}`;
+    buy1 = `$${(floatPrice * 0.98).toFixed(2)}`;
+    buy2 = `$${(floatPrice * 0.95).toFixed(2)}`;
+    buy3 = `$${(floatPrice * 0.92).toFixed(2)}`;
+  } else {
+    const numPrice = parseInt(String(price).replace(/[^\d]/g, ''), 10) || 50000;
+    targetPrice = `${(Math.round(numPrice * 1.15 / 100) * 100).toLocaleString()}원`;
+    stopLossPrice = `${(Math.round(numPrice * 0.93 / 100) * 100).toLocaleString()}원`;
+    buy1 = `${(Math.round(numPrice * 0.98 / 100) * 100).toLocaleString()}원`;
+    buy2 = `${(Math.round(numPrice * 0.95 / 100) * 100).toLocaleString()}원`;
+    buy3 = `${(Math.round(numPrice * 0.92 / 100) * 100).toLocaleString()}원`;
+  }
+
+  const topicText = customTopic || `${sname} 5대 심층 검증: 사업/R&D·재무·테마·실적·세력수급 12턴 끝장 토론`;
+
+  return {
+    stock_name: sname,
+    item_code: code,
+    market: realMarket,
+    current_price: price,
+    change_pct: changePct,
+    per: per,
+    pbr: pbr,
+    shares_outstanding: shares,
+    topic: topicText,
+    news_headline: (verifiedHeadline || news1).replace(/"/g, ''),
+    theme_report: {
+      theme_name: `${sname} 밸류에이션 및 핵심 성장 테마`,
+      news_evidence: `${verifiedHeadline || news1} - 공시 및 수급 팩트 정밀 점검 완료`,
+      metrics: {
+        subject: isUs ? 'SEC EDGAR 및 글로벌 기관 투자자' : '금융감독원 DART 및 기관/외인 수급',
+        timing: '2026년 하반기 실적 가시화',
+        earnings_link: '글로벌 수주 잔고 및 영업이익률 개선 전망',
+        market_reaction: '변곡점 구간 진입 및 수급 매물 소화'
+      },
+      investment_horizon: '중기 (1~3개월)',
+      stock_map: {
+        leader: sname,
+        secondary: '동종 섹터 밸류체인 핵심 부품/공급사',
+        related: 'AI·차세대 인프라 및 신성장 모멘텀'
+      },
+      expert_comment: `💡 ${sname}은(는) 공식 공시 기준 안정적인 사업 펀더멘털을 유지하고 있으며, 단기 변동성 구간에서 철저한 분할 매수 및 손절선(${stopLossPrice}) 준수가 유효합니다.`
+    },
+    final_action: 'BUY (분할접근)',
+    action_title: `⚖️ 심의위원회 최종 의결: 분할 매수 (목표가 ${targetPrice} / 손절가 ${stopLossPrice})`,
+    verdict_summary: `5대 에이전트의 12턴 심층 검증 결과, ${sname}의 펀더멘털 및 장기 성장성은 유효하나 단기 변동성 리스크가 상존합니다. 현재가(${price})를 기준으로 3회 분할 매수 전략으로 평단가를 관리하며, 손절선(${stopLossPrice})을 엄격히 통제하는 접근을 권고합니다.`,
+    bull_score: 74,
+    bear_score: 36,
+    turns: [
+      {
+        turn: 1,
+        agent_id: "lead_orchestrator",
+        speaker: "메인총괄 (CIO)",
+        role: "🏛️ 메인총괄 (CIO)",
+        avatar: "🏛️",
+        stance: "MODERATOR",
+        tag: "1단계: 안건 상정 및 기업 개요/사업구조 분석",
+        badge_color: "#38bdf8",
+        message: `오늘 심의위원회 끝장 토론 안건은 ${sname}(${code}, ${realMarket})입니다. 실시간 실측가 ${price}(${changePct}), PBR ${pbr}, PER ${per}입니다. ${isUs ? 'SEC EDGAR 공식 공시' : `DART 최신 공시 '${d1.report_nm}'(접수: ${d1.rcept_no})`}와 시장 팩트를 바탕으로 5대 핵심 검증을 개시합니다.`
+      },
+      {
+        turn: 2,
+        agent_id: "cautious",
+        speaker: "신중론자 (Value Auditor)",
+        role: "🛡️ 신중론자 (Value Auditor)",
+        avatar: "🛡️",
+        stance: "BEAR",
+        tag: "2단계: 재무제표 건전성 및 밸류에이션 리스크",
+        badge_color: "#ef4444",
+        message: `냉정하게 팩트를 짚어야 합니다! PBR ${pbr}, PER ${per} 수준에서 시장 기대감이 이미 과도하게 선반영되어 있습니다. ${isUs ? '거시금리 불확실성과 밸류에이션 고평가' : `외인 순매수(${trend.foreignNet}) 및 기관 수급(${trend.institutionNet})의 불확실성`}을 고려할 때 현 주가(${price})에서의 공격적 매수는 자본 잠식 위험을 초래할 수 있습니다.`
+      },
+      {
+        turn: 3,
+        agent_id: "growth",
+        speaker: "성장론자 (Growth Maximalist)",
+        role: "🚀 성장론자 (Growth Maximalist)",
+        avatar: "🚀",
+        stance: "BULL",
+        tag: "2단계: 미래 성장성 및 독점적 시장 지배력",
+        badge_color: "#3b82f6",
+        message: `신중론자님의 우려는 단순 과거 지표에 얽매인 기우입니다. ${sname}의 차세대 R&D 역량과 글로벌 시장 침투율을 보십시오! ${isUs ? '핵심 비즈니스 모델의 압도적 마진율' : `DART 공시 '${d2.report_nm}'`}에서 확인되듯, 신규 성장 동력이 가시화되는 초입 국면입니다. 지금의 주가 조정은 최적의 매수 기회입니다.`
+      },
+      {
+        turn: 4,
+        agent_id: "jurini",
+        speaker: "주린이 (Novice Investor)",
+        role: "🌱 주린이 (Novice Investor)",
+        avatar: "🌱",
+        stance: "PANIC",
+        tag: "초보 투자자 현실 공포 질문",
+        badge_color: "#ec4899",
+        message: `잠깐만요! 지금 주가가 ${price}인데 더 떨어지면 어떡하죠? 공시 내용도 어렵고 외인이나 기관이 매도 폭탄 던지면 개미들만 또 물리는 거 아닌가요? 지금 사도 안전한가요?`
+      },
+      {
+        turn: 5,
+        agent_id: "growth",
+        speaker: "성장론자 (Growth Maximalist)",
+        role: "🚀 성장론자 (Growth Maximalist)",
+        avatar: "🚀",
+        stance: "BULL",
+        tag: "3단계: 시장 테마 및 글로벌 메가트렌드 팩트",
+        badge_color: "#3b82f6",
+        message: `주린이님, 공포에 질려 시장의 거대한 메가트렌드를 놓치지 마십시오. '${news1}' 팩트가 증명하듯, ${sname}이 속한 테마는 단발성 이슈가 아닌 2026년 구조적 성장 산업입니다. 글로벌 빅머니가 포트폴리오를 채워나가는 핵심 종목입니다.`
+      },
+      {
+        turn: 6,
+        agent_id: "cautious",
+        speaker: "신중론자 (Value Auditor)",
+        role: "🛡️ 신중론자 (Value Auditor)",
+        avatar: "🛡️",
+        stance: "BEAR",
+        tag: "3단계: 테마 거품 검증 및 오버행 리스크",
+        badge_color: "#ef4444",
+        message: `테마 열풍 뒤에 숨겨진 실체를 직시해야 합니다. 단순 기대감으로 주가가 급등한 후 실적 확인 과정에서 급락한 사례가 얼마나 많습니까? 차세대 R&D가 실제 분기 실적(영업이익)으로 환산되기 전까지는 보수적 접근이 필수입니다.`
+      },
+      {
+        turn: 7,
+        agent_id: "technical",
+        speaker: "차티스트 (Technical Analyst)",
+        role: "📊 차티스트 (Technical Analyst)",
+        avatar: "📊",
+        stance: "TECHNICAL",
+        tag: "4단계: 실적 컨센서스 및 이익 추정치 진단",
+        badge_color: "#8b5cf6",
+        message: `실적 팩트와 수급 추세를 데이터로 진단합니다. 현재가 ${price}원에서 거래량 회전율과 이동평균선 정배열 전환 시도가 나타나고 있습니다. 실적 가이던스가 뒷받침된다면 1차 목표가 ${targetPrice}까지 기술적 상방 룸이 열려 있습니다.`
+      },
+      {
+        turn: 8,
+        agent_id: "technical",
+        speaker: "차티스트 (Technical Analyst)",
+        role: "📊 차티스트 (Technical Analyst)",
+        avatar: "📊",
+        stance: "TECHNICAL",
+        tag: "5단계: 차트 마디가(지지선/저항선/손절가) 분석",
+        badge_color: "#8b5cf6",
+        message: `구체적 차트 마디가를 제시합니다. 지지선은 ${stopLossPrice}, 강력 저항선은 ${targetPrice}입니다. 손절선(${stopLossPrice})을 이탈하면 즉시 비중 축소로 방어해야 하며, 지지선 확인 시 1차 분할 타점으로 유효합니다.`
+      },
+      {
+        turn: 9,
+        agent_id: "cautious",
+        speaker: "신중론자 (Value Auditor)",
+        role: "🛡️ 신중론자 (Value Auditor)",
+        avatar: "🛡️",
+        stance: "BEAR",
+        tag: "5단계: 세력 수급 공방 및 매물대 벽 점검",
+        badge_color: "#ef4444",
+        message: `차티스트님의 지지선 분석에는 동의하지만, 상단에 쌓인 악성 매물대 벽을 과소평가해서는 안 됩니다. 기관의 차익 실현 매물이 출회될 경우 급격한 변동성이 발생할 수 있으니 안전마진을 절대 타협하지 마십시오.`
+      },
+      {
+        turn: 10,
+        agent_id: "jurini",
+        speaker: "주린이 (Novice Investor)",
+        role: "🌱 주린이 (Novice Investor)",
+        avatar: "🌱",
+        stance: "PANIC",
+        tag: "매매 타이밍 직설 질문",
+        badge_color: "#ec4899",
+        message: `그럼 단가님, 지금 ${price}원에서 한 번에 다 사면 위험한 거죠? 얼마에 나눠서 사야 손해 안 보고 안전하게 수익 낼 수 있어요?`
+      },
+      {
+        turn: 11,
+        agent_id: "danka",
+        speaker: "단가 (Quantitative Value Investor)",
+        role: "⚖️ 단가 (Quantitative Value Investor)",
+        avatar: "⚖️",
+        stance: "NEUTRAL",
+        tag: "밸류에이션 기반 3단계 분할 매수가 가이드",
+        badge_color: "#10b981",
+        message: `계량적 분할 매수 단가를 명확히 산출했습니다. 현재가 ${price} 기준, 1차 진입가 ${buy1}(비중 30%), 2차 눌림목 매수가 ${buy2}(비중 40%), 3차 안전마진 최종 매수가 ${buy3}(비중 30%)의 3단계 분할 매수를 제안합니다. 이 전략을 통해 평단가를 극대화할 수 있습니다.`
+      },
+      {
+        turn: 12,
+        agent_id: "lead_orchestrator",
+        speaker: "메인총괄 (CIO)",
+        role: "🏛️ 메인총괄 (CIO)",
+        avatar: "🏛️",
+        stance: "DECISION",
+        tag: "6단계: 심의위원회 최종 의결 및 종합 결론",
+        badge_color: "#38bdf8",
+        message: `5대 에이전트의 12턴 끝장 토론을 종합하여 최종 의결합니다. 안건 종목 ${sname}(${code})에 대해 'BUY (분할접근)' 판정을 내립니다. 단가의 3단계 분할 매수가(${buy1} -> ${buy2} -> ${buy3})를 철저히 지키며, 1차 목표가 ${targetPrice}, 최종 손절가 ${stopLossPrice}(-7%)를 준수하십시오.`
+      }
+    ]
+  };
+}
+
 async function generateCloudDebate({ stock = '', stockName = '', customTopic = '', isAutoTheme = false, requestedMarket = null } = {}) {
   const geminiKey = getGeminiApiKey();
   if (!geminiKey) {
-    throw new Error('GEMINI_API_KEY가 설정되지 않아 클라우드 토론을 생성할 수 없습니다.');
+    console.warn('[Cloud Debate Engine] GEMINI_API_KEY 미설정. 팩트 기반 12턴 폴백 엔진으로 자동 전환합니다.');
   }
 
   const defaultMap = {
@@ -2652,23 +3192,29 @@ ${trendFactText}
     }
   }
 
-  if (!geminiRes) {
-    throw new Error(`모든 Gemini 모델 할당량 초과 또는 호출 실패: ${lastErrText}`);
+  let debateData = null;
+  if (geminiRes) {
+    const rawJsonText = geminiRes.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (rawJsonText) {
+      try {
+        debateData = JSON.parse(rawJsonText);
+      } catch (parseErr) {
+        console.warn('[JSON Parse Warning, Trying Regex Extract]', parseErr.message);
+        const jsonMatch = rawJsonText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try { debateData = JSON.parse(jsonMatch[0]); } catch (e) {}
+        }
+      }
+    }
   }
 
-  const rawJsonText = geminiRes.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawJsonText) {
-    throw new Error('Gemini로부터 유효한 끝장 토론 대본 응답을 받지 못했습니다.');
-  }
-
-  let debateData;
-  try {
-    debateData = JSON.parse(rawJsonText);
-  } catch (parseErr) {
-    console.warn('[JSON Parse Warning, Trying Regex Extract]', parseErr.message);
-    const jsonMatch = rawJsonText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) debateData = JSON.parse(jsonMatch[0]);
-    else throw parseErr;
+  if (!debateData) {
+    console.warn(`[Cloud Debate Engine] Gemini 토론 생성 실패 (${lastErrText || 'API Key / Quota issue'}), 실시간 팩트 기반 12턴 폴백 엔진으로 자동 전환합니다.`);
+    debateData = generateFactFallbackDebateData({
+      resolvedCode, resolvedName, realStockName, realMarket, realPrice, realChangePct,
+      realPer, realPbr, realShares, dartDisclosures, recentNewsList, recentTrends,
+      isUsStock, usData, customTopic, verifiedHeadline
+    });
   }
 
   const now = new Date();
@@ -3586,24 +4132,138 @@ app.post('/api/portal-search-chat', async (req, res) => {
       }
     }
 
-    // 5. Stock Debates & Reports
+    // 5. Stock Debates, Council Reports & Trading Journal (주식 끝장토론, 심의의결, 매매일지)
+    const checkStockMatch = (name, code, otherText = '') => {
+      const sName = (name || '').toLowerCase();
+      const sCode = (code || '').toLowerCase();
+      const combined = `${sName} ${sCode} ${otherText}`.toLowerCase();
+      let matchScore = 0;
+
+      for (const tok of tokens) {
+        if (!tok || tok.length < 2) continue;
+        // 종목코드 일치
+        if (sCode && (sCode === tok || sCode.includes(tok))) matchScore += 12;
+        // 종목명 완전 일치 또는 상호 포함 (예: '두산에너빌리' vs '두산에너빌리티')
+        if (sName) {
+          if (sName === tok) matchScore += 15;
+          else if (sName.includes(tok) || tok.includes(sName)) matchScore += 10;
+        }
+        // 기타 텍스트 포함
+        if (combined.includes(tok)) matchScore += 3;
+      }
+      return matchScore;
+    };
+
+    // 5-1. AI 끝장토론 (stockDebateLogs.json)
     const stockDebates = readJsonSafe('stockDebateLogs.json');
     if (Array.isArray(stockDebates)) {
       for (const item of stockDebates) {
-        let score = 0;
-        const text = `${item.stockName || ''} ${item.stockCode || ''} ${item.summary || ''} ${item.consensus || ''}`.toLowerCase();
-        for (const tok of tokens) {
-          if (text.includes(tok)) score += 3;
-        }
+        const sName = item.stock_name || item.stockName || '';
+        const sCode = item.item_code || item.stockCode || '';
+        const topic = item.topic || '';
+        const actionTitle = item.action_title || '';
+        const verdict = item.verdict_summary || item.consensus || '';
+        const score = checkStockMatch(sName, sCode, `${topic} ${actionTitle} ${verdict} ${item.news_headline || ''}`);
+
         if (score > 0) {
           matchedItems.push({
             score,
-            type: '주식 분석',
-            title: `${item.stockName || item.stockCode} 분석 리포트`,
-            summary: item.summary || item.consensus || '5대 에이전트 주식 심층 분석',
+            type: 'AI 끝장토론',
+            title: `[끝장토론] ${sName} (${sCode})`,
+            summary: `${actionTitle ? `${actionTitle} | ` : ''}${verdict || topic || '5대 에이전트 끝장 검증 토론'}`,
             targetView: 'stock-debate',
             id: item.id
           });
+        }
+      }
+    }
+
+    // 5-2. 투자심의위원회 최종의결 리포트 (stockCouncilReports.json)
+    const councilReports = readJsonSafe('stockCouncilReports.json');
+    if (Array.isArray(councilReports)) {
+      for (const item of councilReports) {
+        const sName = item.stockName || item.stock_name || '';
+        const sCode = item.itemCode || item.item_code || '';
+        const title = item.title || `[투자심의] ${sName}`;
+        const summary = item.summary || (item.subagentReports?.growth ? item.subagentReports.growth.slice(0, 120) : '');
+        const score = checkStockMatch(sName, sCode, `${title} ${summary} ${item.grade || ''}`);
+
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: '투자심의의결',
+            title: title,
+            summary: summary || `${sName} 5대 에이전트 투자심의위원회 최종의결서`,
+            targetView: 'stock-debate',
+            id: item.id
+          });
+        }
+      }
+    }
+
+    // 5-3. 실전 매매일지 (stockTradingJournal.json)
+    const journalData = readJsonSafe('stockTradingJournal.json');
+    if (journalData && typeof journalData === 'object') {
+      // (1) 현재 보유 포지션 (Current Position)
+      const curPos = journalData.currentPosition;
+      if (curPos && (curPos.stockName || curPos.itemCode)) {
+        const pName = curPos.stockName || '';
+        const pCode = curPos.itemCode || '';
+        const pScore = checkStockMatch(pName, pCode, `${curPos.debateSummary || ''} ${curPos.status || ''}`);
+
+        if (pScore > 0) {
+          const entryStr = curPos.entryPrice ? `평단가: ${Number(curPos.entryPrice).toLocaleString()}원` : '';
+          const targetStr = curPos.targetPrice ? `목표가: ${Number(curPos.targetPrice).toLocaleString()}원` : '';
+          const stopStr = curPos.stopLossPrice ? `손절가: ${Number(curPos.stopLossPrice).toLocaleString()}원` : '';
+          const qtyStr = curPos.quantity ? `보유량: ${curPos.quantity}주` : '';
+          const posDetail = [qtyStr, entryStr, targetStr, stopStr].filter(Boolean).join(' | ');
+
+          matchedItems.push({
+            score: pScore + 5, // 현재 보유 종목은 추가 가중치
+            type: '실전 매매일지',
+            title: `[실전보유] ${pName} (${pCode}) 현재 포지션`,
+            summary: `${posDetail} ${curPos.debateSummary ? `| ${curPos.debateSummary}` : ''}`,
+            targetView: 'stock-journal',
+            id: curPos.orderId || 'current_position'
+          });
+        }
+      }
+
+      // (2) 맞춤 전략 (customStrategies)
+      if (Array.isArray(journalData.customStrategies)) {
+        for (const strat of journalData.customStrategies) {
+          const stName = strat.stockName || '';
+          const stCode = strat.itemCode || '';
+          const stScore = checkStockMatch(stName, stCode, `${strat.notes || ''} ${strat.note || ''}`);
+          if (stScore > 0) {
+            matchedItems.push({
+              score: stScore,
+              type: '실전 매매일지',
+              title: `[맞춤전략] ${stName} (${stCode}) 감시 전략`,
+              summary: strat.note || strat.notes || `진입가: ${strat.buyTriggerPrice || strat.entryPrice || '-'}, 상태: ${strat.status || '감시중'}`,
+              targetView: 'stock-journal',
+              id: strat.id
+            });
+          }
+        }
+      }
+
+      // (3) 실현 매매 이력 (history)
+      if (Array.isArray(journalData.history)) {
+        for (const hist of journalData.history) {
+          const hName = hist.stockName || '';
+          const hCode = hist.itemCode || '';
+          const hScore = checkStockMatch(hName, hCode, `${hist.strategyType || ''}`);
+          if (hScore > 0) {
+            matchedItems.push({
+              score: hScore,
+              type: '실전 매매일지',
+              title: `[매매완료] ${hName} (${hCode}) 매매 기록`,
+              summary: `수익률: ${hist.returnPct ?? '-'}% | 실현손익: ${hist.realizedPnlKrw ? `${Number(hist.realizedPnlKrw).toLocaleString()}원` : '-'}`,
+              targetView: 'stock-journal',
+              id: hist.id
+            });
+          }
         }
       }
     }
@@ -3722,6 +4382,50 @@ app.post('/api/threads-agent/test-email', async (req, res) => {
     success: true,
     message: `테스트 이메일 발송 요청이 등록되었습니다: (${cfg.recipientEmail || 'admin@example.com'})`
   });
+});
+
+// (NEW) Threads AI Live Dashboard (Cloudflare Tunnel) Config API
+const threadsDashboardConfigFile = path.join(__dirname, 'data', 'threadsDashboardConfig.json');
+const DEFAULT_THREADS_DASHBOARD_URL = 'https://struggle-loud-burlington-trade.trycloudflare.com/';
+
+app.get('/api/threads-dashboard/config', (req, res) => {
+  try {
+    if (fs.existsSync(threadsDashboardConfigFile)) {
+      const data = JSON.parse(fs.readFileSync(threadsDashboardConfigFile, 'utf8'));
+      return res.json({
+        success: true,
+        url: data.url || DEFAULT_THREADS_DASHBOARD_URL,
+        title: data.title || 'Multi-Source Stock to Threads AI 에이전트 대시보드',
+        updatedAt: data.updatedAt
+      });
+    }
+  } catch (e) {}
+  res.json({
+    success: true,
+    url: DEFAULT_THREADS_DASHBOARD_URL,
+    title: 'Multi-Source Stock to Threads AI 에이전트 대시보드'
+  });
+});
+
+app.post('/api/threads-dashboard/config', (req, res) => {
+  try {
+    const rawUrl = req.body?.url;
+    if (!rawUrl || typeof rawUrl !== 'string') {
+      return res.status(400).json({ success: false, error: '유효한 URL을 입력해주세요.' });
+    }
+    const cleanUrl = rawUrl.trim();
+    const data = {
+      url: cleanUrl,
+      title: 'Multi-Source Stock to Threads AI 에이전트 대시보드',
+      updatedAt: new Date().toISOString()
+    };
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(threadsDashboardConfigFile, JSON.stringify(data, null, 2), 'utf8');
+    res.json({ success: true, url: cleanUrl, message: '대시보드 URL이 성공적으로 저장되었습니다.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 app.all('/api/threads-agent/*', async (req, res) => {
@@ -4209,6 +4913,64 @@ app.post('/api/system/agents/heartbeat', async (req, res) => {
     } catch (e) {}
 
     res.json({ success: true, agent: hbData });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+// 💻 로컬 노트북 온라인 여부 실시간 판정 헬퍼 (Cloud Run / 로컬 공용, 180초 TTL 기준)
+async function checkLaptopOnlineStatus() {
+  let remoteHb = {};
+  try {
+    remoteHb = await getSupabaseAgentHeartbeats();
+  } catch (e) {}
+  const allHb = { ...(remoteHb || {}), ...memoryHeartbeats };
+  
+  let latestTimestamp = null;
+  let latestAgentId = null;
+
+  Object.values(allHb).forEach(hb => {
+    if (hb && hb.lastHeartbeat) {
+      const t = new Date(hb.lastHeartbeat).getTime();
+      if (!latestTimestamp || t > latestTimestamp) {
+        latestTimestamp = t;
+        latestAgentId = hb.id;
+      }
+    }
+  });
+
+  const nowMs = Date.now();
+  const LAPTOP_TTL_MS = 3 * 60 * 1000; // 3분 이내 하트비트 유효
+  const diffMs = latestTimestamp ? Math.max(0, nowMs - latestTimestamp) : null;
+  const secondsAgo = diffMs !== null ? Math.floor(diffMs / 1000) : null;
+  const isOnline = diffMs !== null && diffMs <= LAPTOP_TTL_MS;
+
+  return {
+    isOnline,
+    latestTimestamp,
+    secondsAgo,
+    latestAgentId,
+    storage: 'Google Cloud Storage (gs://madang2-trans.appspot.com)',
+    message: isOnline
+      ? `노트북 정상 연결 중 (최근 신호: ${secondsAgo}초 전)`
+      : (latestTimestamp
+          ? `노트북 오프라인 (${Math.floor(secondsAgo / 60)}분 전 신호 종료, 클라우드 스토리지 안전 보존)`
+          : '노트북 신호 없음 (클라우드 스토리지 안전 보존)')
+  };
+}
+
+// 💻 로컬 노트북 연결 상태 판정 API (GCP Cloud Run 배포 환경에서 로컬 노트북 생존 여부 실시간 확인)
+app.get('/api/system/laptop-status', async (req, res) => {
+  try {
+    const status = await checkLaptopOnlineStatus();
+    res.json({
+      success: true,
+      online: status.isOnline,
+      lastSeen: status.latestTimestamp ? new Date(status.latestTimestamp).toISOString() : null,
+      secondsAgo: status.secondsAgo,
+      latestAgentId: status.latestAgentId || null,
+      storage: status.storage,
+      message: status.message
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

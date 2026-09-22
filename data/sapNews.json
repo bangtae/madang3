@@ -1,5 +1,59 @@
 [
     {
+        "id":  "sap_news_1ac09c5a",
+        "title":  "Governance at Scale: Why a Clean Core Is What Makes Agent Governance Enforceable",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/artificial-intelligence-blogs-posts/governance-at-scale-why-a-clean-core-is-what-makes-agent-governance/ba-p/14489167",
+        "category":  "Blog",
+        "summary":  "Governance at Scale: Why a Clean Core Is What Makes Agent Governance Enforceable (Series 3, Part 6: Clean Core + AI — Series Finale) By Deepa Dorairaj | SAP AI Solution Architect | Series 3, Pa...",
+        "published_at":  "2026-09-21T17:47:11Z"
+    },
+    {
+        "id":  "sap_news_2c31baee",
+        "title":  "Connecting MCP Gateway on Integration Suite  with Copilot Studio - Updating business partners",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/connecting-mcp-gateway-on-integration-suite-with-copilot-studio-updating/ba-p/14488725",
+        "category":  "Migration",
+        "summary":  "Over the last weeks I have been working on a tutorial series that shows how to connect Microsoft Copilot Studio with SAP through the MCP Gateway on SAP Integration Suite. For an SAP-f...",
+        "published_at":  "2026-09-21T11:14:24Z"
+    },
+    {
+        "id":  "sap_news_e1ebc56a",
+        "title":  "BTP Trial – Requested runtime location (cloudintegration) is not supported for tenant",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/btp-trial-requested-runtime-location-cloudintegration-is-not-supported-for/qaq-p/14488014",
+        "category":  "Migration",
+        "summary":  "Hi SAP Community, I am facing an issue with SAP Integration Suite on a BTP Trial account. Every Cloud Integration iFlow deployment fails immediately with the following error: \u003ciFlow name\u003e de...",
+        "published_at":  "2026-09-19T11:25:14Z"
+    },
+    {
+        "id":  "sap_news_69742f1e",
+        "title":  "MCP Server for SAP Plant Maintenance on SAP Integration Suite: From CAP to the Governed Path",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/mcp-server-for-sap-plant-maintenance-on-sap-integration-suite-from-cap-to/ba-p/14485732",
+        "category":  "Blog",
+        "summary":  "Three months ago I built an AI agent for SAP Plant Maintenance using MCP, CAP and Claude Desktop. A maintenance planner could ask “Equipment 10001949 — does it have more than one open maintenance ord...",
+        "published_at":  "2026-09-21T04:49:49Z"
+    },
+    {
+        "id":  "sap_news_6e56cc79",
+        "title":  "Principal Propagation for MCP Servers: SAP Integration Suite to SAP S/4HANA On-Premise",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/principal-propagation-for-mcp-servers-sap-integration-suite-to-sap-s-4hana/ba-p/14488137",
+        "category":  "Blog",
+        "summary":  "Principal Propagation for SAP MCP Servers: SAP Integration Suite to SAP S/4HANA On-Premise Introduction MCP Servers can now be built and deployed on SAP Integration Suite, turning existing OData se...",
+        "published_at":  "2026-09-19T19:06:36Z"
+    },
+    {
+        "id":  "sap_news_ebbb4bf3",
+        "title":  "MCP 서버에 대한 주요 전파 - SAP Integration Suite에서 SAP S/4HANA On-Premise로",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/principal-propagation-for-mcp-servers-sap-integration-suite-to-sap-s-4hana/ba-p/14488140",
+        "category":  "Migration",
+        "summary":  "소개 MCP 서버는 이제 SAP Integration Suite에 구축 및 배포할 수 있으며 기존 OData 서비스 및 기타 SAP API를 MCP 지원 클라이언트가 검색하고 호출할 수 있는 도구로 전환합니다. ...",
+        "published_at":  "2026-09-19T19:15:16Z"
+    },
+    {
         "id":  "sap_news_a3755def",
         "title":  "고급 이벤트 메시 어댑터 - 배포 중 PKIX 경로 구축이 실패했습니다.",
         "source":  "SAP Community (Q\u0026A)",

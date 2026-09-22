@@ -2,8 +2,46 @@
 
 window.PlanetWorldModel = {
   STORAGE_KEY: 'portal_planet_world_cache',
+  TOMBSTONE_KEY: 'portal_planet_deleted_ids',
   data: null,
   isAnalyzing: false,
+
+  getDeletedIds() {
+    try {
+      const raw = localStorage.getItem(this.TOMBSTONE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  addDeletedId(id) {
+    if (!id) return;
+    const ids = this.getDeletedIds();
+    if (!ids.includes(id)) {
+      ids.push(id);
+      localStorage.setItem(this.TOMBSTONE_KEY, JSON.stringify(ids));
+    }
+  },
+
+  removeDeletedId(id) {
+    const ids = this.getDeletedIds().filter(x => x !== id);
+    localStorage.setItem(this.TOMBSTONE_KEY, JSON.stringify(ids));
+  },
+
+  applyTombstoneFilter(dataObj) {
+    if (!dataObj) return dataObj;
+    const deletedIds = this.getDeletedIds();
+    if (deletedIds.length === 0) return dataObj;
+
+    if (Array.isArray(dataObj.buildings)) {
+      dataObj.buildings = dataObj.buildings.filter(b => !deletedIds.includes(b.id));
+    }
+    if (Array.isArray(dataObj.characters)) {
+      dataObj.characters = dataObj.characters.filter(c => !deletedIds.includes(c.id));
+    }
+    return dataObj;
+  },
 
   getApiUrls() {
     if (window.location.protocol.startsWith('http')) {
@@ -20,12 +58,52 @@ window.PlanetWorldModel = {
     await this.loadWorld();
   },
 
+  normalizeWorldData(dataObj) {
+    if (!dataObj) return dataObj;
+    if (!Array.isArray(dataObj.buildings)) dataObj.buildings = [];
+    if (!Array.isArray(dataObj.characters)) dataObj.characters = [];
+    if (!Array.isArray(dataObj.landmarks)) dataObj.landmarks = [];
+    if (!Array.isArray(dataObj.nature)) dataObj.nature = [];
+
+    if (!dataObj.cityStats) {
+      dataObj.cityStats = {
+        cityName: "메트로폴리스 노바",
+        population: 12850,
+        totalFloors: 8,
+        cityLevel: "Level 2: 첨단 복합 도시"
+      };
+    }
+
+    let calcTotalFloors = 0;
+    dataObj.buildings.forEach((b, bIdx) => {
+      if (!Array.isArray(b.floors) || b.floors.length === 0) {
+        b.floors = [
+          {
+            floor: 1,
+            id: `rec-${b.id || bIdx}-1`,
+            title: b.title || b.name || '기초 기록',
+            desc: b.desc || '보관된 기록입니다.',
+            imageUrl: b.imageUrl || '',
+            tags: Array.isArray(b.tags) ? b.tags : [b.category || '기록'],
+            createdAt: b.createdAt || '2026-09-18'
+          }
+        ];
+      }
+      b.tier = b.floors.length >= 5 ? 3 : (b.floors.length >= 3 ? 2 : 1);
+      b.height = Math.min(6.5, 2.2 + b.floors.length * 0.7);
+      calcTotalFloors += b.floors.length;
+    });
+
+    dataObj.cityStats.totalFloors = Math.max(dataObj.cityStats.totalFloors || 0, calcTotalFloors);
+    return dataObj;
+  },
+
   async loadWorld(forceRefresh = false) {
     if (!forceRefresh) {
       const cached = localStorage.getItem(this.STORAGE_KEY);
       if (cached) {
         try {
-          this.data = JSON.parse(cached);
+          this.data = this.normalizeWorldData(this.applyTombstoneFilter(JSON.parse(cached)));
         } catch (e) {}
       }
     }
@@ -36,9 +114,9 @@ window.PlanetWorldModel = {
         const res = await fetch(url + (forceRefresh ? `?t=${Date.now()}` : ''), { cache: 'no-store' });
         if (res.ok) {
           const json = await res.json();
-          if (json && (json.buildings || json.characters)) {
-            this.data = json;
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(json));
+          if (json && (json.buildings || json.characters || json.landmarks)) {
+            this.data = this.normalizeWorldData(this.applyTombstoneFilter(json));
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
             return this.data;
           }
         }
@@ -48,7 +126,7 @@ window.PlanetWorldModel = {
     }
 
     if (!this.data) {
-      this.data = this.getDefaultFallbackData();
+      this.data = this.normalizeWorldData(this.getDefaultFallbackData());
     }
     return this.data;
   },
@@ -59,6 +137,23 @@ window.PlanetWorldModel = {
 
   getCharacters() {
     return this.data?.characters || [];
+  },
+
+  getLandmarks() {
+    return this.data?.landmarks || [];
+  },
+
+  getNature() {
+    return this.data?.nature || [];
+  },
+
+  getCityStats() {
+    return this.data?.cityStats || {
+      cityName: "메트로폴리스 노바",
+      population: 12850,
+      totalFloors: 8,
+      cityLevel: "Level 2: 첨단 복합 도시"
+    };
   },
 
   getPlanetConfig() {
@@ -155,7 +250,29 @@ window.PlanetWorldModel = {
   async analyzeMaterialWithLLM(fileOrBase64, userNote = '', forceType = 'auto') {
     this.isAnalyzing = true;
     try {
-      // 1. 사용자 힌트 및 키워드 기반 판별
+      // 1. 백엔드 Gemini AI 스마트 시티 디렉터 API 우선 시도
+      try {
+        const res = await fetch('/api/planet/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            note: userNote,
+            forceType: forceType,
+            hasImage: !!fileOrBase64
+          })
+        });
+        if (res.ok) {
+          const aiResult = await res.json();
+          if (aiResult && aiResult.success && aiResult.data) {
+            this.isAnalyzing = false;
+            return aiResult.data;
+          }
+        }
+      } catch (e) {
+        console.warn('[PlanetWorldModel] Gemini API call skipped, using local smart director rule engine:', e.message);
+      }
+
+      // 2. 스마트 시티 디렉터 로컬 규칙 엔진 (오프라인 / 빠른 응답 폴백)
       const noteLower = (userNote || '').toLowerCase();
       const isDrawingHint = noteLower.includes('그림') || noteLower.includes('아이') ||
                             noteLower.includes('캐릭터') || noteLower.includes('괴물') ||
@@ -163,60 +280,74 @@ window.PlanetWorldModel = {
                             noteLower.includes('사람') || forceType === 'character';
 
       if (isDrawingHint || forceType === 'character') {
-        // 캐릭터 NPC로 생성
-        const names = ['별빛 요정 핑키', '용감한 로봇 깡통이', '아기 공룡 렉스', '호기심 고양이 냥이', '번개람쥐'];
+        const names = ['우주토끼 피포', '초록용 드라코', '아기별 삐약이', '무지개 고양이', '황금 햄찌'];
         const speeches = [
-          '내가 만든 별에 온 걸 환영해! 🌟',
-          '오늘도 신나게 행성을 산책 중이야! 🐾',
-          '아이의 그림에서 태어난 행복한 친구란다! ✨',
-          '저기 멋진 도서관이랑 바다가 보여! 🌈'
+          '내가 만든 별에 온 걸 환영해! 깡충깡충~🐰',
+          '크와앙! 나는 바다와 등대를 지키는 수호자 드래곤이야! 🐉',
+          '도서관에서 재미있는 책 읽을 사람 여기 모여라! 🐥',
+          '우와! 새로운 자료가 올라와서 별이 더 예뻐졌어! ✨'
         ];
-        const randomName = names[Math.floor(Math.random() * names.length)];
-        const randomSpeech = speeches[Math.floor(Math.random() * speeches.length)];
-
         return {
           isCharacter: true,
-          name: userNote ? `${userNote.substring(0, 15)}` : randomName,
+          name: userNote ? `${userNote.substring(0, 15)}` : names[Math.floor(Math.random() * names.length)],
           creator: '우리아이',
-          speech: randomSpeech,
+          speech: speeches[Math.floor(Math.random() * speeches.length)],
           scale: 1.5,
-          tags: ['아이그림', '캐릭터', '친구']
+          tags: ['아이그림', '캐릭터', '친구'],
+          cityNews: `📢 [도시 축제 보고] 시장님! 아이의 그림에서 새로운 마스코트가 태어나 행성을 뛰놀기 시작했습니다!`
         };
       }
 
-      // 2. 일반 자료 -> 심시티 건물 매핑
+      // 일반 자료 분석 -> 카테고리 매핑 & 층 증축 여부 판단
       let category = 'family';
       let type = 'cozy_house';
       let color = '#f97316';
-      let height = 3.0;
+      let natureBonus = 'forest';
 
-      if (noteLower.includes('바다') || noteLower.includes('여행') || noteLower.includes('제주') || noteLower.includes('캠핑')) {
+      if (noteLower.includes('바다') || noteLower.includes('여행') || noteLower.includes('제주') || noteLower.includes('캠핑') || noteLower.includes('비행기')) {
         category = 'travel';
         type = 'lighthouse';
         color = '#0ea5e9';
-        height = 3.8;
-      } else if (noteLower.includes('공부') || noteLower.includes('책') || noteLower.includes('연구') || noteLower.includes('과학') || noteLower.includes('학교')) {
+        natureBonus = 'beach';
+      } else if (noteLower.includes('공부') || noteLower.includes('책') || noteLower.includes('연구') || noteLower.includes('과학') || noteLower.includes('학교') || noteLower.includes('우주')) {
         category = 'study';
         type = 'observatory';
         color = '#8b5cf6';
-        height = 3.5;
-      } else if (noteLower.includes('돈') || noteLower.includes('은행') || noteLower.includes('통장') || noteLower.includes('영수증') || noteLower.includes('쇼핑')) {
+        natureBonus = 'forest';
+      } else if (noteLower.includes('돈') || noteLower.includes('은행') || noteLower.includes('통장') || noteLower.includes('영수증') || noteLower.includes('쇼핑') || noteLower.includes('재정')) {
         category = 'finance';
         type = 'bank_tower';
         color = '#eab308';
-        height = 4.5;
+        natureBonus = 'lake';
       }
+
+      const existingBuilding = this.data?.buildings?.find(b => b.category === category);
+      const isStacking = !!existingBuilding;
+      const targetBuildingName = existingBuilding ? existingBuilding.name : (
+        category === 'travel' ? '푸른 오션 아쿠아 타워' :
+        category === 'study' ? '별빛 아카데미 도서관' :
+        category === 'finance' ? '황금빛 미래 금융 센터' : '꿈꾸는 패밀리 타워'
+      );
+      const nextFloor = existingBuilding ? ((existingBuilding.floors?.length || 0) + 1) : 1;
+
+      const title = userNote ? `${userNote.substring(0, 22)}` : `${targetBuildingName} ${nextFloor}층 보관소`;
+      const cityNews = isStacking
+        ? `📢 [도시 개발 보고] 시장님, 새로운 기록이 도착하여 '${targetBuildingName}'가 ${nextFloor}층으로 높게 증축되었습니다!`
+        : `📢 [도시 개발 보고] 시장님, 새로운 분야의 '${targetBuildingName}' 기초 공사가 성공적으로 착공되었습니다!`;
 
       return {
         isCharacter: false,
-        name: userNote ? `${userNote.substring(0, 18)}` : '새로운 심시티 타운',
+        name: targetBuildingName,
+        title: title,
         category: category,
         type: type,
         color: color,
-        height: height,
-        title: userNote || '소중한 기록과 사진',
-        desc: '행성 위에 안전하게 아카이빙된 소중한 일상 자료입니다.',
-        tags: [category, '기록', '아카이브']
+        isStacking: isStacking,
+        nextFloor: nextFloor,
+        desc: userNote ? `${userNote}` : '행성 위에 새롭게 보관된 소중한 기록입니다.',
+        tags: [category, '기록', `Floor${nextFloor}`],
+        natureBonus: natureBonus,
+        cityNews: cityNews
       };
     } finally {
       this.isAnalyzing = false;
@@ -259,7 +390,7 @@ window.PlanetWorldModel = {
         throw new Error(errData.message || `서버 응답 오류 (${res.status})`);
       }
     } catch (e) {
-      if (e.message.includes('관리자')) throw e;
+      if (e.message.includes('관리자') || e.message.includes('노트북') || e.message.includes('차단')) throw e;
       console.warn('[PlanetWorldModel] upload API failed, updating local state:', e);
     }
 
@@ -284,26 +415,115 @@ window.PlanetWorldModel = {
       };
       this.data.characters.push(newChar);
     } else {
-      const newBuilding = {
-        id: `b-${Date.now()}`,
-        name: payload.name || '새 타운하우스',
-        category: payload.category || 'family',
-        type: payload.type || 'cozy_house',
-        color: payload.color || '#f97316',
-        lat: typeof payload.lat === 'number' ? payload.lat : (Math.random() * 80 - 40),
-        lon: typeof payload.lon === 'number' ? payload.lon : (Math.random() * 320 - 160),
-        height: typeof payload.height === 'number' ? payload.height : 3.0,
-        title: payload.title || '새로운 기록',
-        desc: payload.desc || '소중한 일상 자료가 보관된 건물입니다.',
-        tags: payload.tags || ['기록'],
-        createdAt: nowStr,
-        imageUrl: payload.imageBase64 || payload.imageUrl || ''
-      };
-      this.data.buildings.push(newBuilding);
+      // 🌟 심시티 타워 적층: 동일 분야 타워 검색
+      const cat = payload.category || 'family';
+      let targetBuilding = !payload.forceNewBuilding ? this.data.buildings.find(b => b.category === cat) : null;
+
+      if (targetBuilding) {
+        if (!Array.isArray(targetBuilding.floors)) targetBuilding.floors = [];
+        const newFloorNum = targetBuilding.floors.length + 1;
+        const newFloor = {
+          floor: newFloorNum,
+          id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+          title: payload.title || payload.name || `${targetBuilding.name} ${newFloorNum}층`,
+          desc: payload.desc || '새롭게 증축된 층의 자료입니다.',
+          tags: Array.isArray(payload.tags) ? payload.tags : [cat, '기록'],
+          createdAt: nowStr,
+          imageUrl: payload.imageBase64 || payload.imageUrl || ''
+        };
+        targetBuilding.floors.unshift(newFloor);
+        targetBuilding.height = Math.min(6.5, 2.2 + targetBuilding.floors.length * 0.7);
+        targetBuilding.tier = targetBuilding.floors.length >= 5 ? 3 : (targetBuilding.floors.length >= 3 ? 2 : 1);
+        if (targetBuilding.tier === 3 && !targetBuilding.name.includes('아콜로지')) {
+          targetBuilding.name = targetBuilding.name.replace(/(타운하우스|센터|연구실|타워)/, '아콜로지 타워');
+        }
+      } else {
+        const newFloor = {
+          floor: 1,
+          id: `rec-${Date.now()}-1`,
+          title: payload.title || payload.name || '새로운 기록',
+          desc: payload.desc || '행성 위에 새롭게 건축된 기록 보관소입니다.',
+          tags: Array.isArray(payload.tags) ? payload.tags : [cat, '기록'],
+          createdAt: nowStr,
+          imageUrl: payload.imageBase64 || payload.imageUrl || ''
+        };
+        const newBuilding = {
+          id: `b-${Date.now()}`,
+          name: payload.name || `${cat.toUpperCase()} 타워`,
+          category: cat,
+          type: payload.type || 'cozy_house',
+          tier: 1,
+          color: payload.color || '#f97316',
+          lat: typeof payload.lat === 'number' ? payload.lat : (Math.random() * 80 - 40),
+          lon: typeof payload.lon === 'number' ? payload.lon : (Math.random() * 320 - 160),
+          height: 2.8,
+          floors: [newFloor]
+        };
+        this.data.buildings.push(newBuilding);
+      }
+
+      if (!this.data.cityStats) {
+        this.data.cityStats = { cityName: "메트로폴리스 노바", population: 12850, totalFloors: 8, cityLevel: "Level 2: 첨단 복합 도시" };
+      }
+      this.data.cityStats.totalFloors = (this.data.cityStats.totalFloors || 0) + 1;
+      this.data.cityStats.population = (this.data.cityStats.population || 12850) + Math.floor(Math.random() * 350 + 150);
+    }
+
+    if (payload && payload.id) {
+      this.removeDeletedId(payload.id);
     }
 
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
     return payload;
+  },
+
+  /**
+   * 🌟 특정 타워의 단일 층만 철거(삭제)
+   */
+  async deleteFloorItem(buildingId, floorId) {
+    if (!buildingId || !floorId) throw new Error('건물 ID와 층 ID가 필요합니다.');
+
+    const rawUser = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
+    let isAdmin = false;
+    if (rawUser) {
+      try { const u = JSON.parse(rawUser); isAdmin = u && !u.isGuest; } catch (e) {}
+    }
+    if (!isAdmin) {
+      throw new Error('🔒 최고 관리자만 자료를 철거(삭제)할 수 있습니다.');
+    }
+
+    try {
+      const res = await fetch('/api/planet/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-portal-role': 'admin' },
+        body: JSON.stringify({ id: floorId, buildingId: buildingId, role: 'admin' })
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || `층 철거 요청 실패 (${res.status})`);
+      }
+    } catch (e) {
+      if (e.message.includes('관리자') || e.message.includes('노트북') || e.message.includes('차단')) throw e;
+      console.warn('[PlanetWorldModel] deleteFloor API failed:', e);
+    }
+
+    this.addDeletedId(floorId);
+
+    const b = this.data?.buildings?.find(x => x.id === buildingId);
+    if (b && Array.isArray(b.floors)) {
+      const prevCount = b.floors.length;
+      b.floors = b.floors.filter(f => f.id !== floorId);
+      if (b.floors.length === 0) {
+        return await this.deleteItem(buildingId);
+      } else {
+        b.floors.forEach((f, idx) => { f.floor = b.floors.length - idx; });
+        b.height = Math.min(6.5, 2.2 + b.floors.length * 0.7);
+        b.tier = b.floors.length >= 5 ? 3 : (b.floors.length >= 3 ? 2 : 1);
+      }
+    }
+
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+    return { success: true, buildingId, floorId };
   },
 
   async deleteItem(itemId) {
@@ -332,12 +552,16 @@ window.PlanetWorldModel = {
       });
       if (res.ok) {
         const result = await res.json();
+        this.addDeletedId(itemId);
         if (this.data) {
           if (Array.isArray(this.data.buildings)) {
             this.data.buildings = this.data.buildings.filter(b => b.id !== itemId);
           }
           if (Array.isArray(this.data.characters)) {
             this.data.characters = this.data.characters.filter(c => c.id !== itemId);
+          }
+          if (Array.isArray(this.data.landmarks)) {
+            this.data.landmarks = this.data.landmarks.filter(l => l.id !== itemId);
           }
           localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
         }
@@ -347,12 +571,17 @@ window.PlanetWorldModel = {
         throw new Error(errJson.message || '삭제 요청 처리에 실패했습니다.');
       }
     } catch (err) {
+      if (err.message.includes('관리자') || err.message.includes('노트북') || err.message.includes('차단')) throw err;
+      this.addDeletedId(itemId);
       if (this.data) {
         if (Array.isArray(this.data.buildings)) {
           this.data.buildings = this.data.buildings.filter(b => b.id !== itemId);
         }
         if (Array.isArray(this.data.characters)) {
           this.data.characters = this.data.characters.filter(c => c.id !== itemId);
+        }
+        if (Array.isArray(this.data.landmarks)) {
+          this.data.landmarks = this.data.landmarks.filter(l => l.id !== itemId);
         }
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
       }

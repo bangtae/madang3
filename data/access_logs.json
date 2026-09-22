@@ -1,8 +1,8 @@
 {
-    "ip":  "192.168.219.115",
-    "firstAccess":  "2026-09-19 23:45:38",
-    "lastAccess":  "2026-09-19 23:45:38",
+    "ip":  "127.0.0.1",
+    "firstAccess":  "2026-09-20 14:12:52",
+    "lastAccess":  "2026-09-20 14:12:52",
     "count":  1,
     "status":  "ALLOWED",
-    "lastPath":  "/api/system/agents"
+    "lastPath":  "/api/planet/delete"
 }

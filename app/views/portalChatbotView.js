@@ -230,6 +230,9 @@
         'SAP 뉴스': 'type-sap',
         'SAP 용어': 'type-sap',
         '주식 분석': 'type-stock',
+        'AI 끝장토론': 'type-debate',
+        '투자심의의결': 'type-council',
+        '실전 매매일지': 'type-journal',
         'K-증시': 'type-stock',
         '소식': 'type-api'
       };
@@ -370,24 +373,125 @@
         }
       }
 
-      // 5. 주식 토론 및 분석 리포트 검색
+      // 5. 주식 끝장토론, 투자심의의결서, 실전 매매일지 검색
+      const checkStockMatch = (name, code, otherText = '') => {
+        const sName = (name || '').toLowerCase();
+        const sCode = (code || '').toLowerCase();
+        const combined = `${sName} ${sCode} ${otherText}`.toLowerCase();
+        let matchScore = 0;
+
+        for (const tok of tokens) {
+          if (!tok || tok.length < 2) continue;
+          if (sCode && (sCode === tok || sCode.includes(tok))) matchScore += 12;
+          if (sName) {
+            if (sName === tok) matchScore += 15;
+            else if (sName.includes(tok) || tok.includes(sName)) matchScore += 10;
+          }
+          if (combined.includes(tok)) matchScore += 3;
+        }
+        return matchScore;
+      };
+
+      // 5-1. AI 끝장토론 (stockDebateLogs)
       const stockDebates = window.PORTAL_DATA_STOCK_DEBATE_LOGS || [];
       if (Array.isArray(stockDebates)) {
         for (const item of stockDebates) {
-          let score = 0;
-          const text = `${item.stockName || ''} ${item.stockCode || ''} ${item.summary || ''} ${item.consensus || ''}`.toLowerCase();
-          for (const tok of tokens) {
-            if (text.includes(tok)) score += 3;
-          }
+          const sName = item.stock_name || item.stockName || '';
+          const sCode = item.item_code || item.stockCode || '';
+          const topic = item.topic || '';
+          const actTitle = item.action_title || '';
+          const verdict = item.verdict_summary || item.consensus || '';
+          const score = checkStockMatch(sName, sCode, `${topic} ${actTitle} ${verdict} ${item.news_headline || ''}`);
+
           if (score > 0) {
+            const sumTxt = actTitle ? `${actTitle} | ${verdict}` : (verdict || topic || '5대 에이전트 끝장 검증 토론');
             results.push({
               score,
-              type: '주식 분석',
-              title: `${item.stockName || item.stockCode} 토론/분석`,
-              summary: item.summary || item.consensus || '5대 에이전트 종목 심층 분석 리포트',
+              type: 'AI 끝장토론',
+              title: `[끝장토론] ${sName} (${sCode})`,
+              summary: sumTxt,
               targetView: 'stock-debate',
               id: item.id
             });
+          }
+        }
+      }
+
+      // 5-2. 투자심의위원회 최종의결 리포트 (stockCouncil)
+      const councilReports = window.PORTAL_DATA_STOCK_COUNCIL || [];
+      if (Array.isArray(councilReports)) {
+        for (const item of councilReports) {
+          const sName = item.stockName || item.stock_name || '';
+          const sCode = item.itemCode || item.item_code || '';
+          const title = item.title || `[투자심의] ${sName}`;
+          const summary = item.summary || (item.subagentReports?.growth ? item.subagentReports.growth.slice(0, 120) : '');
+          const score = checkStockMatch(sName, sCode, `${title} ${summary} ${item.grade || ''}`);
+
+          if (score > 0) {
+            results.push({
+              score,
+              type: '투자심의의결',
+              title: title,
+              summary: summary || `${sName} 5대 에이전트 투자심의위원회 최종의결서`,
+              targetView: 'stock-debate',
+              id: item.id
+            });
+          }
+        }
+      }
+
+      // 5-3. 실전 매매일지 (StockJournalView)
+      if (window.StockJournalView) {
+        const cp = window.StockJournalView.currentPosition;
+        if (cp && (cp.stockName || cp.itemCode)) {
+          const pScore = checkStockMatch(cp.stockName, cp.itemCode, `${cp.debateSummary || ''} ${cp.status || ''}`);
+          if (pScore > 0) {
+            const entryStr = cp.entryPrice ? `평단: ${Number(cp.entryPrice).toLocaleString()}원` : '';
+            const targetStr = cp.targetPrice ? `목표: ${Number(cp.targetPrice).toLocaleString()}원` : '';
+            const stopStr = cp.stopLossPrice ? `손절: ${Number(cp.stopLossPrice).toLocaleString()}원` : '';
+            const qtyStr = cp.quantity ? `수량: ${cp.quantity}주` : '';
+            const posDetail = [qtyStr, entryStr, targetStr, stopStr].filter(Boolean).join(' | ');
+
+            results.push({
+              score: pScore + 5,
+              type: '실전 매매일지',
+              title: `[실전보유] ${cp.stockName} (${cp.itemCode}) 현재 포지션`,
+              summary: `${posDetail} ${cp.debateSummary ? `| ${cp.debateSummary}` : ''}`,
+              targetView: 'stock-journal',
+              id: cp.orderId || 'current_position'
+            });
+          }
+        }
+
+        if (Array.isArray(window.StockJournalView.customStrategies)) {
+          for (const strat of window.StockJournalView.customStrategies) {
+            const stScore = checkStockMatch(strat.stockName, strat.itemCode, `${strat.notes || ''} ${strat.note || ''}`);
+            if (stScore > 0) {
+              results.push({
+                score: stScore,
+                type: '실전 매매일지',
+                title: `[맞춤전략] ${strat.stockName} (${strat.itemCode}) 감시 전략`,
+                summary: strat.note || strat.notes || `진입가: ${strat.buyTriggerPrice || strat.entryPrice || '-'}`,
+                targetView: 'stock-journal',
+                id: strat.id
+              });
+            }
+          }
+        }
+
+        if (Array.isArray(window.StockJournalView.historyList)) {
+          for (const hist of window.StockJournalView.historyList) {
+            const hScore = checkStockMatch(hist.stockName, hist.itemCode, `${hist.strategyType || ''}`);
+            if (hScore > 0) {
+              results.push({
+                score: hScore,
+                type: '실전 매매일지',
+                title: `[매매완료] ${hist.stockName} (${hist.itemCode}) 매매 기록`,
+                summary: `수익률: ${hist.returnPct ?? '-'}% | 실현손익: ${hist.realizedPnlKrw ? `${Number(hist.realizedPnlKrw).toLocaleString()}원` : '-'}`,
+                targetView: 'stock-journal',
+                id: hist.id
+              });
+            }
           }
         }
       }

@@ -51,7 +51,7 @@
       display: inline-flex !important;
     }
 
-    /* 🪐 플래닛 파크 상단 통합 슬림 HUD 바 스타일 (모바일 겹침 원천 방지) */
+    /* 🟩 마인크래프트 복셀 시티 슬림 상단 HUD 바 (모바일 100% 겹침 방지) */
     .planet-top-hud {
       position: absolute;
       top: 12px;
@@ -60,66 +60,103 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 10px;
       z-index: 25;
       pointer-events: none;
       box-sizing: border-box;
     }
     .planet-hud-brand,
-    .planet-hud-actions > * {
+    .planet-hud-top-actions > * {
       pointer-events: auto;
     }
     .planet-hud-brand {
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 8px;
       flex-shrink: 0;
       user-select: none;
     }
     .planet-hud-logo-icon {
-      font-size: 1.45rem;
-      filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.8));
+      font-size: 1.5rem;
+      filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.7));
       line-height: 1;
     }
     .planet-hud-title {
-      font-size: 0.98rem;
+      font-size: 1.02rem;
       font-weight: 800;
       color: #f8fafc;
-      letter-spacing: -0.3px;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+      letter-spacing: -0.2px;
+      text-shadow: 2px 2px 0px #000;
       line-height: 1.15;
+      font-family: monospace, sans-serif;
     }
     .planet-hud-sub {
-      font-size: 0.68rem;
-      color: #94a3b8;
-      letter-spacing: 0.4px;
+      font-size: 0.66rem;
+      color: #86efac;
+      letter-spacing: 0.5px;
       line-height: 1.15;
+      text-shadow: 1px 1px 0px #000;
     }
-    .planet-hud-actions {
+    .planet-hud-top-actions {
       display: flex;
       align-items: center;
-      gap: 6px;
-      flex-wrap: nowrap;
-      justify-content: flex-end;
-      flex-shrink: 1;
-      min-width: 0;
+      gap: 8px;
+      flex-shrink: 0;
     }
     .planet-hud-badge {
-      background: rgba(15, 23, 42, 0.88);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      padding: 6px 11px;
-      border-radius: 20px;
-      backdrop-filter: blur(10px);
-      font-size: 0.8rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 2px solid #334155;
+      padding: 6px 12px;
+      border-radius: 8px;
+      box-shadow: 3px 3px 0px #000;
+      font-size: 0.82rem;
       color: #cbd5e1;
       display: flex;
       align-items: center;
-      gap: 5px;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+      gap: 6px;
       white-space: nowrap;
     }
 
-    /* 모바일 반응형: 화면 폭이 좁아질 때 (<= 640px) */
+    /* 🎮 마인크래프트 모바일 & 데스크톱 플로팅 조작 패널 */
+    .minecraft-floating-pad {
+      position: absolute;
+      bottom: 24px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 28;
+      pointer-events: auto;
+    }
+    .minecraft-pad-row {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .minecraft-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: #334155;
+      border: 2px solid #64748b;
+      box-shadow: 3px 3px 0px #0f172a;
+      color: #f8fafc;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .minecraft-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0px #0f172a;
+      background: #1e293b;
+    }
+
+    /* 모바일 반응형: 상단 헤더 절대 겹침 방지 */
     @media (max-width: 640px) {
       .planet-top-hud {
         top: 10px;
@@ -131,7 +168,7 @@
         display: none !important;
       }
       .planet-hud-title {
-        font-size: 0.82rem;
+        font-size: 0.78rem;
       }
       .planet-badge-label {
         display: none !important;
@@ -140,27 +177,22 @@
         display: none !important;
       }
       .planet-hud-upload-btn {
-        padding: 6px 10px !important;
+        padding: 8px 10px !important;
+        border-radius: 8px !important;
+        box-shadow: 2px 2px 0px #000 !important;
       }
       .planet-hud-badge {
         padding: 6px 8px !important;
-        font-size: 0.78rem !important;
+        font-size: 0.76rem !important;
       }
-    }
-
-    /* 초소형 모바일 (<= 380px) */
-    @media (max-width: 380px) {
-      .planet-hud-title-box {
-        display: none !important;
+      .minecraft-floating-pad {
+        bottom: 18px;
+        right: 12px;
       }
-      .planet-hud-logo-icon {
-        font-size: 1.35rem;
-      }
-      .planet-top-hud {
-        gap: 4px;
-      }
-      .planet-hud-actions {
-        gap: 4px;
+      .minecraft-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1.05rem;
       }
     }
 
@@ -416,6 +448,9 @@
             <li class="menu-item hidden" id="side-menu-admin">
               <button class="nav-side-btn active" data-side="threads-agent">
                 <span class="icon">🤖</span> 에이전트 정보
+              </button>
+              <button class="nav-side-btn" data-side="threads-live-dashboard">
+                <span class="icon">🚀</span> Threads AI 대시보드
               </button>
               <button class="nav-side-btn" data-side="ip-whitelist">
                 <span class="icon">🛡️</span> IP 화이트리스트
@@ -955,6 +990,52 @@
           <!-- JS로 동적 렌더링 됩니다 -->
         </section>
 
+        <!-- [NEW] Threads AI 라이브 대시보드 (Cloudflare 터널 연동 실시간 콘솔) -->
+        <section id="view-threads-live-dashboard" class="content-view hidden" style="position: relative; width: 100%;">
+          <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <h2 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.35rem;">
+                <span>🚀</span> Threads AI 라이브 대시보드
+                <span id="threads-dashboard-status-badge" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                  🟢 라이브 연결됨
+                </span>
+              </h2>
+              <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 0.85rem;">
+                네이버증권(국내) &amp; NewsFilter(글로벌) 실시간 속보 자동 큐레이션 및 Threads AI 에이전트 실시간 통합 제어 콘솔
+              </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="btn-threads-dashboard-refresh" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.82rem; border-radius: 6px; cursor: pointer;" title="대시보드 새로고침">
+                <span>🔄</span> 새로고침
+              </button>
+              <button type="button" id="btn-threads-dashboard-edit-url" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.82rem; border-radius: 6px; cursor: pointer;" title="터널 URL 변경 및 설정">
+                <span>⚙️</span> URL 변경
+              </button>
+              <a id="link-threads-dashboard-newtab" href="https://struggle-loud-burlington-trade.trycloudflare.com/" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 0.82rem; border-radius: 6px; text-decoration: none; font-weight: 600;" title="새 창에서 원본 열기">
+                <span>🔗</span> 새 창에서 열기
+              </a>
+            </div>
+          </div>
+
+          <!-- URL 변경 입력창 (토글형) -->
+          <div id="threads-dashboard-url-box" style="display: none; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 0.85rem; font-weight: 700; color: #38bdf8;">⚙️ Cloudflare 터널 URL 설정</span>
+              <button type="button" id="btn-threads-dashboard-close-url" style="background: none; border: none; color: #94a3b8; font-size: 1rem; cursor: pointer;">✕</button>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <input type="url" id="input-threads-dashboard-url" placeholder="https://....trycloudflare.com/" style="flex: 1; min-width: 260px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(30, 41, 59, 0.8); color: #fff; font-size: 0.85rem;" />
+              <button type="button" id="btn-threads-dashboard-save-url" class="btn btn-primary btn-sm" style="padding: 8px 16px; font-weight: 600; cursor: pointer;">저장 및 적용</button>
+              <button type="button" id="btn-threads-dashboard-reset-url" class="btn btn-secondary btn-sm" style="padding: 8px 12px; cursor: pointer;">기본값 복원</button>
+            </div>
+          </div>
+
+          <!-- 임베디드 iframe 카드 컨테이너 -->
+          <div class="card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; background: #0c0d0e; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);">
+            <iframe id="frame-threads-live-dashboard" src="https://struggle-loud-burlington-trade.trycloudflare.com/" style="width: 100%; height: calc(100vh - 190px); min-height: 760px; border: none; display: block; background: #0c0d0e;" allow="clipboard-read; clipboard-write; fullscreen"></iframe>
+          </div>
+        </section>
+
         <!-- 뷰 3: IP 화이트리스트 관리 -->
         <section id="view-ip-whitelist" class="content-view hidden">
           <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
@@ -1354,9 +1435,9 @@
                   <span style="color: #94a3b8; font-size: 0.76rem;">장전 호재성 갭상승 종목 조기 진입 (08:50 호가정지 주의)</span>
                 </div>
                 <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; padding: 8px 12px;">
-                  <strong style="color: #c084fc;">🥉 3순위 (야간 시황)</strong><br>
-                  <span style="color: #cbd5e1;">22:30 ~ 23:30 미국 정규장 개장</span><br>
-                  <span style="color: #94a3b8; font-size: 0.76rem;">글로벌 테크주 시황 및 나스닥 주도주 모니터링</span>
+                  <strong style="color: #c084fc;">🥉 3순위 (미장 나스닥)</strong><br>
+                  <span style="color: #cbd5e1;">22:30 ~ 00:00 미장 개장 직후</span><br>
+                  <span style="color: #94a3b8; font-size: 0.76rem;">나스닥/S&P 거래대금 1위($100 이하) 초단타 진입</span>
                 </div>
               </div>
 
@@ -1364,19 +1445,19 @@
               <div id="market-schedule-detail-box" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1); font-size: 0.8rem; color: #cbd5e1; line-height: 1.6;">
                 • <strong>대체거래소(NXT)</strong>: 08:00~20:00 (프리마켓 08:00~08:50, 호가정지 08:50~09:00, 메인 09:00~15:20, 애프터마켓 15:30~20:00)<br>
                 • <strong>국내 정규장(KRX)</strong>: 09:00~15:30 (동시호가 08:30~09:00, 시간외종가 08:30~08:40 / 15:40~16:00, 시간외단일가 16:00~20:00)<br>
-                • <strong>미국 정규장(US)</strong>: 서머타임 22:30~05:00 KST / 겨울철 23:30~06:00 KST<br>
-                • <strong>텔레그램 자동 알림 발송</strong>: 07:55(NXT 프리 5분전), 08:55(국장 개장 5분전), 09:00(국장 개장 정각), 22:25(미장 개장 5분전)
+                • <strong>미국 정규장(US)</strong>: 서머타임 22:30~05:00 KST / 겨울철 23:30~06:00 KST (1주 $100 이하 거래대금 1위 초단타)<br>
+                • <strong>텔레그램 자동 알림 발송</strong>: 07:55(NXT 프리 5분전), 08:55(국장 개장 5분전), 09:00(국장 개장 정각), 22:25(미장 개장 5분전), 22:30/23:30(미장 개장 정각)
               </div>
             </div>
 
-            <!-- ⏰ 09:00 개장 자동 실행 스케줄 토글 옵션 -->
+            <!-- ⏰ 한미 정규장 개장 자동 실행 스케줄 토글 옵션 -->
             <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
                 <strong style="color: #fbbf24; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-                  <span>⏰</span> 09:00 정규장 개장 자동 실행 스케줄러
+                  <span>⏰</span> 한미 정규장 개장 자동 실행 스케줄러 (국장 09:00 & 미장 22:30/23:30)
                 </strong>
                 <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">
-                  활성화 시 매 영업일 아침 09:00 개장 알림과 함께 거래대금 1위 종목을 <strong>전자동 시장가 매수</strong>합니다. (주말 및 공휴일 휴장)
+                  활성화 시 매 영업일 아침 09:00(국장 10만원 이하) 및 밤 22:30/23:30(미장 $100 이하) 개장 알림과 함께 거래대금 1위 종목을 <strong>전자동 시장가 매수</strong>합니다.
                 </div>
               </div>
               <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 700; color: #f8fafc;">
@@ -1387,13 +1468,13 @@
 
             <!-- 초단타 포지션 및 감시 현황 프리뷰 박스 -->
             <div id="admin-scalping-position-preview" style="padding: 16px; background: rgba(15, 23, 42, 0.75); border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 8px; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 16px;">
-              현재 가동 중인 초단타 포지션이 없습니다. 아래 [⚡ 국장 거래대금 1위 초단타 실행] 버튼을 눌러 시작하세요.
+              현재 가동 중인 초단타 포지션이 없습니다. 아래 [⚡ 거래대금 1위 초단타 실행] 버튼을 눌러 시작하세요.
             </div>
 
             <!-- 버튼 영역 -->
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
               <button type="button" id="btn-admin-scalping-start" class="btn btn-primary" style="flex: 1; padding: 10px 18px; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; cursor: pointer; color: #fff; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
-                ⚡ 국장 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)
+                ⚡ 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)
               </button>
               <button type="button" id="btn-admin-scalping-stop" class="btn btn-secondary" style="padding: 10px 18px; font-weight: 600; border-radius: 8px; cursor: pointer; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171;" disabled>
                 ⏹️ 초단타 중지
@@ -1882,35 +1963,15 @@
               </p>
             </div>
 
-            <!-- 우측 액션 버튼 (조회용으로 정돈) -->
+            <!-- 우측 액션 버튼 -->
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span id="trading-last-sync-time" style="color: #64748b; font-size: 0.82rem; margin-right: 4px;">최근 점검: -</span>
+              <span id="trading-last-sync-time" style="color: #64748b; font-size: 0.82rem; margin-right: 2px;">최근 점검: -</span>
               <button type="button" id="btn-open-custom-strategy-modal" class="btn btn-primary btn-sm journal-admin-only" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 6px; cursor: pointer; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; font-weight: 600; border: none; box-shadow: 0 2px 8px rgba(37,99,235,0.3);" title="관리자 맞춤 전략 직접 등록">
                 <span>➕</span> 맞춤 전략 등록
               </button>
               <button type="button" id="btn-stock-journal-refresh" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 6px; cursor: pointer;" title="매매일지 새로고침">
                 <span>🔄</span> 새로고침
               </button>
-            </div>
-          </div>
-
-          <!-- 요약 통계 카드 그리드 (4분할 / 모바일 2x2 자동 적응) -->
-          <div class="trading-stat-grid">
-            <div class="trading-stat-card">
-              <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px;">총 누적 매매 횟수</div>
-              <div id="stat-trading-total-trades" style="font-size: 1.5rem; font-weight: 800; color: #f8fafc;">0회</div>
-            </div>
-            <div class="trading-stat-card">
-              <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px;">승률 (Win Rate)</div>
-              <div id="stat-trading-win-rate" style="font-size: 1.5rem; font-weight: 800; color: #38bdf8;">0.0%</div>
-            </div>
-            <div class="trading-stat-card">
-              <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px;">익절 vs 손절 전적</div>
-              <div id="stat-trading-win-loss" style="font-size: 1.5rem; font-weight: 800; color: #a7f3d0;">0승 / 0패</div>
-            </div>
-            <div class="trading-stat-card">
-              <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px;">실현 누적 순익 (KRW)</div>
-              <div id="stat-trading-total-profit" style="font-size: 1.5rem; font-weight: 800; color: #f8fafc;">0원</div>
             </div>
           </div>
 
@@ -1943,9 +2004,25 @@
                     <span id="pos-item-code" style="color: #94a3b8; font-size: 0.9rem;">-</span>
                     <span id="pos-status-badge" style="background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.4); padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">예약매수 접수중</span>
                   </div>
-                  <p id="pos-debate-summary" style="color: #cbd5e1; font-size: 0.85rem; margin: 0 0 4px 0; max-width: 600px; line-height: 1.4; word-break: break-word;">
-                    -
-                  </p>
+                  <!-- 🌟 AI 끝장토론 최신 연동 브리핑 영역 -->
+                  <div class="trading-pos-debate-box" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 10px 12px; margin: 6px 0 8px 0; max-width: 620px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
+                      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 600;">🔥 AI 끝장토론 최신의결:</span>
+                        <span id="pos-debate-action" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 1px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">의결 확인중</span>
+                      </div>
+                      <span id="pos-debate-time" style="font-size: 0.72rem; color: #64748b;">-</span>
+                    </div>
+                    <p id="pos-debate-summary" style="color: #cbd5e1; font-size: 0.83rem; margin: 0 0 8px 0; line-height: 1.45; word-break: break-word;">
+                      -
+                    </p>
+                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                      <button type="button" id="btn-goto-position-debate" class="btn btn-sm" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(249, 115, 22, 0.22)); border: 1px solid rgba(249, 115, 22, 0.45); color: #fdba74; font-size: 0.78rem; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease;" title="AI 끝장토론실 12턴 대화 전체 보기">
+                        <span>🔥 AI 끝장토론 12턴 대화 바로보기</span>
+                        <span style="font-size: 0.72rem; opacity: 0.8;">➔</span>
+                      </button>
+                    </div>
+                  </div>
                   <div id="pos-order-note" class="trading-order-note-box">
                     -
                   </div>
@@ -1964,7 +2041,10 @@
                   <div id="pos-avg-price" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; word-break: break-word;">-</div>
                 </div>
                 <div class="trading-metric-box">
-                  <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px;">주문/보유수량</div>
+                  <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                    <span>주문/보유수량</span>
+                    <span id="pos-averaging-badge" style="font-size: 0.68rem; padding: 1px 6px; border-radius: 4px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); white-space: nowrap;">💧 추매 감시</span>
+                  </div>
                   <div id="pos-quantity" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc;">1주</div>
                 </div>
                 <div class="trading-metric-box">
@@ -1972,11 +2052,11 @@
                   <div id="pos-total-invested" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; word-break: break-word;">-</div>
                 </div>
                 <div class="trading-metric-box">
-                  <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px;">목표가 (+15%)</div>
+                  <div id="pos-target-label" style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px;">공식 목표가</div>
                   <div id="pos-target-price" style="font-size: 1.05rem; font-weight: 700; color: #34d399; word-break: break-word;">-</div>
                 </div>
                 <div class="trading-metric-box">
-                  <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px;">손절가 (-5%)</div>
+                  <div id="pos-stop-label" style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px;">손절가 (-5%)</div>
                   <div id="pos-stop-price" style="font-size: 1.05rem; font-weight: 700; color: #f87171; word-break: break-word;">-</div>
                 </div>
               </div>
@@ -2063,6 +2143,58 @@
             </div>
           </div>
 
+          <!-- 3. 🌟 월간 누적 매매 완료 이력 섹션 (3대 전략 완료 내역) -->
+          <div id="trading-history-section" style="margin-top: 28px; margin-bottom: 24px;">
+            <div class="trading-pos-header-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px;">
+                  <span>📜 <span id="history-section-month-label">당월</span> 매매 완료 이력</span>
+                </h3>
+                <span id="history-total-count-badge" style="font-size: 0.8rem; color: #94a3b8; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255,255,255,0.1); padding: 2px 10px; border-radius: 12px;">총 0건</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <!-- 월별 실적 조회 셀렉트박스 -->
+                <select id="select-trading-month" class="form-input form-input-sm" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700; border-radius: 6px; padding: 4px 8px; font-size: 0.82rem; cursor: pointer;" title="조회할 월 선택">
+                  <option value="current">🗓️ 당월 실적</option>
+                </select>
+                <!-- 관리자 당월 이력 초기화 버튼 -->
+                <button type="button" id="btn-clear-trading-history" class="btn btn-danger btn-sm journal-admin-only" style="display: none; padding: 5px 10px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; cursor: pointer;" title="관리자 당월 매매 이력 및 통계 초기화">
+                  <span>🗑️</span> 이력 초기화
+                </button>
+              </div>
+            </div>
+
+            <!-- 전략별 탭 필터 버튼 그룹 -->
+            <div id="history-strategy-tabs" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
+              <button type="button" class="btn btn-sm btn-strategy-tab active" data-strategy="all" style="padding: 5px 12px; font-size: 0.82rem; border-radius: 6px; font-weight: 700; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); cursor: pointer;">
+                전체 (<span id="count-hist-all">0</span>)
+              </button>
+              <button type="button" class="btn btn-sm btn-strategy-tab" data-strategy="FOCUSED" style="padding: 5px 12px; font-size: 0.82rem; border-radius: 6px; font-weight: 600; background: rgba(30, 41, 59, 0.6); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                🎯 집중포지션 (<span id="count-hist-focused">0</span>)
+              </button>
+              <button type="button" class="btn btn-sm btn-strategy-tab" data-strategy="CUSTOM" style="padding: 5px 12px; font-size: 0.82rem; border-radius: 6px; font-weight: 600; background: rgba(30, 41, 59, 0.6); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                ⚙️ 맞춤전략 (<span id="count-hist-custom">0</span>)
+              </button>
+              <button type="button" class="btn btn-sm btn-strategy-tab" data-strategy="SCALPING" style="padding: 5px 12px; font-size: 0.82rem; border-radius: 6px; font-weight: 600; background: rgba(30, 41, 59, 0.6); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                ⚡ 초단타 (<span id="count-hist-scalping">0</span>)
+              </button>
+            </div>
+
+            <!-- 이력 없음 빈 상태 안내 카드 -->
+            <div id="trading-history-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; background: rgba(30, 41, 59, 0.35); border: 1px dashed rgba(255, 255, 255, 0.12); border-radius: 12px; text-align: center;">
+              <span style="font-size: 2rem; margin-bottom: 8px;">📭</span>
+              <div style="font-size: 0.98rem; font-weight: 700; color: #cbd5e1; margin-bottom: 4px;">해당 월의 완료된 매매 이력이 없습니다.</div>
+              <p style="font-size: 0.82rem; color: #94a3b8; max-width: 480px; margin: 0; line-height: 1.4;">
+                실시간 집중 포지션, 관리자 맞춤 전략, 초단타 스캘핑의 청산 매도가 완료되면 이곳에 월별 기록이 누적됩니다.
+              </p>
+            </div>
+
+            <!-- 매매 이력 리스트 컨테이너 -->
+            <div id="trading-history-list" style="display: none; flex-direction: column; gap: 10px;">
+              <!-- 동적 카드 렌더링 영역 -->
+            </div>
+          </div>
+
         </section>
 
         <!-- 뷰: 행성 월드 (타이쿤 테마파크 & 클라우드 행성 디오라마) -->
@@ -2072,42 +2204,61 @@
             <!-- Three.js 캔버스 영역 -->
             <div id="planet-canvas-container" style="width: 100%; height: 100%; cursor: grab;"></div>
 
-            <!-- [상단 통합 슬림 HUD 바: 모바일 겹침 원천 차단] -->
+            <!-- [상단 통합 슬림 HUD 바: 심시티 메트로폴리스] -->
+            <!-- [상단 슬림 HUD 바: 마인크래프트 메트로폴리스] -->
             <div class="planet-top-hud">
-              <!-- 좌측: 로고 & 타이틀 -->
+              <!-- 좌측: 복셀 로고 & 타이틀 -->
               <div class="planet-hud-brand">
-                <span class="planet-hud-logo-icon">🌍</span>
+                <span class="planet-hud-logo-icon">🟩</span>
                 <div class="planet-hud-title-box">
-                  <div class="planet-hud-title">PLANET PARK</div>
-                  <div class="planet-hud-sub">Cloud Tycoon World</div>
+                  <div class="planet-hud-title">MINECRAFT CITY</div>
+                  <div class="planet-hud-sub">Cloud Voxel World</div>
                 </div>
               </div>
 
-              <!-- 우측: 콤팩트 컨트롤 액션들 -->
-              <div class="planet-hud-actions">
+              <!-- 우측: 필수 뱃지 및 업로드 버튼 (절대 겹치지 않는 슬림 2개 요소) -->
+              <div class="planet-hud-top-actions">
                 <!-- 자료 통계 뱃지 -->
-                <div class="planet-hud-badge" title="보관된 자료 수">
-                  <span>🪐</span>
-                  <span class="planet-badge-label">보관</span>
-                  <strong id="planet-stat-total" style="color: #38bdf8; font-weight: 800;">0</strong>
+                <div class="planet-hud-badge" title="도시 보관 자료 수">
+                  <span>📦</span>
+                  <span class="planet-badge-label">보관함</span>
+                  <strong id="planet-stat-total" style="color: #4ade80; font-weight: 800;">0</strong>
                 </div>
 
-                <!-- 검색 슬라이드 인풋 -->
-                <div id="planet-search-box" style="position: relative; display: flex; align-items: center;">
-                  <input type="text" id="planet-search-input" class="form-input" placeholder="검색..." style="width: 0; opacity: 0; padding: 0; border: none; border-radius: 20px; background: rgba(15, 23, 42, 0.95); color: #f8fafc; font-size: 0.82rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;" />
-                  <button type="button" id="btn-planet-toggle-search" class="btn btn-secondary planet-hud-btn" style="padding: 6px 10px; border-radius: 20px; font-size: 0.82rem; backdrop-filter: blur(10px); background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.15);" title="검색창 열기">
-                    🔍
-                  </button>
+                <!-- 💻 로컬 노트북 연결 상태 뱃지 -->
+                <div id="planet-laptop-status-badge" class="planet-hud-badge" style="cursor: pointer; transition: all 0.2s ease; border: 2px solid #22c55e;" title="로컬 노트북 연결 상태 (터치하여 상세 확인)">
+                  <span>💻</span>
+                  <span id="laptop-status-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px #22c55e;"></span>
+                  <span id="laptop-status-text" class="planet-badge-label" style="font-size: 0.78rem; font-weight: 700; color: #4ade80;">온라인</span>
                 </div>
 
                 <!-- 관리자 전용: 자료 / 그림 올리기 버튼 -->
-                <button type="button" id="btn-planet-open-upload" class="btn btn-primary planet-admin-only planet-hud-upload-btn" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; background: linear-gradient(135deg, #0284c7, #3b82f6); box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45); border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;" title="자료/그림 올리기">
+                <button type="button" id="btn-planet-open-upload" class="btn btn-primary planet-admin-only planet-hud-upload-btn" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; background: #15803d; border: 2px solid #22c55e; box-shadow: 3px 3px 0px #052e16; color: #fff; white-space: nowrap; cursor: pointer;" title="자료/그림 올리기">
                   <span>🚀</span><span class="planet-upload-text"> 자료 올리기</span>
                 </button>
+              </div>
+            </div>
 
-                <!-- 카메라 뷰 리셋 -->
-                <button type="button" id="btn-planet-reset-view" class="btn btn-secondary planet-hud-btn" style="padding: 6px 10px; border-radius: 20px; font-size: 0.82rem; backdrop-filter: blur(10px); background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.15);" title="카메라 위치 초기화">
-                  🔄
+            <!-- 🎮 [하단 플로팅 조작 패널] 모바일 엄지 컨트롤 패드 (회전, 리셋, 검색) -->
+            <div id="minecraft-floating-pad" class="minecraft-floating-pad">
+              <!-- 검색 확장 입력창 (토글 시 슬라이드) -->
+              <div id="planet-search-box" style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 4px;">
+                <input type="text" id="planet-search-input" class="form-input" placeholder="블록/자료 검색..." style="width: 0; opacity: 0; padding: 0; border: none; border-radius: 6px; background: rgba(15, 23, 42, 0.95); color: #f8fafc; font-size: 0.82rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; border: 2px solid #475569;" />
+              </div>
+              <div class="minecraft-pad-row">
+                <button type="button" id="btn-planet-toggle-search" class="minecraft-btn" title="검색창 열기">
+                  🔍
+                </button>
+                <button type="button" id="btn-planet-reset-view" class="minecraft-btn" title="도시 중앙으로 시점 리셋">
+                  🎯
+                </button>
+              </div>
+              <div class="minecraft-pad-row">
+                <button type="button" id="btn-city-rot-left" class="minecraft-btn" title="좌측 90도 회전">
+                  ⟲
+                </button>
+                <button type="button" id="btn-city-rot-right" class="minecraft-btn" title="우측 90도 회전">
+                  ⟳
                 </button>
               </div>
             </div>
@@ -2125,6 +2276,19 @@
                 <button type="button" id="btn-holo-close" style="background: transparent; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; padding: 0 4px; line-height: 1;">&times;</button>
               </div>
 
+              <!-- 🛗 아콜로지 타워 층별 엘리베이터 서랍 -->
+              <div id="holo-floor-drawer" style="display: none; margin-bottom: 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; padding: 10px 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 0.78rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 4px;">
+                    <span>🛗</span> 층별 엘리베이터 서랍 (<span id="holo-floor-count">1</span>개 층)
+                  </span>
+                  <span style="font-size: 0.72rem; color: #94a3b8;">원하는 층을 터치하여 열람</span>
+                </div>
+                <div id="holo-floor-chips" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin;">
+                  <!-- Dynamic Floor Chips -->
+                </div>
+              </div>
+
               <!-- 이미지 썸네일 액자 -->
               <div id="holo-img-box" style="width: 100%; height: 160px; background: rgba(0, 0, 0, 0.4); border-radius: 12px; overflow: hidden; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.08);">
                 <img id="holo-img" style="width: 100%; height: 100%; object-fit: contain;" alt="자료 사진" />
@@ -2138,8 +2302,11 @@
                 <a id="holo-download-link" href="#" target="_blank" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; padding: 7px 12px; border-radius: 10px; font-size: 0.8rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
                   <span>💾</span> 원본 보기
                 </a>
+                <button type="button" id="btn-holo-delete-floor" class="btn btn-warning btn-sm planet-admin-only" style="display: none; padding: 7px 12px; border-radius: 10px; font-size: 0.78rem; font-weight: 700; background: #d97706; border: 1px solid #f59e0b; color: #fff; align-items: center; gap: 4px;" title="현재 보고 있는 층만 철거">
+                  <span>🗑️</span> 이 층만 철거
+                </button>
                 <button type="button" id="btn-holo-delete" class="btn btn-danger btn-sm planet-admin-only" style="padding: 7px 14px; border-radius: 10px; font-size: 0.8rem; font-weight: 700; background: #dc2626; border: 1px solid #ef4444; color: #fff; display: inline-flex; align-items: center; gap: 4px;" title="이 자료/건물 영구 철거">
-                  <span>🗑️</span> 철거
+                  <span>💥</span> 철거
                 </button>
                 <button type="button" id="btn-holo-confirm" class="btn btn-primary btn-sm" style="padding: 7px 18px; border-radius: 10px; font-size: 0.8rem; font-weight: 700;">
                   닫기
@@ -2185,9 +2352,10 @@
               <div style="margin-bottom: 16px;">
                 <label style="display: block; color: #cbd5e1; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px;">개체 유형 선택</label>
                 <select id="planet-item-type" style="width: 100%; border-radius: 8px; padding: 8px 12px; background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); color: #f8fafc;">
-                  <option value="auto">🤖 스마트 AI 자동 분석 (Gemini가 그림/자료 판별)</option>
+                  <option value="auto">🤖 스마트 시티 디렉터 (Gemini가 타워 층 적층 & 자연/랜드마크 자동 판단)</option>
+                  <option value="stack">🏢 기존 타워에 새 층 증축 (동일 분야 타워에 탑쌓기)</option>
+                  <option value="building">🏛️ 신규 독립 타워/랜드마크 착공</option>
                   <option value="character">🎨 아이 그림 캐릭터 (살아서 행성을 통통 뛰어다님)</option>
-                  <option value="building">🏢 심시티 건물 (집, 타워, 연구소, 도서관 등 건축)</option>
                 </select>
               </div>
 
@@ -2203,6 +2371,45 @@
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        <!-- 마인크래프트 테마: 로컬 노트북 오프라인 경고 모달 -->
+        <div id="modal-planet-laptop-offline" style="display: none; position: fixed; inset: 0; background: rgba(5, 10, 20, 0.85); backdrop-filter: blur(6px); z-index: 10001; align-items: center; justify-content: center; padding: 16px;">
+          <div style="background: #1e293b; border: 4px solid #ef4444; border-radius: 4px; max-width: 500px; width: 100%; box-shadow: 8px 8px 0px #7f1d1d; overflow: hidden; font-family: 'Consolas', 'Courier New', monospace, sans-serif;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #7f1d1d; border-bottom: 3px solid #b91c1c;">
+              <h3 style="margin: 0; font-size: 1.15rem; color: #fef2f2; font-weight: 800; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;">
+                <span>⚠️</span> 로컬 노트북 연결 끊김 (오프라인)
+              </h3>
+              <button type="button" id="btn-planet-offline-x" style="background: transparent; border: none; color: #fecaca; font-size: 1.4rem; cursor: pointer; line-height: 1;">&times;</button>
+            </div>
+            <div style="padding: 24px;">
+              <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 18px; padding: 14px; background: rgba(15, 23, 42, 0.7); border: 2px dashed #ef4444; border-radius: 4px;">
+                <div style="font-size: 2.4rem; line-height: 1;">💻🔴</div>
+                <div style="flex: 1;">
+                  <div style="font-size: 0.95rem; font-weight: 700; color: #f87171; margin-bottom: 4px;">
+                    로컬 노트북 전원이 꺼져 있습니다
+                  </div>
+                  <div style="font-size: 0.82rem; color: #cbd5e1; line-height: 1.4;">
+                    노트북이 꺼져 있으면 자료를 로컬 저장소에 저장할 수 없어 <strong>신규 업로드 및 삭제가 안전하게 차단</strong>되었습니다.
+                  </div>
+                </div>
+              </div>
+
+              <div style="background: #0f172a; padding: 12px 14px; border-radius: 4px; border: 1px solid #334155; margin-bottom: 20px; font-size: 0.8rem; color: #94a3b8; line-height: 1.6;">
+                <div>📡 <strong>최근 신호:</strong> <span id="offline-modal-last-seen" style="color: #fca5a5; font-weight: 700;">신호 없음</span></div>
+                <div>💡 <strong>해결 방법:</strong> 로컬 노트북 전원을 켜고 로컬 포털 서버가 실행되면 즉시 이용하실 수 있습니다.</div>
+              </div>
+
+              <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                <button type="button" id="btn-planet-offline-close" style="padding: 9px 18px; background: #334155; border: 2px solid #64748b; box-shadow: 3px 3px 0 #0f172a; border-radius: 4px; color: #f1f5f9; font-weight: 700; cursor: pointer;">
+                  ❌ 닫기
+                </button>
+                <button type="button" id="btn-planet-retry-connection" style="padding: 9px 20px; background: #15803d; border: 2px solid #22c55e; box-shadow: 3px 3px 0 #052e16; border-radius: 4px; color: #ffffff; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                  <span>🔄</span> 연결 다시 확인
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -3012,7 +3219,7 @@
   <script src="app/views/stockDebateView.js?v=2.8"></script>
   <script src="app/views/stockBlogView.js?v=2.4"></script>
   <script src="app/views/bloggerNewsView.js?v=2.4"></script>
-  <script src="app/views/stockJournalView.js?v=4.0"></script>
+  <script src="app/views/stockJournalView.js?v=4.4"></script>
   <script src="app/views/stockTradingAdminView.js?v=2.8"></script>
   <script src="app/views/threadsAgentView.js?v=2.6"></script>
   <script src="app/views/sapSuiteView.js?v=2.4"></script>
@@ -3021,11 +3228,11 @@
   <script src="app/views/uiView.js?v=2.4"></script>
   <script src="app/models/churchNewsModel.js"></script>
   <script src="app/views/churchNewsView.js"></script>
-  <script src="app/models/planetWorldModel.js?v=3.2"></script>
-  <script src="app/views/planetWorldView.js?v=3.2"></script>
+  <script src="app/models/planetWorldModel.js?v=3.8"></script>
+  <script src="app/views/planetWorldView.js?v=3.8"></script>
   <script src="app/views/portalChatbotView.js?v=1.2"></script>
-  <script src="app/controllers/appController.js?v=3.2"></script>
-  <script src="app/main.js?v=3.2"></script>
+  <script src="app/controllers/appController.js?v=3.6"></script>
+  <script src="app/main.js?v=3.6"></script>
 
   <!-- 포털 AI 통합 검색 챗봇 플로팅 드로어 위젯 -->
   <div id="portalChatbotWidget" class="portal-chatbot-container hidden" aria-hidden="true">

@@ -11,6 +11,10 @@
     customStrategies: [],
     historyList: [],
     stats: {},
+    currentMonth: '',
+    monthlyArchives: {},
+    selectedMonth: 'current',
+    selectedStrategyTab: 'all',
     isConfigured: false,
     isAdmin() {
       const rawUser = sessionStorage.getItem('portal_auth_user') || localStorage.getItem('portal_auth_user');
@@ -63,6 +67,118 @@
           this.loadStatus(true);
         });
       }
+
+      // 월 선택 드롭다운 이벤트
+      const selectMonth = document.getElementById('select-trading-month');
+      if (selectMonth) {
+        selectMonth.addEventListener('change', (e) => {
+          this.selectedMonth = e.target.value;
+          this.renderActiveMonthView();
+        });
+      }
+
+      // 🗑️ 관리자 당월 이력 및 통계 초기화 버튼
+      const btnClear = document.getElementById('btn-clear-trading-history');
+      if (btnClear) {
+        btnClear.addEventListener('click', async () => {
+          if (!this.isAdmin()) {
+            alert('⚠️ 관리자만 매매 이력을 초기화할 수 있습니다.');
+            return;
+          }
+          const ok = confirm('⚠️ 당월 누적 매매 횟수 및 실현 손익 통계를 초기화하시겠습니까?\n(기존 이력은 월별 보관함에 안전하게 백업 보존됩니다)');
+          if (!ok) return;
+
+          try {
+            const res = await fetch('/api/trading/history/clear', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ archive: true })
+            });
+            const data = await res.json();
+            if (data.success) {
+              if (window.UiView && window.UiView.showToast) {
+                window.UiView.showToast('🗑️ 매매 이력 및 통계가 0으로 초기화되었습니다.');
+              }
+              await this.loadStatus(false);
+            } else {
+              alert('초기화 실패: ' + (data.error || '오류 발생'));
+            }
+          } catch (err) {
+            alert('초기화 중 오류가 발생했습니다: ' + err.message);
+          }
+        });
+      }
+
+      // 전략별 탭 필터링 버튼들
+      const tabWrap = document.getElementById('history-strategy-tabs');
+      if (tabWrap) {
+        tabWrap.addEventListener('click', (e) => {
+          const btn = e.target.closest('.btn-strategy-tab');
+          if (!btn) return;
+          const strat = btn.getAttribute('data-strategy');
+          if (!strat) return;
+
+          this.selectedStrategyTab = strat;
+          tabWrap.querySelectorAll('.btn-strategy-tab').forEach(b => {
+            b.classList.remove('active');
+            b.style.background = 'rgba(30, 41, 59, 0.6)';
+            b.style.color = '#94a3b8';
+            b.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+            b.style.fontWeight = '600';
+          });
+          btn.classList.add('active');
+          btn.style.background = 'rgba(56, 189, 248, 0.2)';
+          btn.style.color = '#38bdf8';
+          btn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+          btn.style.fontWeight = '700';
+
+          this.renderActiveMonthView();
+        });
+      }
+
+      // 🔥 AI 끝장토론 바로보기 버튼
+      const btnGotoDebate = document.getElementById('btn-goto-position-debate');
+      if (btnGotoDebate) {
+        btnGotoDebate.addEventListener('click', () => {
+          const stockName = btnGotoDebate.getAttribute('data-stock-name') || (this.currentPosition && this.currentPosition.stockName);
+          const debateId = btnGotoDebate.getAttribute('data-debate-id') || (this.currentPosition && (this.currentPosition.latestDebateId || this.currentPosition.debateId));
+
+          if (window.appController && typeof window.appController.switchSideView === 'function') {
+            window.appController.switchSideView('stock-debate');
+
+            setTimeout(() => {
+              if (window.StockDebateModel) {
+                if (stockName) {
+                  window.StockDebateModel.selectedStock = stockName;
+                }
+                if (debateId && window.StockDebateView) {
+                  window.StockDebateView.expandedMap[debateId] = true;
+                }
+                if (window.StockDebateView && typeof window.StockDebateView.render === 'function') {
+                  window.StockDebateView.render();
+                }
+              }
+
+              // 카드 스크롤 및 하이라이트 애니메이션
+              setTimeout(() => {
+                if (debateId) {
+                  const targetEl = document.getElementById(debateId) || document.querySelector(`[id*="${debateId}"]`);
+                  if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    targetEl.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease';
+                    targetEl.style.borderColor = '#38bdf8';
+                    targetEl.style.boxShadow = '0 0 24px rgba(56, 189, 248, 0.45)';
+                    setTimeout(() => {
+                      targetEl.style.borderColor = '';
+                      targetEl.style.boxShadow = '';
+                    }, 3500);
+                  }
+                }
+              }, 250);
+            }, 150);
+          }
+        });
+      }
     },
 
     startPolling() {
@@ -87,9 +203,12 @@
         this.customStrategies = data.customStrategies || [];
         this.historyList = data.history || [];
         this.stats = data.stats || {};
+        this.currentMonth = data.currentMonth || new Date().toISOString().slice(0, 7);
+        this.monthlyArchives = data.monthlyArchives || {};
 
         this.renderHeaderStatus(data);
-        this.renderStats(this.stats);
+        this.renderMonthSelector();
+        this.renderActiveMonthView();
         this.renderPositionCard(this.currentPosition);
         this.renderCustomStrategies(this.customStrategies);
 
@@ -99,6 +218,52 @@
       } catch (err) {
         console.error('[StockJournalView] loadStatus error:', err);
       }
+    },
+
+    renderMonthSelector() {
+      const sel = document.getElementById('select-trading-month');
+      if (!sel) return;
+      const curMonth = this.currentMonth || new Date().toISOString().slice(0, 7);
+      const parts = curMonth.split('-');
+      const curDisplay = parts.length === 2 ? `${parseInt(parts[1], 10)}월` : curMonth;
+
+      let optionsHtml = `<option value="current">🗓️ ${curMonth} (${curDisplay} 당월 실적)</option>`;
+      const archivedKeys = Object.keys(this.monthlyArchives || {}).sort().reverse();
+      archivedKeys.forEach(k => {
+        if (k !== curMonth) {
+          const p = k.split('-');
+          const disp = p.length === 2 ? `${parseInt(p[1], 10)}월` : k;
+          optionsHtml += `<option value="${k}">📁 ${k} (${disp} 실적 보관함)</option>`;
+        }
+      });
+      sel.innerHTML = optionsHtml;
+      if (this.selectedMonth && (this.selectedMonth === 'current' || this.monthlyArchives[this.selectedMonth])) {
+        sel.value = this.selectedMonth;
+      } else {
+        this.selectedMonth = 'current';
+        sel.value = 'current';
+      }
+    },
+
+    renderActiveMonthView() {
+      let activeStats = this.stats;
+      let activeHistory = this.historyList;
+      let monthDisplay = '';
+
+      if (this.selectedMonth && this.selectedMonth !== 'current' && this.monthlyArchives[this.selectedMonth]) {
+        const arch = this.monthlyArchives[this.selectedMonth];
+        activeStats = arch.stats || { totalTrades: 0, winTrades: 0, lossTrades: 0, winRate: 0, totalProfitKrw: 0 };
+        activeHistory = arch.history || [];
+        const p = this.selectedMonth.split('-');
+        monthDisplay = p.length === 2 ? `${parseInt(p[1], 10)}월` : this.selectedMonth;
+      } else {
+        const curM = this.currentMonth || new Date().toISOString().slice(0, 7);
+        const p = curM.split('-');
+        monthDisplay = p.length === 2 ? `${parseInt(p[1], 10)}월` : curM;
+      }
+
+      this.renderStats(activeStats, monthDisplay);
+      this.renderHistory(activeHistory, monthDisplay);
     },
 
     renderHeaderStatus(data) {
@@ -142,12 +307,17 @@
       }
     },
 
-    renderStats(stats) {
+    renderStats(stats, monthDisplay = '') {
       const totalTrades = stats.totalTrades || 0;
       const winTrades = stats.winTrades || 0;
       const lossTrades = stats.lossTrades || 0;
       const winRate = stats.winRate || 0;
       const totalProfit = stats.totalProfitKrw || 0;
+
+      const elMonthLabel = document.getElementById('trading-month-label');
+      const elProfitMonthLabel = document.getElementById('trading-profit-month-label');
+      if (elMonthLabel) elMonthLabel.textContent = monthDisplay ? `${monthDisplay}` : '당월';
+      if (elProfitMonthLabel) elProfitMonthLabel.textContent = monthDisplay ? `${monthDisplay}` : '당월';
 
       const elTotal = document.getElementById('stat-trading-total-trades');
       const elWinRate = document.getElementById('stat-trading-win-rate');
@@ -168,6 +338,99 @@
         } else {
           elProfit.style.color = '#f8fafc';
         }
+      }
+    },
+
+    renderHistory(historyList = [], monthDisplay = '') {
+      const elSecLabel = document.getElementById('history-section-month-label');
+      const elBadge = document.getElementById('history-total-count-badge');
+      const emptyCard = document.getElementById('trading-history-empty');
+      const listContainer = document.getElementById('trading-history-list');
+
+      if (elSecLabel) elSecLabel.textContent = monthDisplay ? `${monthDisplay}` : '당월';
+
+      const allList = Array.isArray(historyList) ? historyList : [];
+      if (elBadge) elBadge.textContent = `총 ${allList.length}건`;
+
+      // 각 전략별 건수 계산
+      const countAll = allList.length;
+      const countFocused = allList.filter(h => h.strategyType === 'FOCUSED' || (!h.strategyType && (h.orderId && !h.orderId.startsWith('SCALP') && h.type !== 'CUSTOM_STRATEGY'))).length;
+      const countCustom = allList.filter(h => h.strategyType === 'CUSTOM' || h.type === 'CUSTOM_STRATEGY').length;
+      const countScalping = allList.filter(h => h.strategyType === 'SCALPING' || (h.orderId && h.orderId.startsWith('SCALP'))).length;
+
+      const elCntAll = document.getElementById('count-hist-all');
+      const elCntFoc = document.getElementById('count-hist-focused');
+      const elCntCus = document.getElementById('count-hist-custom');
+      const elCntScp = document.getElementById('count-hist-scalping');
+      if (elCntAll) elCntAll.textContent = countAll;
+      if (elCntFoc) elCntFoc.textContent = countFocused;
+      if (elCntCus) elCntCus.textContent = countCustom;
+      if (elCntScp) elCntScp.textContent = countScalping;
+
+      // 탭 필터링 적용
+      const filter = this.selectedStrategyTab || 'all';
+      const filtered = allList.filter(h => {
+        if (filter === 'all') return true;
+        if (filter === 'FOCUSED') return h.strategyType === 'FOCUSED' || (!h.strategyType && h.type !== 'CUSTOM_STRATEGY' && !h.orderId?.startsWith('SCALP'));
+        if (filter === 'CUSTOM') return h.strategyType === 'CUSTOM' || h.type === 'CUSTOM_STRATEGY';
+        if (filter === 'SCALPING') return h.strategyType === 'SCALPING' || h.orderId?.startsWith('SCALP');
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        if (emptyCard) emptyCard.style.display = 'flex';
+        if (listContainer) listContainer.style.display = 'none';
+        return;
+      }
+
+      if (emptyCard) emptyCard.style.display = 'none';
+      if (listContainer) {
+        listContainer.style.display = 'flex';
+
+        let html = '';
+        filtered.forEach(it => {
+          const isKr = it.market === 'KR' || it.currency === 'KRW';
+          const pnlKrw = Number(it.realizedPnlKrw || it.profitKrw || it.realizedPnl) || 0;
+          const returnPct = typeof it.returnPct === 'number' ? it.returnPct : parseFloat(it.returnPct) || 0;
+          const isWin = pnlKrw > 0;
+          const isLoss = pnlKrw < 0;
+          const pnlColor = isWin ? '#f87171' : (isLoss ? '#60a5fa' : '#94a3b8');
+          const pnlSign = pnlKrw > 0 ? '+' : '';
+          const retSign = returnPct > 0 ? '+' : '';
+
+          let stratBadge = '';
+          if (it.strategyType === 'FOCUSED' || (!it.strategyType && it.type !== 'CUSTOM_STRATEGY' && (!it.orderId || !String(it.orderId).startsWith('SCALP')))) {
+            stratBadge = '<span style="font-size: 0.7rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 1px 6px; border-radius: 4px; font-weight: 700;">🎯 집중포지션</span>';
+          } else if (it.strategyType === 'CUSTOM' || it.type === 'CUSTOM_STRATEGY') {
+            stratBadge = '<span style="font-size: 0.7rem; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); padding: 1px 6px; border-radius: 4px; font-weight: 700;">⚙️ 맞춤전략</span>';
+          } else {
+            stratBadge = '<span style="font-size: 0.7rem; background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.35); padding: 1px 6px; border-radius: 4px; font-weight: 700;">⚡ 초단타</span>';
+          }
+
+          const closeTimeStr = it.closedAt ? new Date(it.closedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+          const exitReason = it.reasonTitle || it.exitReason || it.note || '청산 완료';
+
+          html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 12px 16px; flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                ${stratBadge}
+                <strong style="color: #ffffff; font-size: 1rem;">${it.stockName || '-'}</strong>
+                <span style="color: #94a3b8; font-size: 0.82rem;">${it.itemCode || ''}</span>
+                <span style="color: #64748b; font-size: 0.75rem;">${closeTimeStr}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 14px; text-align: right;">
+                <div>
+                  <div style="font-size: 1.05rem; font-weight: 800; color: ${pnlColor};">${pnlSign}${pnlKrw.toLocaleString()}원</div>
+                  <div style="font-size: 0.78rem; font-weight: 600; color: ${pnlColor};">${retSign}${returnPct}%</div>
+                </div>
+                <div style="font-size: 0.78rem; color: #94a3b8; max-width: 200px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${exitReason}">
+                  ${exitReason}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        listContainer.innerHTML = html;
       }
     },
 
@@ -241,8 +504,35 @@
 
       if (elCurrentPrice) elCurrentPrice.textContent = formatCurrency(curPrice);
       if (elAvgPrice) elAvgPrice.textContent = formatCurrency(avgPrice);
-      if (elQuantity) elQuantity.textContent = `${qty}주 (단일)`;
+      if (elQuantity) elQuantity.textContent = qty >= 2 ? `${qty}주 (분할추매)` : `${qty}주 (단일)`;
       if (elTotalInvested) elTotalInvested.textContent = isUs ? `${invested.toLocaleString()}원 (약 $${(invested / fxRate).toFixed(2)})` : `${invested.toLocaleString()}원`;
+
+      // 💧 분할 추매(물타기) 상태 배지 업데이트
+      const badgeAveraging = document.getElementById('pos-averaging-badge');
+      if (badgeAveraging) {
+        if (pos.averagingStatus === 'FILLED' || qty >= 2) {
+          badgeAveraging.textContent = '💧 추매 완료';
+          badgeAveraging.style.background = 'rgba(34, 197, 94, 0.18)';
+          badgeAveraging.style.color = '#4ade80';
+          badgeAveraging.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+        } else if (pos.averagingStatus === 'ORDERED') {
+          badgeAveraging.textContent = '💧 추매 발주중';
+          badgeAveraging.style.background = 'rgba(234, 179, 8, 0.18)';
+          badgeAveraging.style.color = '#facc15';
+          badgeAveraging.style.borderColor = 'rgba(234, 179, 8, 0.4)';
+        } else if (pos.enableAveraging && pos.averagingPrice > 0) {
+          const avgPriceStr = isUs ? `$${pos.averagingPrice}` : `${pos.averagingPrice.toLocaleString()}원`;
+          badgeAveraging.textContent = `💧 추매 감시 (${avgPriceStr} 이하)`;
+          badgeAveraging.style.background = 'rgba(56, 189, 248, 0.15)';
+          badgeAveraging.style.color = '#38bdf8';
+          badgeAveraging.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+        } else {
+          badgeAveraging.textContent = '💧 단일 1주 운용';
+          badgeAveraging.style.background = 'rgba(148, 163, 184, 0.12)';
+          badgeAveraging.style.color = '#94a3b8';
+          badgeAveraging.style.borderColor = 'rgba(148, 163, 184, 0.25)';
+        }
+      }
 
       if (elReturnPnl) {
         if (pos.status === 'RESERVED') {
@@ -258,8 +548,33 @@
         }
       }
 
+      const elDebateAction = document.getElementById('pos-debate-action');
+      const elDebateTime = document.getElementById('pos-debate-time');
+      const btnGotoDebate = document.getElementById('btn-goto-position-debate');
+
+      const debateAction = pos.latestDebateAction || '⚖️ AI 끝장토론 의결';
+      const debateSummary = pos.latestDebateSummary || pos.debateSummary || '끝장토론 종목 의결 매수 진행 중';
+      const debateTime = pos.latestDebateAt || pos.startedAt || '';
+      const debateId = pos.latestDebateId || pos.debateId || '';
+
+      if (elDebateAction) {
+        elDebateAction.textContent = debateAction;
+      }
+      if (elDebateTime) {
+        if (debateTime) {
+          const formattedTime = debateTime.length > 16 ? debateTime.slice(0, 16).replace('T', ' ') : debateTime;
+          elDebateTime.textContent = `최근 갱신: ${formattedTime}`;
+        } else {
+          elDebateTime.textContent = '실시간 연동';
+        }
+      }
       if (elDebateSummary) {
-        elDebateSummary.textContent = pos.debateSummary || '끝장토론 종목 의결 매수 진행 중';
+        elDebateSummary.textContent = debateSummary;
+      }
+      if (btnGotoDebate) {
+        btnGotoDebate.setAttribute('data-stock-name', pos.stockName || '');
+        btnGotoDebate.setAttribute('data-debate-id', debateId);
+        btnGotoDebate.style.display = debateId ? 'inline-flex' : 'none';
       }
 
       if (elOrderNote) {
@@ -347,12 +662,15 @@
       const elStopPrice = document.getElementById('pos-stop-price');
       const barGauge = document.getElementById('pos-gauge-bar');
 
+      const targetPct = avgPrice > 0 ? parseFloat((((targetPrice - avgPrice) / avgPrice) * 100).toFixed(1)) : 15.0;
+      const stopPct = avgPrice > 0 ? parseFloat((((stopPrice - avgPrice) / avgPrice) * 100).toFixed(1)) : -5.0;
+
       const targetText = isUs
-        ? `$${targetPrice.toFixed(2)} (약 ${(pos.targetPriceKrw || Math.round(targetPrice * fxRate)).toLocaleString()}원, +15% 익절)`
-        : `${targetPrice.toLocaleString()}원 (+15% 익절)`;
+        ? `$${targetPrice.toFixed(2)} (약 ${(pos.targetPriceKrw || Math.round(targetPrice * fxRate)).toLocaleString()}원, +${targetPct}% 익절)`
+        : `${targetPrice.toLocaleString()}원 (+${targetPct}% 익절)`;
       const stopText = isUs
-        ? `$${stopPrice.toFixed(2)} (약 ${(pos.stopLossPriceKrw || Math.round(stopPrice * fxRate)).toLocaleString()}원, -5% 손절)`
-        : `${stopPrice.toLocaleString()}원 (-5% 손절)`;
+        ? `$${stopPrice.toFixed(2)} (약 ${(pos.stopLossPriceKrw || Math.round(stopPrice * fxRate)).toLocaleString()}원, ${stopPct}% 손절)`
+        : `${stopPrice.toLocaleString()}원 (${stopPct}% 손절)`;
 
       if (elTargetPrice) elTargetPrice.textContent = targetText;
       if (elStopPrice) elStopPrice.textContent = stopText;

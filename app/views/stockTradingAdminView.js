@@ -374,16 +374,19 @@
     },
 
     async startScalping() {
+      const isUs = this.scalpingStatus?.scalpingSession?.isUsSession;
+      const marketLabel = isUs ? '미장(나스닥/S&P)' : '국장(KRX)';
+      const priceLimit = isUs ? '1주 $100 이하' : '1주 10만원 이하';
+      const openSchedule = isUs ? '밤 22:30/23:30 정규장 개장 직후' : '아침 09:00 정규장 개장 직후';
+
       const confirmMsg =
-        '⚡ [토스증권 국장 거래대금 1위 초단타(Scalping)]\n\n' +
-        '• 타깃 조건: 실시간 거래대금 1위 종목 (10만원 이하 1주 단일 매매)\n' +
+        `⚡ [토스증권 ${marketLabel} 거래대금 1위 초단타(Scalping)]\n\n` +
+        `• 타깃 조건: 실시간 거래대금 1위 종목 (${priceLimit} 1주 단일 매매)\n` +
         '• 익절 원칙: +2.5% 도달 시 즉시 시장가 전량 익절\n' +
         '• 손절 원칙: -1.5% 이탈 시 즉시 시장가 손절 청산\n' +
-        '• 모드 동작:\n' +
-        '   - 09:00 이전: 09:00 정규장 개장 대기 모드 (개장 즉시 1위 종목 자동 매수)\n' +
-        '   - 09:00~15:30 장중: 실시간 1위 종목 즉시 발굴 및 즉시 매수\n' +
+        `• 개장 대기: 미개장 시 ${openSchedule} 자동 대기\n` +
         '• 감시 주기: 5초 실시간 초고속 감시\n\n' +
-        '초단타 자동매매를 실행하시겠습니까?';
+        `${marketLabel} 초단타 자동매매를 실행하시겠습니까?`;
 
       if (!confirm(confirmMsg)) return;
 
@@ -416,7 +419,10 @@
         alert('초단타 실행 통신 오류: ' + e.message);
       } finally {
         if (btnStart) {
-          btnStart.innerHTML = '⚡ 국장 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)';
+          const isUsNow = this.scalpingStatus?.scalpingSession?.isUsSession;
+          btnStart.innerHTML = isUsNow
+            ? '⚡ 미장(나스닥/S&P) 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)'
+            : '⚡ 국장 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)';
         }
       }
     },
@@ -546,13 +552,23 @@
         checkSchedule.checked = status.autoScheduleEnabled;
       }
 
+      const isUsSession = Boolean(status.scalpingSession?.isUsSession);
+      const waitingMarket = status.waitingMarket || (isUsSession ? 'US' : 'KR');
+      const sessionLabel = isUsSession ? '미장(나스닥/S&P)' : '국장(KRX)';
+
       if (status.isActive && status.currentPosition) {
         const p = status.currentPosition;
+        const isUsStock = p.market === 'US' || p.currency === 'USD';
         const sign = (p.returnPct || 0) >= 0 ? '+' : '';
         const color = (p.returnPct || 0) >= 0 ? '#f87171' : '#60a5fa';
+        const entryStr = isUsStock ? `$${p.entryPrice}` : `${(p.entryPrice || 0).toLocaleString()}원`;
+        const currentStr = isUsStock ? `$${p.currentPrice}` : `${(p.currentPrice || 0).toLocaleString()}원`;
+        const targetStr = isUsStock ? `$${p.targetPrice}` : `${(p.targetPrice || 0).toLocaleString()}원`;
+        const stopStr = isUsStock ? `$${p.stopLossPrice}` : `${(p.stopLossPrice || 0).toLocaleString()}원`;
+        const pnlStr = isUsStock ? `${sign}$${p.unrealizedPnl}` : `${sign}${(p.unrealizedPnl || 0).toLocaleString()}원`;
 
         if (badge) {
-          badge.textContent = '⚡ 가동 중 (5초 시세 감시)';
+          badge.textContent = `⚡ 가동 중 (${isUsStock ? '미장' : '국장'} 5초 시세 감시)`;
           badge.style.background = 'rgba(16, 185, 129, 0.2)';
           badge.style.color = '#34d399';
           badge.style.border = '1px solid rgba(16, 185, 129, 0.4)';
@@ -566,23 +582,23 @@
               <div>
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                   <span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">
-                    초단타 1위 진입
+                    ${isUsStock ? '미장 1위 진입' : '국장 1위 진입'}
                   </span>
                   <strong style="color: #f8fafc; font-size: 1.05rem;">${p.stockName} (${p.symbol})</strong>
                   <span style="font-size: 0.8rem; color: #94a3b8;">1주 보유</span>
                 </div>
                 <div style="font-size: 0.85rem; color: #cbd5e1;">
-                  매수가: <strong>${(p.entryPrice || 0).toLocaleString()}원</strong> | 
-                  현재가: <strong>${(p.currentPrice || 0).toLocaleString()}원</strong>
+                  매수가: <strong>${entryStr}</strong> | 
+                  현재가: <strong>${currentStr}</strong>
                 </div>
                 <div style="font-size: 0.82rem; margin-top: 4px;">
-                  🎯 <span style="color: #34d399;">목표 익절가(+2.5%): <strong>${(p.targetPrice || 0).toLocaleString()}원</strong></span> | 
-                  ⛔ <span style="color: #f87171;">손절가(-1.5%): <strong>${(p.stopLossPrice || 0).toLocaleString()}원</strong></span>
+                  🎯 <span style="color: #34d399;">목표 익절가(+2.5%): <strong>${targetStr}</strong></span> | 
+                  ⛔ <span style="color: #f87171;">손절가(-1.5%): <strong>${stopStr}</strong></span>
                 </div>
               </div>
               <div style="text-align: right;">
                 <div style="font-size: 1.25rem; font-weight: 800; color: ${color};">
-                  ${sign}${(p.unrealizedPnl || 0).toLocaleString()}원 (${sign}${p.returnPct || 0}%)
+                  ${pnlStr} (${sign}${p.returnPct || 0}%)
                 </div>
                 <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
                   5초 주기 실시간 감시 중
@@ -592,8 +608,12 @@
           `;
         }
       } else if (status.isWaitingMarketOpen) {
+        const isWaitingUs = waitingMarket === 'US';
+        const waitTitle = isWaitingUs ? '⏳ 미장 개장 대기 중' : '⏳ 09:00 국장 개장 대기 중';
+        const openPrompt = status.scalpingSession?.nextOpenPrompt || (isWaitingUs ? '오늘 밤 22:30' : '내일 아침 09:00');
+
         if (badge) {
-          badge.textContent = '⏳ 09:00 개장 대기 중';
+          badge.textContent = waitTitle;
           badge.style.background = 'rgba(56, 189, 248, 0.15)';
           badge.style.color = '#38bdf8';
           badge.style.border = '1px solid rgba(56, 189, 248, 0.35)';
@@ -606,9 +626,9 @@
             <div style="display: flex; align-items: center; gap: 10px; color: #38bdf8;">
               <span style="font-size: 1.3rem;">⏳</span>
               <div>
-                <strong>09:00 정규장 개장 대기 모드 가동 중</strong><br>
+                <strong>${isWaitingUs ? '미국 정규장(NYSE/NASDAQ) 개장 대기 모드 가동 중' : '국내 정규장(KRX) 09:00 개장 대기 모드 가동 중'}</strong><br>
                 <span style="font-size: 0.82rem; color: #94a3b8;">
-                  09:00 개장 즉시 토스증권 실시간 차트 거래대금 1위(10만원 이하) 종목을 자동 발굴하여 1주 시장가 매수 후 익절(+2.5%) / 손절(-1.5%) 감시를 개시합니다.
+                  ${openPrompt} 개장 즉시 토스증권 실시간 차트 ${isWaitingUs ? '거래대금 상위($100 이하)' : '거래대금 1위(10만원 이하)'} 종목을 자동 발굴하여 1주 시장가 매수 후 익절(+2.5%) / 손절(-1.5%) 감시를 개시합니다.
                 </span>
               </div>
             </div>
@@ -621,23 +641,32 @@
           badge.style.color = '#94a3b8';
           badge.style.border = '1px solid rgba(148, 163, 184, 0.3)';
         }
-        if (btnStart) btnStart.disabled = false;
+        if (btnStart) {
+          btnStart.disabled = false;
+          btnStart.innerHTML = isUsSession
+            ? '⚡ 미장(나스닥/S&P) 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)'
+            : '⚡ 국장 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)';
+        }
         if (btnStop) btnStop.disabled = true;
 
         if (preview) {
           let historyNotice = '';
           if (status.history && status.history.length > 0) {
             const last = status.history[0];
+            const isLastUs = last.market === 'US' || last.currency === 'USD';
             const lastSign = (last.returnPct || 0) >= 0 ? '+' : '';
             const lastColor = (last.returnPct || 0) >= 0 ? '#34d399' : '#f87171';
             const reasonLabel = last.exitReason === 'TAKE_PROFIT' ? '🎯 목표가 익절(+2.5%)' : '⛔ 손절 청산(-1.5%)';
+            const pnlDisplay = isLastUs
+              ? `${lastSign}$${last.realizedPnl} (${lastSign}${last.returnPct || 0}%)`
+              : `${lastSign}${last.realizedPnl?.toLocaleString() || 0}원 (${lastSign}${last.returnPct || 0}%)`;
             historyNotice = `
               <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); font-size: 0.82rem; color: #94a3b8;">
-                직전 초단타 결과: <strong>${last.stockName}</strong> | ${reasonLabel} | <span style="color: ${lastColor}; font-weight: 700;">${lastSign}${last.realizedPnl?.toLocaleString() || 0}원 (${lastSign}${last.returnPct || 0}%)</span>
+                직전 초단타 결과: <strong>${last.stockName}</strong> (${isLastUs ? '미장' : '국장'}) | ${reasonLabel} | <span style="color: ${lastColor}; font-weight: 700;">${pnlDisplay}</span>
               </div>
             `;
           }
-          preview.innerHTML = `현재 가동 중인 초단타 포지션이 없습니다. 아래 [⚡ 국장 거래대금 1위 초단타 실행] 버튼을 눌러 시작하세요.${historyNotice}`;
+          preview.innerHTML = `현재 가동 중인 초단타 포지션이 없습니다. 아래 [⚡ ${sessionLabel} 거래대금 1위 초단타 실행] 버튼을 눌러 시작하세요.${historyNotice}`;
         }
       }
 
@@ -650,6 +679,7 @@
           historySec.style.display = 'block';
           if (historyCount) historyCount.textContent = `총 ${status.history.length}건`;
           historyList.innerHTML = status.history.slice(0, 5).map(item => {
+            const isItemUs = item.market === 'US' || item.currency === 'USD';
             const isProfit = (item.realizedPnl || 0) >= 0;
             const sign = isProfit ? '+' : '';
             const pnlColor = isProfit ? '#34d399' : '#f87171';
@@ -657,6 +687,12 @@
             const badgeBorder = isProfit ? 'rgba(52, 211, 153, 0.35)' : 'rgba(248, 113, 113, 0.35)';
             const reasonText = item.exitReason === 'TAKE_PROFIT' ? '🎯 목표가 익절(+2.5%)' : '⛔ 손절 청산(-1.5%)';
             const dateStr = item.closedAt ? new Date(item.closedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+            const entryText = isItemUs ? `$${item.entryPrice}` : `${(item.entryPrice || 0).toLocaleString()}원`;
+            const exitText = isItemUs ? `$${item.exitPrice}` : `${(item.exitPrice || 0).toLocaleString()}원`;
+            const pnlText = isItemUs
+              ? `${sign}$${item.realizedPnl}${item.realizedPnlKrw ? ` (약 ${sign}${item.realizedPnlKrw.toLocaleString()}원)` : ''} (${sign}${item.returnPct || 0}%)`
+              : `${sign}${(item.realizedPnl || 0).toLocaleString()}원 (${sign}${item.returnPct || 0}%)`;
+
             return `
               <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <div>
@@ -664,16 +700,19 @@
                     <span style="background: ${badgeBg}; color: ${pnlColor}; border: 1px solid ${badgeBorder}; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
                       ${reasonText}
                     </span>
+                    <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 0.7rem; padding: 1px 5px; border-radius: 3px;">
+                      ${isItemUs ? '미장' : '국장'}
+                    </span>
                     <strong style="color: #f1f5f9; font-size: 0.92rem;">${item.stockName}</strong>
                     <span style="color: #64748b; font-size: 0.78rem;">${item.symbol}</span>
                   </div>
                   <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 3px;">
-                    매수: ${(item.entryPrice || 0).toLocaleString()}원 ➔ 매도: ${(item.exitPrice || 0).toLocaleString()}원 (${dateStr})
+                    매수: ${entryText} ➔ 매도: ${exitText} (${dateStr})
                   </div>
                 </div>
                 <div style="text-align: right;">
                   <span style="font-size: 1rem; font-weight: 800; color: ${pnlColor};">
-                    ${sign}${(item.realizedPnl || 0).toLocaleString()}원 (${sign}${item.returnPct || 0}%)
+                    ${pnlText}
                   </span>
                 </div>
               </div>
