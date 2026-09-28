@@ -38,6 +38,7 @@ $churchNewsDataFile = Join-Path $dataDir "church_news.json"
 $planetWorldDataFile = Join-Path $dataDir "planet_world.json"
 $planetUploadDir = Join-Path $root "uploads\planet"
 if (-not (Test-Path $planetUploadDir)) { New-Item -ItemType Directory -Path $planetUploadDir -Force | Out-Null }
+$systemMindmapFile = Join-Path $dataDir "systemMindmap.json"
 
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
@@ -1019,6 +1020,41 @@ while ($true) {
                     }
                 }
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
+            }
+        }
+        elseif ($urlPath -eq "/api/admin/mindmap-data") {
+            if ($method -eq "GET") {
+                if (Test-Path $systemMindmapFile) {
+                    $rawText = [System.IO.File]::ReadAllText($systemMindmapFile, [System.Text.Encoding]::UTF8)
+                    $wrapped = "{`"success`":true,`"data`":$rawText}"
+                    Send-JsonResponse $stream $corsHeaders $wrapped
+                }
+                else {
+                    Send-JsonResponse $stream $corsHeaders '{"success":false,"error":"File not found"}' 404
+                }
+            }
+            elseif ($method -eq "POST") {
+                $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+                if ($headerBodySplit.Length -eq 2) {
+                    $postData = $headerBodySplit[1]
+                    if (-not [string]::IsNullOrWhiteSpace($postData)) {
+                        try {
+                            $parsed = $postData | ConvertFrom-Json
+                            $saveTarget = if ($parsed.data) { $parsed.data } else { $parsed }
+                            $saveTarget | Add-Member -MemberType NoteProperty -Name "lastUpdated" -Value (Get-Date).ToUniversalTime().ToString("o") -Force
+                            $jsonOut = $saveTarget | ConvertTo-Json -Depth 20
+                            [System.IO.File]::WriteAllText($systemMindmapFile, $jsonOut, $Utf8NoBom)
+                            Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"Saved successfully"}'
+                        }
+                        catch {
+                            Send-JsonResponse $stream $corsHeaders ('{"success":false,"error":"' + $_.Exception.Message.Replace('"', '\"') + '"}') 400
+                        }
+                    } else {
+                        Send-JsonResponse $stream $corsHeaders '{"success":false,"error":"Empty body"}' 400
+                    }
+                } else {
+                    Send-JsonResponse $stream $corsHeaders '{"success":false,"error":"Bad request"}' 400
+                }
             }
         }
         elseif ($urlPath -eq "/api/workflows") {
@@ -3171,7 +3207,267 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                 } catch {}
                             }
 
-                            $sortedMatches = $matchedList | Sort-Object score -Descending | Select-Object -First 6
+                            # 7. Gemini Spark 주간 경제/거시 보고서
+                            $sparkFile = Join-Path $dataDir "sparkReportsLatest.json"
+                            if (Test-Path $sparkFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($sparkFile, [System.Text.Encoding]::UTF8)
+                                    $sparkData = $raw | ConvertFrom-Json
+                                    if ($sparkData.reports) {
+                                        foreach ($rep in $sparkData.reports) {
+                                            $sc = 0
+                                            $txt = "$($rep.title) $($rep.categoryLabel) $($rep.summarySnippet) $($rep.content)".ToLower()
+                                            foreach ($t in $qTokens) {
+                                                if ($t.Length -ge 2) {
+                                                    if ($rep.title -and $rep.title.ToLower().Contains($t)) { $sc += 8 }
+                                                    elseif ($rep.categoryLabel -and $rep.categoryLabel.ToLower().Contains($t)) { $sc += 5 }
+                                                    elseif ($txt.Contains($t)) { $sc += 2 }
+                                                }
+                                            }
+                                            if ($sc -gt 0) {
+                                                [void]$matchedList.Add([PSCustomObject]@{
+                                                    score = $sc
+                                                    type = "Spark 경제리포트"
+                                                    title = "✨ [Spark 리포트] $(if ($rep.title) { $rep.title } else { $rep.categoryLabel })"
+                                                    summary = if ($rep.summarySnippet) { $rep.summarySnippet } else { "Gemini Spark 주간 경제·거시 심층 분석 보고서" }
+                                                    targetView = "spark-reports"
+                                                    id = $rep.id
+                                                })
+                                            }
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 8. 실시간 트렌드 및 검색순위
+                            $trendFile = Join-Path $dataDir "trend_cache.json"
+                            if (Test-Path $trendFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($trendFile, [System.Text.Encoding]::UTF8)
+                                    $trData = $raw | ConvertFrom-Json
+                                    $chList = @(
+                                        @{ list = $trData.google; label = "구글 트렌드" },
+                                        @{ list = $trData.blackkiwi; label = "블랙키위 키워드" },
+                                        @{ list = $trData.daum; label = "다음 실시간 토픽" },
+                                        @{ list = $trData.namu; label = "나무위키 검색" },
+                                        @{ list = $trData.kyobo; label = "교보 베스트셀러" }
+                                    )
+                                    foreach ($ch in $chList) {
+                                        if ($ch.list) {
+                                            foreach ($item in $ch.list) {
+                                                $sc = 0
+                                                $kw = if ($item.keyword) { $item.keyword } elseif ($item.title) { $item.title } else { $item.name }
+                                                $desc = if ($item.description) { $item.description } else { $item.reason }
+                                                $txt = "$kw $desc $($ch.label)".ToLower()
+                                                foreach ($t in $qTokens) {
+                                                    if ($t.Length -ge 2) {
+                                                        if ($kw -and $kw.ToLower().Contains($t)) { $sc += 7 }
+                                                        elseif ($txt.Contains($t)) { $sc += 2 }
+                                                    }
+                                                }
+                                                if ($sc -gt 0) {
+                                                    [void]$matchedList.Add([PSCustomObject]@{
+                                                        score = $sc
+                                                        type = "실시간 트렌드"
+                                                        title = "🚀 [$($ch.label)] $kw"
+                                                        summary = if ($desc) { $desc } else { "$($ch.label) 실시간 인기 순위" }
+                                                        targetView = "trend-ranking"
+                                                        id = $kw
+                                                    })
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 9. K-증시 분위기 & 감정 온도 리포트
+                            $stTempFile = Join-Path $dataDir "stockTemp.json"
+                            if (Test-Path $stTempFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($stTempFile, [System.Text.Encoding]::UTF8)
+                                    $stList = $raw | ConvertFrom-Json
+                                    foreach ($item in $stList) {
+                                        $sc = 0
+                                        $txt = "$($item.date) $($item.temp) $($item.headline) $($item.tags -join ' ') $($item.detail)".ToLower()
+                                        foreach ($t in $qTokens) {
+                                            if ($t.Length -ge 2) {
+                                                if ($item.headline -and $item.headline.ToLower().Contains($t)) { $sc += 7 }
+                                                elseif ($txt.Contains($t)) { $sc += 3 }
+                                            }
+                                        }
+                                        if ($sc -gt 0) {
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "K-증시온도"
+                                                title = "☀️ [K-증시 온도] $($item.date) ($($item.temp)℃)"
+                                                summary = if ($item.headline) { $item.headline } else { "일별 증시 호재 vs 악재 감정 지수 리포트" }
+                                                targetView = "stock-temp"
+                                                id = if ($item.date) { $item.date } else { $item.id }
+                                            })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 10. GitHub 트렌딩 오픈소스
+                            $ghFile = Join-Path $dataDir "githubTrending.json"
+                            if (Test-Path $ghFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($ghFile, [System.Text.Encoding]::UTF8)
+                                    $ghList = $raw | ConvertFrom-Json
+                                    foreach ($item in $ghList) {
+                                        $sc = 0
+                                        $txt = "$($item.name) $($item.author) $($item.language) $($item.description)".ToLower()
+                                        foreach ($t in $qTokens) {
+                                            if ($t.Length -ge 2) {
+                                                if ($item.name -and $item.name.ToLower().Contains($t)) { $sc += 7 }
+                                                elseif ($item.language -and $item.language.ToLower().Contains($t)) { $sc += 4 }
+                                                elseif ($txt.Contains($t)) { $sc += 2 }
+                                            }
+                                        }
+                                        if ($sc -gt 0) {
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "GitHub 트렌딩"
+                                                title = "💻 [GitHub] $($item.name)"
+                                                summary = "$($item.description) (⭐ $($item.stars))"
+                                                targetView = "github-trending"
+                                                id = $item.name
+                                            })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 11. SAP 최신 뉴스 & 12. SAP 핵심 용어
+                            $sapNewsFile = Join-Path $dataDir "sapNews.json"
+                            if (Test-Path $sapNewsFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($sapNewsFile, [System.Text.Encoding]::UTF8)
+                                    $snList = $raw | ConvertFrom-Json
+                                    foreach ($item in $snList) {
+                                        $sc = 0
+                                        $txt = "$($item.title) $($item.category) $($item.summary)".ToLower()
+                                        foreach ($t in $qTokens) {
+                                            if ($t.Length -ge 2) {
+                                                if ($item.title -and $item.title.ToLower().Contains($t)) { $sc += 6 }
+                                                elseif ($txt.Contains($t)) { $sc += 2 }
+                                            }
+                                        }
+                                        if ($sc -gt 0) {
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "SAP 뉴스"
+                                                title = "📰 [SAP 뉴스] $($item.title)"
+                                                summary = if ($item.summary) { $item.summary } else { $item.category }
+                                                targetView = "sap-suite"
+                                                id = if ($item.id) { $item.id } else { $item.link }
+                                            })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            $sapTermsFile = Join-Path $dataDir "sapTerms.json"
+                            if (Test-Path $sapTermsFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($sapTermsFile, [System.Text.Encoding]::UTF8)
+                                    $stList = $raw | ConvertFrom-Json
+                                    foreach ($item in $stList) {
+                                        $sc = 0
+                                        $txt = "$($item.term) $($item.fullForm) $($item.korean) $($item.summary) $($item.definition)".ToLower()
+                                        foreach ($t in $qTokens) {
+                                            if ($t.Length -ge 2) {
+                                                if ($item.term -and $item.term.ToLower().Contains($t)) { $sc += 8 }
+                                                elseif ($item.korean -and $item.korean.ToLower().Contains($t)) { $sc += 7 }
+                                                elseif ($txt.Contains($t)) { $sc += 3 }
+                                            }
+                                        }
+                                        if ($sc -gt 0) {
+                                            [void]$matchedList.Add([PSCustomObject]@{
+                                                score = $sc
+                                                type = "SAP 용어"
+                                                title = "🧠 [SAP 용어] $($item.term) $(if ($item.korean) { '(' + $item.korean + ')' })"
+                                                summary = if ($item.summary) { $item.summary } else { $item.definition }
+                                                targetView = "sap-terms"
+                                                id = $item.term
+                                            })
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 13. 교회 주보 및 공지 소식
+                            $churchFile = Join-Path $dataDir "church_news.json"
+                            if (Test-Path $churchFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($churchFile, [System.Text.Encoding]::UTF8)
+                                    $cData = $raw | ConvertFrom-Json
+                                    $cSources = @(
+                                        @{ list = $cData.suwon.items; label = "수원중앙침례교회" },
+                                        @{ list = $cData.gapck.items; label = "대한예수교장로회" }
+                                    )
+                                    foreach ($cs in $cSources) {
+                                        if ($cs.list) {
+                                            foreach ($item in $cs.list) {
+                                                $sc = 0
+                                                $txt = "$($item.title) $($item.date) $($item.summary) $($cs.label)".ToLower()
+                                                foreach ($t in $qTokens) {
+                                                    if ($t.Length -ge 2) {
+                                                        if ($item.title -and $item.title.ToLower().Contains($t)) { $sc += 6 }
+                                                        elseif ($txt.Contains($t)) { $sc += 2 }
+                                                    }
+                                                }
+                                                if ($sc -gt 0) {
+                                                    [void]$matchedList.Add([PSCustomObject]@{
+                                                        score = $sc
+                                                        type = "교회 소식"
+                                                        title = "⛪ [교회 소식] $($item.title)"
+                                                        summary = "$($cs.label) | $($item.date) | $($item.summary)"
+                                                        targetView = "church-news"
+                                                        id = if ($item.id) { $item.id } else { $item.title }
+                                                    })
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            # 14. 3D 행성 월드
+                            $planetFile = Join-Path $dataDir "planet_world.json"
+                            if (Test-Path $planetFile) {
+                                try {
+                                    $raw = [System.IO.File]::ReadAllText($planetFile, [System.Text.Encoding]::UTF8)
+                                    $pData = $raw | ConvertFrom-Json
+                                    if ($pData.buildings) {
+                                        foreach ($bld in $pData.buildings) {
+                                            $sc = 0
+                                            $flTexts = ($bld.floors | ForEach-Object { "$($_.title) $($_.desc)" }) -join " "
+                                            $txt = "$($bld.name) $($bld.category) $flTexts".ToLower()
+                                            foreach ($t in $qTokens) {
+                                                if ($t.Length -ge 2) {
+                                                    if ($bld.name -and $bld.name.ToLower().Contains($t)) { $sc += 7 }
+                                                    elseif ($txt.Contains($t)) { $sc += 3 }
+                                                }
+                                            }
+                                            if ($sc -gt 0) {
+                                                [void]$matchedList.Add([PSCustomObject]@{
+                                                    score = $sc
+                                                    type = "행성 월드"
+                                                    title = "🌍 [행성 월드] $($bld.name)"
+                                                    summary = "$($bld.category) 테마 3D 건물"
+                                                    targetView = "planet-world"
+                                                    id = $bld.id
+                                                })
+                                            }
+                                        }
+                                    }
+                                } catch {}
+                            }
+
+                            $sortedMatches = $matchedList | Sort-Object score -Descending | Select-Object -First 8
                             $topArray = @()
                             if ($sortedMatches) {
                                 foreach ($m in $sortedMatches) { $topArray += $m }

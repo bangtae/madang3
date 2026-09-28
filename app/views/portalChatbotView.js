@@ -234,7 +234,13 @@
         '투자심의의결': 'type-council',
         '실전 매매일지': 'type-journal',
         'K-증시': 'type-stock',
-        '크롬 즐겨찾기': 'type-stock',
+        'K-증시온도': 'type-temp',
+        '크롬 즐겨찾기': 'type-bookmark',
+        'Spark 경제리포트': 'type-spark',
+        '실시간 트렌드': 'type-trend',
+        'GitHub 트렌딩': 'type-github',
+        '교회 소식': 'type-church',
+        '행성 월드': 'type-planet',
         '소식': 'type-api'
       };
 
@@ -518,6 +524,218 @@
               summary: `${bm.folderPath ? `[${bm.folderPath}] ` : ''}${bm.url}`,
               targetView: 'bookmarks',
               id: bm.id || bm.url
+            });
+          }
+        }
+      }
+
+      // 7. Spark 경제리포트
+      const sparkObj = window.PORTAL_DATA_SPARK_REPORTS || (window.SparkReportsView && window.SparkReportsView.currentData);
+      if (sparkObj && Array.isArray(sparkObj.reports)) {
+        for (const rep of sparkObj.reports) {
+          let score = 0;
+          const text = `${rep.title || ''} ${rep.categoryLabel || ''} ${rep.summarySnippet || ''} ${rep.content || ''}`.toLowerCase();
+          for (const tok of tokens) {
+            if (!tok || tok.length < 2) continue;
+            if (rep.title && rep.title.toLowerCase().includes(tok)) score += 8;
+            if (rep.categoryLabel && rep.categoryLabel.toLowerCase().includes(tok)) score += 5;
+            if (text.includes(tok)) score += 2;
+          }
+          if (score > 0) {
+            results.push({
+              score,
+              type: 'Spark 경제리포트',
+              title: `✨ [Spark 리포트] ${rep.title || rep.categoryLabel}`,
+              summary: rep.summarySnippet || 'Gemini Spark 주간 경제·거시 심층 보고서',
+              targetView: 'spark-reports',
+              id: rep.id
+            });
+          }
+        }
+      }
+
+      // 8. 실시간 트렌드
+      const trData = window.TrendRankingView && window.TrendRankingView.data;
+      if (trData && typeof trData === 'object') {
+        const trSources = [
+          { list: trData.google, label: '구글 트렌드' },
+          { list: trData.blackkiwi, label: '블랙키위 키워드' },
+          { list: trData.daum, label: '다음 실시간' },
+          { list: trData.namu, label: '나무위키' },
+          { list: trData.kyobo, label: '교보 베스트셀러' }
+        ];
+        for (const ts of trSources) {
+          if (Array.isArray(ts.list)) {
+            for (const item of ts.list) {
+              let score = 0;
+              const kw = item.keyword || item.title || item.name || '';
+              const desc = item.description || item.reason || '';
+              const text = `${kw} ${desc} ${ts.label}`.toLowerCase();
+              for (const tok of tokens) {
+                if (!tok || tok.length < 2) continue;
+                if (kw && kw.toLowerCase().includes(tok)) score += 7;
+                if (text.includes(tok)) score += 2;
+              }
+              if (score > 0) {
+                results.push({
+                  score,
+                  type: '실시간 트렌드',
+                  title: `🚀 [${ts.label}] ${kw}`,
+                  summary: desc || `${ts.label} 실시간 랭킹 순위`,
+                  targetView: 'trend-ranking',
+                  id: kw
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // 9. K-증시 온도
+      const stockTempArr = window.PORTAL_DATA_STOCK_TEMP || (window.StockTempModel && window.StockTempModel.stockTempList) || [];
+      if (Array.isArray(stockTempArr)) {
+        for (const item of stockTempArr) {
+          let score = 0;
+          const text = `${item.date || ''} ${item.temp || ''} ${item.headline || ''} ${(item.tags || []).join(' ')} ${item.detail || ''}`.toLowerCase();
+          for (const tok of tokens) {
+            if (!tok || tok.length < 2) continue;
+            if (item.headline && item.headline.toLowerCase().includes(tok)) score += 7;
+            if (text.includes(tok)) score += 3;
+          }
+          if (score > 0) {
+            results.push({
+              score,
+              type: 'K-증시온도',
+              title: `☀️ [K-증시 온도] ${item.date || ''} (${item.temp ?? '-'}℃)`,
+              summary: item.headline || (item.detail ? item.detail.slice(0, 100) + '...' : '일별 증시 호재 vs 악재 감정 지수'),
+              targetView: 'stock-temp',
+              id: item.date || item.id
+            });
+          }
+        }
+      }
+
+      // 10. GitHub 트렌딩
+      const ghList = window.PORTAL_DATA_GITHUB_TRENDING || [];
+      if (Array.isArray(ghList)) {
+        for (const item of ghList) {
+          let score = 0;
+          const text = `${item.name || ''} ${item.author || ''} ${item.language || ''} ${item.description || ''}`.toLowerCase();
+          for (const tok of tokens) {
+            if (!tok || tok.length < 2) continue;
+            if (item.name && item.name.toLowerCase().includes(tok)) score += 7;
+            if (item.language && item.language.toLowerCase().includes(tok)) score += 4;
+            if (text.includes(tok)) score += 2;
+          }
+          if (score > 0) {
+            results.push({
+              score,
+              type: 'GitHub 트렌딩',
+              title: `💻 [GitHub] ${item.name || '오픈소스'}`,
+              summary: `${item.language ? `[${item.language}] ` : ''}${item.description || 'GitHub 실시간 급상승 오픈소스'} (⭐ ${item.stars || '-'})`,
+              targetView: 'github-trending',
+              id: item.name
+            });
+          }
+        }
+      }
+
+      // 11. SAP 뉴스 & 12. SAP 용어
+      const sapNewsArr = window.PORTAL_DATA_SAP_NEWS || [];
+      if (Array.isArray(sapNewsArr)) {
+        for (const item of sapNewsArr) {
+          let score = 0;
+          const text = `${item.title || ''} ${item.category || ''} ${item.summary || ''}`.toLowerCase();
+          for (const tok of tokens) {
+            if (!tok || tok.length < 2) continue;
+            if (item.title && item.title.toLowerCase().includes(tok)) score += 6;
+            if (text.includes(tok)) score += 2;
+          }
+          if (score > 0) {
+            results.push({
+              score,
+              type: 'SAP 뉴스',
+              title: `📰 [SAP 뉴스] ${item.title}`,
+              summary: item.summary || item.category || 'SAP 최신 업데이트',
+              targetView: 'sap-suite',
+              id: item.id || item.link
+            });
+          }
+        }
+      }
+
+      const sapTermsArr = window.PORTAL_DATA_SAP_TERMS || [];
+      if (Array.isArray(sapTermsArr)) {
+        for (const item of sapTermsArr) {
+          let score = 0;
+          const text = `${item.term || ''} ${item.korean || ''} ${item.summary || ''} ${item.definition || ''}`.toLowerCase();
+          for (const tok of tokens) {
+            if (!tok || tok.length < 2) continue;
+            if (item.term && item.term.toLowerCase().includes(tok)) score += 8;
+            if (item.korean && item.korean.toLowerCase().includes(tok)) score += 7;
+            if (text.includes(tok)) score += 3;
+          }
+          if (score > 0) {
+            results.push({
+              score,
+              type: 'SAP 용어',
+              title: `🧠 [SAP 용어] ${item.term}${item.korean ? ` (${item.korean})` : ''}`,
+              summary: item.summary || item.definition || 'SAP 용어 사전',
+              targetView: 'sap-terms',
+              id: item.term
+            });
+          }
+        }
+      }
+
+      // 13. 교회 소식 & 14. 3D 행성 월드
+      const churchData = window.ChurchNewsModel && window.ChurchNewsModel.newsData;
+      if (churchData && typeof churchData === 'object') {
+        ['suwon', 'gapck'].forEach(k => {
+          const list = churchData[k]?.items;
+          if (Array.isArray(list)) {
+            for (const item of list) {
+              let score = 0;
+              const text = `${item.title || ''} ${item.date || ''} ${item.summary || ''}`.toLowerCase();
+              for (const tok of tokens) {
+                if (!tok || tok.length < 2) continue;
+                if (item.title && item.title.toLowerCase().includes(tok)) score += 6;
+                if (text.includes(tok)) score += 2;
+              }
+              if (score > 0) {
+                results.push({
+                  score,
+                  type: '교회 소식',
+                  title: `⛪ [교회 소식] ${item.title}`,
+                  summary: `${item.date || ''} | ${item.summary || '교회 소식'}`,
+                  targetView: 'church-news',
+                  id: item.id || item.title
+                });
+              }
+            }
+          }
+        });
+      }
+
+      const planetData = window.PlanetWorldModel && window.PlanetWorldModel.worldData;
+      if (planetData && Array.isArray(planetData.buildings)) {
+        for (const bld of planetData.buildings) {
+          let score = 0;
+          const flTexts = (bld.floors || []).map(fl => `${fl.title || ''} ${fl.desc || ''}`).join(' ');
+          const text = `${bld.name || ''} ${bld.category || ''} ${flTexts}`.toLowerCase();
+          for (const tok of tokens) {
+            if (!tok || tok.length < 2) continue;
+            if (bld.name && bld.name.toLowerCase().includes(tok)) score += 7;
+            if (text.includes(tok)) score += 3;
+          }
+          if (score > 0) {
+            results.push({
+              score,
+              type: '행성 월드',
+              title: `🌍 [행성 월드] ${bld.name}`,
+              summary: `${bld.category || '가족'} 테마 3D 건물 (총 ${bld.floors?.length || 1}개 층)`,
+              targetView: 'planet-world',
+              id: bld.id
             });
           }
         }

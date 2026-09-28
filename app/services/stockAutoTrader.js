@@ -471,6 +471,83 @@ class StockAutoTrader {
           }
         }
 
+        // 🌟 [유령 매도 자동 복구 메커니즘]
+        // 시스템 집중 포지션(cur)이 비어있는데, journal.history에 최근 FOCUSED 매도 기록이 있고
+        // 해당 종목이 실제 토스 잔고(activeHoldings)에 여전히 남아있다면 (주문 실패 후 유령 매도 처리된 경우 복구)
+        if (!cur || !cur.itemCode) {
+          const ghostHistoryIndex = (journal.history || []).findIndex(h => h.strategyType === 'FOCUSED');
+          if (ghostHistoryIndex !== -1) {
+            const ghostHist = journal.history[ghostHistoryIndex];
+            const matchedHolding = activeHoldings.find(h => String(h.symbol).trim() === ghostHist.itemCode);
+            if (matchedHolding && Number(matchedHolding.quantity) > 0) {
+              console.log(`[StockAutoTrader] 🚨 유령 매도 감지: ${ghostHist.stockName} (${ghostHist.itemCode})가 실계좌에 ${matchedHolding.quantity}주 여전히 보유 중입니다. 집중 포지션으로 자동 복구합니다.`);
+
+              // 1. 유령 매매 이력 삭제
+              journal.history.splice(ghostHistoryIndex, 1);
+
+              // 2. 통계 원복
+              if (journal.stats && ghostHist.realizedPnlKrw) {
+                journal.stats.totalTrades = Math.max(0, (journal.stats.totalTrades || 1) - 1);
+                if (ghostHist.realizedPnlKrw > 0) journal.stats.winTrades = Math.max(0, (journal.stats.winTrades || 1) - 1);
+                else if (ghostHist.realizedPnlKrw < 0) journal.stats.lossTrades = Math.max(0, (journal.stats.lossTrades || 1) - 1);
+                journal.stats.totalProfitKrw = (journal.stats.totalProfitKrw || 0) - ghostHist.realizedPnlKrw;
+                journal.stats.winRate = journal.stats.totalTrades > 0 ? parseFloat(((journal.stats.winTrades / journal.stats.totalTrades) * 100).toFixed(1)) : 0;
+              }
+
+              // 3. 집중 포지션 복구
+              const quantity = Number(matchedHolding.quantity) || 1;
+              const avgPrice = parseFloat(matchedHolding.averagePurchasePrice) || parseFloat(matchedHolding.lastPrice) || ghostHist.averagePrice;
+              const lastPrice = parseFloat(matchedHolding.lastPrice) || avgPrice;
+              const isKr = (matchedHolding.marketCountry === 'KR') || /^[0-9]{6}$/.test(ghostHist.itemCode);
+              const currency = matchedHolding.currency || (isKr ? 'KRW' : 'USD');
+              let fxRate = ghostHist.entryFxRate || 1350;
+
+              const krwPrice = currency === 'KRW' ? Math.round(lastPrice) : Math.round(lastPrice * fxRate);
+              const usdPrice = currency === 'USD' ? lastPrice : parseFloat((krwPrice / fxRate).toFixed(2));
+              const avgKrw = currency === 'KRW' ? Math.round(avgPrice) : Math.round(avgPrice * fxRate);
+
+              journal.currentPosition = {
+                stockName: matchedHolding.name || ghostHist.stockName,
+                itemCode: ghostHist.itemCode,
+                market: ghostHist.market || (isKr ? 'KR' : 'US'),
+                currency,
+                status: 'FILLED',
+                quantity,
+                entryPrice: ghostHist.entryPrice || avgPrice,
+                averagePrice: avgPrice,
+                currentPrice: lastPrice,
+                krwPrice,
+                usdPrice,
+                fxRate,
+                targetPrice: isKr ? Math.round(avgPrice * 1.15) : parseFloat((avgPrice * 1.15).toFixed(2)),
+                stopLossPrice: isKr ? Math.round(avgPrice * 0.95) : parseFloat((avgPrice * 0.95).toFixed(2)),
+                totalInvestedKrw: avgKrw * quantity,
+                unrealizedPnl: Math.round((lastPrice - avgPrice) * (currency === 'KRW' ? quantity : (quantity * fxRate))),
+                returnPct: avgPrice > 0 ? parseFloat((((lastPrice - avgPrice) / avgPrice) * 100).toFixed(2)) : 0.0,
+                orderId: ghostHist.orderId || 'RESTORED',
+                debateId: ghostHist.debateId || null,
+                debateSummary: ghostHist.debateSummary || '',
+                startedAt: ghostHist.startedAt || new Date().toISOString(),
+                filledAt: ghostHist.startedAt || new Date().toISOString(),
+                lastUpdatedAt: new Date().toISOString(),
+                note: `토스증권 실제 잔고 보유 확인에 따른 정상 원복 (${quantity}주 보유)`
+              };
+
+              await this.syncLatestDebateWithPosition(journal);
+              this.saveJournalData(journal);
+
+              telegramBot.sendGeneralMessage(
+                `🔄 <b>[토스증권 AI 자동매매] 실시간 집중 포지션 자동 정상 복구</b><br><br>` +
+                `• <b>종목명:</b> ${journal.currentPosition.stockName} (<code>${journal.currentPosition.itemCode}</code>)<br>` +
+                `• <b>보유 수량:</b> <b>${quantity}주</b> (평단가: ${avgPrice.toLocaleString()}원)<br>` +
+                `• <b>현재가:</b> ${lastPrice.toLocaleString()}원<br>` +
+                `• <b>안내:</b> 토스증권 실제 계좌에 2주 정상 보유 중임이 확인되어 매매일지 유령 매도 이력을 삭제하고 집중 운용 포지션으로 안전하게 원복했습니다.`
+              );
+              return true;
+            }
+          }
+        }
+
         // 실계좌에 주식이 존재하지만 시스템 포지션이 아니라면 (사용자 직접 매수 주식 또는 스캘핑 주식)
         // AI 자동매매는 해당 종목을 절대 건드리지 않고 보호하며, 중복 매수만 차단함.
         if (activeHoldings.length > 0) {
@@ -849,18 +926,30 @@ class StockAutoTrader {
           pos.returnPct = parseFloat((((livePrice - pos.averagePrice) / pos.averagePrice) * 100).toFixed(2));
           pos.lastUpdatedAt = new Date().toISOString();
 
-          // (1) 목표가(+15%) 달성 -> 전량(1주) 익절 매도
+          const isMarketOpen = tossClient.isRegularMarketOpen(pos.market);
+
+          // (1) 목표가(+15%) 달성 -> 전량 익절 매도
           if (livePrice >= pos.targetPrice) {
             if (cfg.isAutoTradingEnabled) {
-              await this.executeExit(pos, journal, 'PROFIT_TARGET', '🎯 목표가 달성 익절 매도');
+              if (isMarketOpen) {
+                await this.executeExit(pos, journal, 'PROFIT_TARGET', '🎯 목표가 달성 익절 매도');
+              } else {
+                console.log(`[StockAutoTrader] ${pos.stockName} 목표가 도달하였으나 ${pos.market} 정규장 마감으로 매도 보류`);
+                this.saveJournalData(journal);
+              }
             } else {
               this.saveJournalData(journal);
             }
           }
-          // (2) 손절선(-5%) 도달 -> 전량(1주) 손절 매도
+          // (2) 손절선(-5%) 도달 -> 전량 손절 매도
           else if (livePrice <= pos.stopLossPrice) {
             if (cfg.isAutoTradingEnabled) {
-              await this.executeExit(pos, journal, 'STOP_LOSS', '⛔ 손절선 도달 손절 매도');
+              if (isMarketOpen) {
+                await this.executeExit(pos, journal, 'STOP_LOSS', '⛔ 손절선 도달 손절 매도');
+              } else {
+                console.log(`[StockAutoTrader] ${pos.stockName} 손절선 도달하였으나 ${pos.market} 정규장 마감으로 매도 보류`);
+                this.saveJournalData(journal);
+              }
             } else {
               this.saveJournalData(journal);
             }
@@ -1041,9 +1130,15 @@ class StockAutoTrader {
   }
 
   /**
-   * 전량(1주) 청산 매도 (목표가 익절 / 손절선 손절 / 비상 매도)
+   * 전량 청산 매도 (목표가 익절 / 손절선 손절 / 비상 매도)
    */
   async executeExit(pos, journal, reasonCode, reasonTitle) {
+    const isMarketOpen = tossClient.isRegularMarketOpen(pos.market);
+    if (!isMarketOpen) {
+      console.warn(`[StockAutoTrader] ${reasonTitle} 매도 취소: ${pos.market} 정규장이 열려있지 않습니다.`);
+      return false;
+    }
+
     const exitQty = Number(pos.quantity) || 1;
     let orderResult = await tossClient.submitOrder({
       symbol: pos.itemCode,
@@ -1052,8 +1147,17 @@ class StockAutoTrader {
       quantity: exitQty
     });
 
-    if (!orderResult.success) {
-      console.error(`[StockAutoTrader] ${reasonTitle} 매도 주문 실패:`, orderResult.error);
+    if (!orderResult || !orderResult.success) {
+      const errMsg = orderResult?.error || '토스증권 API 주문 응답 실패';
+      console.error(`[StockAutoTrader] ${reasonTitle} 매도 주문 실패:`, errMsg);
+      telegramBot.sendGeneralMessage(
+        `🚨 <b>[토스증권 AI 자동매매] ${pos.stockName} 매도 주문 실패 경고!</b><br><br>` +
+        `• <b>종목명:</b> ${pos.stockName} (<code>${pos.itemCode}</code>)<br>` +
+        `• <b>사유:</b> ${reasonTitle} 조건 충족<br>` +
+        `• <b>실패 원인:</b> <code>${errMsg}</code><br>` +
+        `⚠️ <i>토스증권 매도 주문이 접수/체결되지 않았으므로 포지션을 청산하지 않고 안전하게 유지합니다.</i>`
+      );
+      return false;
     }
 
     const exitPrice = pos.currentPrice;
@@ -1591,6 +1695,13 @@ class StockAutoTrader {
               quantity: remainingQty
             });
 
+            if (!sellRes || !sellRes.success) {
+              const errMsg = sellRes?.error || '주문 응답 실패';
+              console.error(`[CustomStrategy] ${strat.stockName} 손절 매도 주문 실패:`, errMsg);
+              telegramBot.sendGeneralMessage(`🚨 <b>[토스증권] ${strat.stockName} 맞춤전략 손절 주문 실패</b><br>원인: <code>${errMsg}</code>`);
+              continue;
+            }
+
             const pnl = isKr ? Math.round((livePrice - strat.entryPrice) * remainingQty) : parseFloat(((livePrice - strat.entryPrice) * remainingQty).toFixed(2));
             strat.status = 'CLOSED';
             strat.exitReason = 'STOP_LOSS';
@@ -1709,6 +1820,13 @@ class StockAutoTrader {
               quantity: remainingQty
             });
 
+            if (!sellRes || !sellRes.success) {
+              const errMsg = sellRes?.error || '주문 응답 실패';
+              console.error(`[CustomStrategy] ${strat.stockName} 2차 목표가 매도 주문 실패:`, errMsg);
+              telegramBot.sendGeneralMessage(`🚨 <b>[토스증권] ${strat.stockName} 맞춤전략 2차 익절 주문 실패</b><br>원인: <code>${errMsg}</code>`);
+              continue;
+            }
+
             const pnl = isKr ? Math.round((livePrice - strat.entryPrice) * remainingQty) : parseFloat(((livePrice - strat.entryPrice) * remainingQty).toFixed(2));
             strat.status = 'CLOSED';
             strat.exitReason = 'TARGET_2_PROFIT';
@@ -1767,6 +1885,13 @@ class StockAutoTrader {
               orderType: 'MARKET',
               quantity: sellQty
             });
+
+            if (!sellRes || !sellRes.success) {
+              const errMsg = sellRes?.error || '주문 응답 실패';
+              console.error(`[CustomStrategy] ${strat.stockName} 1차 목표가 매도 주문 실패:`, errMsg);
+              telegramBot.sendGeneralMessage(`🚨 <b>[토스증권] ${strat.stockName} 맞춤전략 1차 분할익절 주문 실패</b><br>원인: <code>${errMsg}</code>`);
+              continue;
+            }
 
             const pnl = isKr ? Math.round((livePrice - strat.entryPrice) * sellQty) : parseFloat(((livePrice - strat.entryPrice) * sellQty).toFixed(2));
             const isFullExit = sellQty >= remainingQty;
@@ -1852,9 +1977,48 @@ class StockAutoTrader {
           history: Array.isArray(parsed.history) ? parsed.history : []
         };
         console.log(`[ScalpingEngine] Loaded scalpingStatus from disk (${this.scalpingStatus.history.length} trades in history)`);
-        // 진행 중이던 포지션 감시 타이머 복구
+        // 1. 진행 중이던 포지션 감시 타이머 복구
         if (this.scalpingStatus.isActive && this.scalpingStatus.currentPosition) {
           this.startScalpingMonitorTimer();
+        }
+        // 2. 🌟 개장 대기 중이던 상태 복구 및 기개장 시 즉시 진입
+        else if (this.scalpingStatus.isActive && this.scalpingStatus.isWaitingMarketOpen) {
+          const session = tossClient.getCurrentScalpingSession();
+          const market = this.scalpingStatus.waitingMarket || session.market;
+          if (tossClient.isRegularMarketOpen(market)) {
+            console.log(`[ScalpingEngine] Server recovered while ${market} market is already open! Executing entry immediately...`);
+            this.scalpingStatus.isWaitingMarketOpen = false;
+            this.saveScalpingStatus();
+            setTimeout(async () => {
+              await this.executeScalpingEntry(market);
+            }, 1000);
+          } else {
+            console.log(`[ScalpingEngine] Server recovered during ${market} market wait. Resuming wait timer...`);
+            if (this.scalpingOpenWaitTimer) clearInterval(this.scalpingOpenWaitTimer);
+            this.scalpingOpenWaitTimer = setInterval(async () => {
+              if (!this.scalpingStatus.isActive) {
+                clearInterval(this.scalpingOpenWaitTimer);
+                return;
+              }
+              const checkMarket = this.scalpingStatus.waitingMarket || market;
+              if (tossClient.isRegularMarketOpen(checkMarket)) {
+                if (this.scalpingStatus.currentPosition || this.isEnteringScalp) {
+                  clearInterval(this.scalpingOpenWaitTimer);
+                  this.scalpingOpenWaitTimer = null;
+                  this.scalpingStatus.isWaitingMarketOpen = false;
+                  this.saveScalpingStatus();
+                  return;
+                }
+                const entryRes = await this.executeScalpingEntry(checkMarket);
+                if (entryRes && entryRes.success) {
+                  clearInterval(this.scalpingOpenWaitTimer);
+                  this.scalpingOpenWaitTimer = null;
+                  this.scalpingStatus.isWaitingMarketOpen = false;
+                  this.saveScalpingStatus();
+                }
+              }
+            }, 5000);
+          }
         }
       }
     } catch (e) {
@@ -1963,32 +2127,37 @@ class StockAutoTrader {
       );
     }
 
-    // 3. 09:00 KST (540분) - ⚡ [국장 정규장 개장! 초단타 골든타임]
+    // 3. 09:00~09:30 KST (540~570분) - ⚡ [국장 정규장 개장! 초단타 골든타임]
     const key0900 = `${ymd}-KRX_0900`;
-    if (totalMinutes === 540 && !this.alertLog[key0900]) {
-      this.alertLog[key0900] = true;
-      telegramBot.sendGeneralMessage(
-        `⚡ <b>[국내 정규장 개장!] 초단타 최강 골든타임(09:00~09:30) 시작</b>\n\n` +
-        `• 한국거래소(KRX) 및 NXT 메인마켓이 공식 개장했습니다.\n` +
-        `• 토스증권 실시간 차트 거래대금 랭킹 1위 종목 초단타 진입 적기입니다!`
-      );
+    if (totalMinutes >= 540 && totalMinutes < 570) {
+      if (!this.alertLog[key0900]) {
+        this.alertLog[key0900] = true;
+        telegramBot.sendGeneralMessage(
+          `⚡ <b>[국내 정규장 개장!] 초단타 최강 골든타임(09:00~09:30) 시작</b>\n\n` +
+          `• 한국거래소(KRX) 및 NXT 메인마켓이 공식 개장했습니다.\n` +
+          `• 토스증권 실시간 차트 거래대금 랭킹 1위 종목 초단타 진입 적기입니다!`
+        );
+      }
 
       // 자동 스케줄이 켜져있거나 이미 대기 중인 경우 -> 즉시 진입 실행!
-      if (this.scalpingConfig.autoScheduleEnabled || this.scalpingStatus.isWaitingMarketOpen) {
+      const keyAutoEntryKr = `${ymd}-KRX_AUTO_ENTRY`;
+      if ((this.scalpingConfig.autoScheduleEnabled || this.scalpingStatus.isWaitingMarketOpen) && !this.alertLog[keyAutoEntryKr]) {
         if (this.scalpingOpenWaitTimer) {
           clearInterval(this.scalpingOpenWaitTimer);
           this.scalpingOpenWaitTimer = null;
         }
         if (this.scalpingStatus.currentPosition || this.isEnteringScalp) {
-          console.log('[ScalpingEngine] Auto schedule triggered at 09:00, but position or entry already active. Skipping duplicate entry.');
+          this.alertLog[keyAutoEntryKr] = true;
+          console.log('[ScalpingEngine] Auto schedule triggered during golden time, but position or entry already active.');
         } else {
-          console.log('[ScalpingEngine] Auto schedule triggered at 09:00! Executing entry...');
+          this.alertLog[keyAutoEntryKr] = true;
+          console.log('[ScalpingEngine] Auto schedule triggered during 09:00~09:30 golden time! Executing entry...');
           this.scalpingStatus.isActive = true;
           this.scalpingStatus.isWaitingMarketOpen = false;
           this.saveScalpingStatus();
           setTimeout(async () => {
-            await this.executeScalpingEntry();
-          }, 2000); // 개장 후 2초 후 랭킹 집계 즉시 포착
+            await this.executeScalpingEntry('KR');
+          }, 2000); // 랭킹 집계 즉시 포착
         }
       }
     }
@@ -1996,7 +2165,7 @@ class StockAutoTrader {
     // 4. 미국장 개장 5분 전 (서머타임: 22:25 KST / 겨울철: 23:25 KST)
     const usNotifyMinutes = isDst ? 22 * 60 + 25 : 23 * 60 + 25;
     const keyUs = `${ymd}-US_PRE`;
-    if (totalMinutes === usNotifyMinutes && !this.alertLog[keyUs]) {
+    if (totalMinutes >= usNotifyMinutes && totalMinutes < usNotifyMinutes + 5 && !this.alertLog[keyUs]) {
       this.alertLog[keyUs] = true;
       const autoMsg = this.scalpingConfig.autoScheduleEnabled
         ? `<b>개장 자동 실행 스케줄 ON</b> (${isDst ? '22:30' : '23:30'} 정각에 미국 주식 자동 매수 발주가 집행됩니다)`
@@ -2010,33 +2179,38 @@ class StockAutoTrader {
       );
     }
 
-    // 5. 미국장 정규장 개장 정각 (서머타임: 22:30 KST / 겨울철: 23:30 KST) - ⚡ [미장 초단타 골든타임]
+    // 5. 미국장 정규장 개장 골든타임 (서머타임: 22:30 KST / 겨울철: 23:30 KST) - ⚡ [미장 초단타 골든타임]
     const usOpenMinutes = isDst ? 22 * 60 + 30 : 23 * 60 + 30;
     const keyUsOpen = `${ymd}-US_OPEN`;
-    if (totalMinutes === usOpenMinutes && !this.alertLog[keyUsOpen]) {
-      this.alertLog[keyUsOpen] = true;
-      telegramBot.sendGeneralMessage(
-        `⚡ <b>[미국 정규장 개장!] 미장 초단타 골든타임(${isDst ? '22:30~00:00' : '23:30~01:00'}) 시작</b>\n\n` +
-        `• 뉴욕증권거래소(NYSE) 및 나스닥(NASDAQ)이 공식 개장했습니다.\n` +
-        `• 토스증권 실시간 차트 거래대금 상위($100 이하) 초단타 진입 적기입니다!`
-      );
+    if (totalMinutes >= usOpenMinutes && totalMinutes < usOpenMinutes + 60) {
+      if (!this.alertLog[keyUsOpen]) {
+        this.alertLog[keyUsOpen] = true;
+        telegramBot.sendGeneralMessage(
+          `⚡ <b>[미국 정규장 개장!] 미장 초단타 골든타임(${isDst ? '22:30~00:00' : '23:30~01:00'}) 시작</b>\n\n` +
+          `• 뉴욕증권거래소(NYSE) 및 나스닥(NASDAQ)이 공식 개장했습니다.\n` +
+          `• 토스증권 실시간 차트 거래대금 상위($100 이하) 초단타 진입 적기입니다!`
+        );
+      }
 
       // 자동 스케줄이 켜져있거나 미장 대기 중인 경우 -> 미장 즉시 진입 실행!
-      if (this.scalpingConfig.autoScheduleEnabled || this.scalpingStatus.isWaitingMarketOpen) {
+      const keyAutoEntryUs = `${ymd}-US_AUTO_ENTRY`;
+      if ((this.scalpingConfig.autoScheduleEnabled || this.scalpingStatus.isWaitingMarketOpen) && !this.alertLog[keyAutoEntryUs]) {
         if (this.scalpingOpenWaitTimer) {
           clearInterval(this.scalpingOpenWaitTimer);
           this.scalpingOpenWaitTimer = null;
         }
         if (this.scalpingStatus.currentPosition || this.isEnteringScalp) {
-          console.log('[ScalpingEngine] Auto schedule triggered at US open, but position or entry already active. Skipping duplicate entry.');
+          this.alertLog[keyAutoEntryUs] = true;
+          console.log('[ScalpingEngine] Auto schedule triggered at US open, but position or entry already active.');
         } else {
-          console.log('[ScalpingEngine] Auto schedule triggered at US open! Executing entry for US stock...');
+          this.alertLog[keyAutoEntryUs] = true;
+          console.log('[ScalpingEngine] Auto schedule triggered during US golden time! Executing entry for US stock...');
           this.scalpingStatus.isActive = true;
           this.scalpingStatus.isWaitingMarketOpen = false;
           this.saveScalpingStatus();
           setTimeout(async () => {
             await this.executeScalpingEntry('US');
-          }, 3000); // 개장 후 3초 후 미국 실시간 랭킹 집계 즉시 포착
+          }, 3000); // 랭킹 집계 즉시 포착
         }
       }
     }
@@ -2096,14 +2270,14 @@ class StockAutoTrader {
       }, 5000); // 5초마다 개장 여부 폴링
 
       const marketLabel = isUs ? '미장(나스닥/S&P)' : '국장(KRX)';
-      const priceLimit = isUs ? '1주 $100 이하' : '1주 10만원 이하';
+      const priceLimit = isUs ? '총 예산 $100 이하' : '총 예산 10만원 이하';
 
       telegramBot.sendGeneralMessage(
         `⚡ <b>[토스증권 ${marketLabel} 개장 초단타 스캘핑 대기]</b>\n\n` +
         `• <b>운용 모드:</b> ${marketLabel} 개장 자동 대기 활성화\n` +
         `• <b>실행 예정:</b> ${promptText} 개장 직후\n` +
         `• <b>대상 기준:</b> 개장 직후 실시간 거래대금 1위 (${priceLimit})\n` +
-        '• <b>원칙:</b> 1주 시장가 매수 ➔ <b>익절 +2.5%</b> / <b>손절 -1.5%</b> 자동 청산'
+        '• <b>원칙:</b> 예산 한도 내 자동 수량 시장가 매수 ➔ <b>30분 단위 타임디케이 청산</b>'
       );
 
       return {
@@ -2170,30 +2344,82 @@ class StockAutoTrader {
       const maxPrice = isUs ? 100.0 : 100000;
       const excludeSymbols = Array.from(this.getActiveTradingSymbols('SCALPING'));
 
-      console.log(`[ScalpingEngine] Finding top trading amount stock for ${market} (maxPrice: ${maxPrice}, excluded: [${excludeSymbols.join(', ')}])...`);
+      console.log(`[ScalpingEngine] Finding top trading amount candidates for ${market} (maxPrice: ${maxPrice}, excluded: [${excludeSymbols.join(', ')}])...`);
 
-      const targetStock = await tossClient.findScalpingTargetStock(market, maxPrice, excludeSymbols);
+      const candidates = await tossClient.findScalpingCandidates(market, maxPrice, excludeSymbols);
 
-      if (!targetStock) {
+      if (!candidates || candidates.length === 0) {
         const limitText = isUs ? '$100 이하' : '10만원 이하';
         console.warn(`[ScalpingEngine] No eligible stock found for ${market} under ${limitText}`);
         return {
           success: false,
-          message: `조건에 맞는 ${limitText} ${isUs ? '미장' : '국장'} 거래대금 상위 종목을 찾지 못했습니다.`,
+          message: `조건에 맞는 ${limitText} ${isUs ? '미장' : '국장'} 거래대금 상위 종목(레버리지/인버스 제외)을 찾지 못했습니다.`,
           status: this.getScalpingStatus()
         };
       }
 
-      // 토스증권 API 시장가 1주 매수 주문 전송
-      const buyRes = await tossClient.submitOrder({
-        symbol: targetStock.symbol,
-        side: 'BUY',
-        orderType: 'MARKET',
-        quantity: 1,
-        clientOrderId: `SCALP-${Date.now()}`
-      });
+      let buyRes = null;
+      let targetStock = null;
+      let quantity = 1;
+      let totalInvested = 0;
+      let entryPrice = 0;
 
-      const entryPrice = targetStock.currentPrice > 0 ? targetStock.currentPrice : (isUs ? 10.0 : 10000);
+      // 최대 3순위까지 순차적으로 주문 시도 (거부 시 차순위 자동 재시도)
+      const maxAttempts = Math.min(candidates.length, 3);
+      for (let i = 0; i < maxAttempts; i++) {
+        const cand = candidates[i];
+        const candPrice = cand.currentPrice > 0 ? cand.currentPrice : (isUs ? 10.0 : 10000);
+        const maxBudget = isUs ? 100.0 : 100000;
+        const candQty = Math.max(1, Math.floor(maxBudget / candPrice));
+
+        console.log(`[ScalpingEngine] Attempting buy #${i + 1}/${maxAttempts}: ${cand.stockName} (${cand.symbol}) ${candQty}주 @ ${candPrice}...`);
+
+        const orderRes = await tossClient.submitOrder({
+          symbol: cand.symbol,
+          side: 'BUY',
+          orderType: 'MARKET',
+          quantity: candQty,
+          clientOrderId: `SCALP-${Date.now()}`
+        });
+
+        // 🌟 [엄격한 증권사 주문 결과 검증] 성공 시에만 포지션 확정
+        if (orderRes && orderRes.success) {
+          buyRes = orderRes;
+          targetStock = cand;
+          quantity = candQty;
+          entryPrice = candPrice;
+          totalInvested = isUs ? parseFloat((candPrice * candQty).toFixed(2)) : (candPrice * candQty);
+          console.log(`[ScalpingEngine] Buy order SUCCESS for ${cand.stockName} (orderId: ${orderRes.orderId})`);
+          break;
+        } else {
+          const errMsg = orderRes?.error || `HTTP ${orderRes?.status || 'Unknown'}`;
+          console.error(`[ScalpingEngine] Buy order REJECTED for ${cand.stockName} (${cand.symbol}):`, errMsg);
+
+          const hasNext = (i + 1 < maxAttempts);
+          const nextPrompt = hasNext ? `• <b>대응:</b> 차순위(${i + 2}위: <b>${candidates[i + 1].stockName}</b>) 종목으로 즉시 재시도합니다...` : '• <b>대응:</b> 모든 후보 종목 주문이 거부되어 안전하게 진입을 중단합니다.';
+
+          telegramBot.sendGeneralMessage(
+            `⚠️ <b>[토스증권 초단타 매수 주문 실패]</b>\n\n` +
+            `• <b>시도 종목:</b> ${cand.stockName} (<code>${cand.symbol}</code>)\n` +
+            `• <b>수량:</b> ${candQty}주 (단가: ${candPrice.toLocaleString()}원)\n` +
+            `• <b>거부 사유:</b> <code>${errMsg}</code>\n` +
+            `${nextPrompt}`
+          );
+        }
+      }
+
+      // 모든 후보 주문 실패 시 포지션 미생성 및 안전 종료
+      if (!buyRes || !buyRes.success || !targetStock) {
+        this.scalpingStatus.isActive = false;
+        this.scalpingStatus.currentPosition = null;
+        this.saveScalpingStatus();
+        return {
+          success: false,
+          message: '초단타 후보 종목들의 증권사 매수 주문이 모두 거부되었습니다.',
+          status: this.getScalpingStatus()
+        };
+      }
+
       let targetPrice, stopPrice;
       if (isUs) {
         targetPrice = parseFloat((entryPrice * 1.025).toFixed(2));
@@ -2208,11 +2434,16 @@ class StockAutoTrader {
         stockName: targetStock.stockName,
         market,
         currency: targetStock.currency || (isUs ? 'USD' : 'KRW'),
-        quantity: 1,
+        quantity: quantity,
         entryPrice,
+        totalInvested,
         currentPrice: entryPrice,
         targetPrice,
         stopLossPrice: stopPrice,
+        targetPct: 2.5,
+        stopLossPct: -1.5,
+        decayStage: 1,
+        elapsedMinutes: 0,
         returnPct: 0.0,
         unrealizedPnl: 0,
         orderId: buyRes.orderId || null,
@@ -2226,6 +2457,7 @@ class StockAutoTrader {
       this.saveScalpingStatus();
 
       const formattedEntry = isUs ? `$${entryPrice}` : `${entryPrice.toLocaleString()}원`;
+      const formattedTotalInvested = isUs ? `$${totalInvested}` : `${totalInvested.toLocaleString()}원`;
       const formattedTarget = isUs ? `$${targetPrice}` : `${targetPrice.toLocaleString()}원`;
       const formattedStop = isUs ? `$${stopPrice}` : `${stopPrice.toLocaleString()}원`;
       const marketTitle = isUs ? '🇺🇸 [미장 거래대금 1위 초단타 스캘핑 진입!]' : '⚡ [국장 거래대금 1위 초단타 스캘핑 진입!]';
@@ -2233,9 +2465,10 @@ class StockAutoTrader {
       telegramBot.sendGeneralMessage(
         `${marketTitle}\n\n` +
         `• <b>종목명:</b> ${targetStock.stockName} (<code>${targetStock.symbol}</code>)\n` +
-        `• <b>매수 단가:</b> ${formattedEntry} (1주)\n` +
-        `• <b>목표 익절가(+2.5%):</b> <b>${formattedTarget}</b>\n` +
-        `• <b>최종 손절가(-1.5%):</b> <b>${formattedStop}</b>\n` +
+        `• <b>매수 수량:</b> <b>${quantity}주</b> (단가: ${formattedEntry} / 총액: <b>${formattedTotalInvested}</b>)\n` +
+        `• <b>초기 목표가(+2.5%):</b> <b>${formattedTarget}</b>\n` +
+        `• <b>초기 손절가(-1.5%):</b> <b>${formattedStop}</b>\n` +
+        `• <b>동적 밴드 압축:</b> 30분(+1.5%/-1.0%) ➔ 60분(+0.8%/-0.5%) ➔ 90분/장마감 강제청산\n` +
         `• <b>감시 모드:</b> 5초 실시간 시세 초고속 감시`
       );
 
@@ -2244,7 +2477,7 @@ class StockAutoTrader {
 
       return {
         success: true,
-        message: `${targetStock.stockName} (${targetStock.symbol}) 1주 초단타 매수 진입 완료 (+2.5% 익절 / -1.5% 손절 감시 시작)`,
+        message: `${targetStock.stockName} (${targetStock.symbol}) ${quantity}주 (총액: ${formattedTotalInvested}) 초단타 매수 진입 완료 (+2.5% 익절 / -1.5% 손절 감시 시작)`,
         position: this.scalpingStatus.currentPosition,
         status: this.getScalpingStatus()
       };
@@ -2254,6 +2487,36 @@ class StockAutoTrader {
     } finally {
       this.isEnteringScalp = false;
     }
+  }
+
+  clearScalpingPosition() {
+    if (this.scalpingTimer) {
+      clearInterval(this.scalpingTimer);
+      this.scalpingTimer = null;
+    }
+    if (this.scalpingOpenWaitTimer) {
+      clearInterval(this.scalpingOpenWaitTimer);
+      this.scalpingOpenWaitTimer = null;
+    }
+    const prev = this.scalpingStatus.currentPosition;
+    this.scalpingStatus.currentPosition = null;
+    this.scalpingStatus.isActive = false;
+    this.scalpingStatus.isWaitingMarketOpen = false;
+    this.saveScalpingStatus();
+
+    if (prev) {
+      telegramBot.sendGeneralMessage(
+        `🧹 <b>[토스증권 초단타 포지션 정상화 완료]</b>\n\n` +
+        `• 이전 미체결 포지션(<b>${prev.stockName}</b>)이 안전하게 초기화되었습니다.\n` +
+        `• 실제 토스 계좌 잔고와 포털 상태가 100% 정상 동기화되었습니다.`
+      );
+    }
+
+    return {
+      success: true,
+      message: '초단타 포지션이 성공적으로 초기화되었습니다.',
+      status: this.getScalpingStatus()
+    };
   }
 
   startScalpingMonitorTimer() {
@@ -2280,11 +2543,13 @@ class StockAutoTrader {
       if (!quote || quote.lastPrice <= 0) return;
 
       const isUs = pos.market === 'US' || pos.currency === 'USD';
+      const quantity = Number(pos.quantity) || 1;
       const livePrice = isUs ? parseFloat(quote.lastPrice.toFixed(2)) : quote.lastPrice;
       const entryPrice = pos.entryPrice;
-      const rawPnl = livePrice - entryPrice;
-      const pnl = isUs ? parseFloat(rawPnl.toFixed(2)) : rawPnl;
-      const returnPct = parseFloat(((rawPnl / entryPrice) * 100).toFixed(2));
+      const priceDiff = livePrice - entryPrice;
+      const rawPnl = priceDiff * quantity;
+      const pnl = isUs ? parseFloat(rawPnl.toFixed(2)) : Math.round(rawPnl);
+      const returnPct = parseFloat(((priceDiff / entryPrice) * 100).toFixed(2));
 
       pos.currentPrice = livePrice;
       pos.unrealizedPnl = pnl;
@@ -2299,100 +2564,193 @@ class StockAutoTrader {
       const lossStr = isUs ? `-$${Math.abs(pnl)} (약 -${Math.abs(pnlKrw).toLocaleString()}원)` : `${pnl.toLocaleString()}원`;
       const marketLabel = isUs ? '미장' : '국장';
 
-      // 1. 목표가(+2.5%) 달성 -> 시장가 익절 매도
-      if (livePrice >= pos.targetPrice) {
-        console.log(`[ScalpingEngine] Target reached for ${pos.stockName} (${livePrice} >= ${pos.targetPrice})! Selling...`);
+      // 🌟 [동적 타임디케이(Time Decay) 보유 시간 및 4단계 산출]
+      const now = Date.now();
+      const enteredAtMs = pos.enteredAt ? new Date(pos.enteredAt).getTime() : now;
+      const elapsedMinutes = Math.max(0, Math.floor((now - enteredAtMs) / 60000));
+      pos.elapsedMinutes = elapsedMinutes;
+
+      let stage = 1;
+      let targetPct = 2.5;
+      let stopLossPct = -1.5;
+
+      if (elapsedMinutes >= 90) {
+        stage = 4; // 90분 이상 타임아웃 강제 청산
+      } else if (elapsedMinutes >= 60) {
+        stage = 3;
+        targetPct = 0.8;
+        stopLossPct = -0.5;
+      } else if (elapsedMinutes >= 30) {
+        stage = 2;
+        targetPct = 1.5;
+        stopLossPct = -1.0;
+      }
+
+      // 동적 목표가 및 손절가 계산
+      let dynamicTargetPrice, dynamicStopPrice;
+      if (isUs) {
+        dynamicTargetPrice = parseFloat((entryPrice * (1 + targetPct / 100)).toFixed(2));
+        dynamicStopPrice = parseFloat((entryPrice * (1 + stopLossPct / 100)).toFixed(2));
+      } else {
+        dynamicTargetPrice = Math.round(entryPrice * (1 + targetPct / 100));
+        dynamicStopPrice = Math.round(entryPrice * (1 + stopLossPct / 100));
+      }
+      pos.targetPrice = dynamicTargetPrice;
+      pos.stopLossPrice = dynamicStopPrice;
+      pos.targetPct = targetPct;
+      pos.stopLossPct = stopLossPct;
+
+      const dynamicTargetStr = isUs ? `$${dynamicTargetPrice}` : `${dynamicTargetPrice.toLocaleString()}원`;
+      const dynamicStopStr = isUs ? `$${dynamicStopPrice}` : `${dynamicStopPrice.toLocaleString()}원`;
+
+      // 🔔 [단계 승격 시 텔레그램 알림 1회 발송]
+      if (stage <= 3 && pos.decayStage !== stage) {
+        pos.decayStage = stage;
+        this.saveScalpingStatus();
+
+        telegramBot.sendGeneralMessage(
+          `⏰ <b>[토스증권] ${marketLabel} 초단타 ${stage === 2 ? '30분' : '60분'} 경과 - 밴드 압축!</b>\n\n` +
+          `• <b>종목명:</b> ${pos.stockName} (<code>${pos.symbol}</code>)\n` +
+          `• <b>보유 수량:</b> ${quantity}주 (${elapsedMinutes}분 경과, 제${stage}단계 압축 적용)\n` +
+          `• <b>신규 목표 익절가(+${targetPct}%):</b> <b>${dynamicTargetStr}</b>\n` +
+          `• <b>신규 손절가(${stopLossPct}%):</b> <b>${dynamicStopStr}</b>\n` +
+          `• <b>현재가:</b> ${liveStr} (${returnPct >= 0 ? '+' : ''}${returnPct}%)\n\n` +
+          `💡 <i>횡보 지연 방지를 위해 매매 기준선을 타이트하게 압축 조정했습니다.</i>`
+        );
+      }
+
+      // ==========================================
+      // 청산 우선순위 판정
+      // ==========================================
+
+      // 1. [우선순위 1: 90분 타임아웃 강제 청산]
+      if (elapsedMinutes >= 90) {
+        console.log(`[ScalpingEngine] 90-minute timeout reached for ${pos.stockName} (${elapsedMinutes}m)! Force selling ${quantity} shares...`);
         const sellRes = await tossClient.submitOrder({
           symbol: pos.symbol,
           side: 'SELL',
           orderType: 'MARKET',
-          quantity: 1,
+          quantity: quantity,
+          clientOrderId: `SCALP-TO-${Date.now()}`
+        });
+
+        telegramBot.sendGeneralMessage(
+          `⏰ <b>[토스증권] ${marketLabel} 초단타 90분 타임아웃 강제 청산 완료!</b>\n\n` +
+          `• <b>종목명:</b> ${pos.stockName} (<code>${pos.symbol}</code>)\n` +
+          `• <b>청산 수량:</b> <b>${quantity}주</b> (전량 매도)\n` +
+          `• <b>보유 시간:</b> ${elapsedMinutes}분 (최대 보유 시간 90분 도달)\n` +
+          `• <b>매수 단가:</b> ${entryStr}\n` +
+          `• <b>청산 가격:</b> ${liveStr}\n` +
+          `• <b>실현 손익:</b> <b>${returnPct >= 0 ? pnlStr : lossStr} (${returnPct >= 0 ? '+' : ''}${returnPct}%)</b>\n\n` +
+          `💡 <i>자금 묶임 방지를 위해 시장가로 전량 매도 완료했습니다.</i>`
+        );
+
+        await this.handleScalpingExit(pos, livePrice, pnl, pnlKrw, returnPct, 'TIME_OUT', `⏰ 초단타 90분 타임아웃 강제 청산 (${marketLabel})`, sellRes?.orderId, fxRate);
+        return;
+      }
+
+      // 2. [우선순위 2: 장 마감 15분 전 오버나잇 차단 강제 청산]
+      if (tossClient.isMarketClosingSoon(pos.market)) {
+        console.log(`[ScalpingEngine] Market closing soon for ${pos.stockName}! Force selling ${quantity} shares to prevent overnight...`);
+        const sellRes = await tossClient.submitOrder({
+          symbol: pos.symbol,
+          side: 'SELL',
+          orderType: 'MARKET',
+          quantity: quantity,
+          clientOrderId: `SCALP-MKTCLOSE-${Date.now()}`
+        });
+
+        telegramBot.sendGeneralMessage(
+          `🚨 <b>[토스증권] ${marketLabel} 정규장 마감 15분 전 오버나잇 방지 강제 청산!</b>\n\n` +
+          `• <b>종목명:</b> ${pos.stockName} (<code>${pos.symbol}</code>)\n` +
+          `• <b>청산 수량:</b> <b>${quantity}주</b> (전량 매도)\n` +
+          `• <b>매수 단가:</b> ${entryStr}\n` +
+          `• <b>청산 가격:</b> ${liveStr}\n` +
+          `• <b>실현 손익:</b> <b>${returnPct >= 0 ? pnlStr : lossStr} (${returnPct >= 0 ? '+' : ''}${returnPct}%)</b>\n\n` +
+          `⚠️ <i>당일 청산 원칙 준수를 위해 장 마감 전 전량 시장가 매도했습니다.</i>`
+        );
+
+        await this.handleScalpingExit(pos, livePrice, pnl, pnlKrw, returnPct, 'MARKET_CLOSE_EXIT', `🚨 정규장 마감 오버나잇 방지 강제 청산 (${marketLabel})`, sellRes?.orderId, fxRate);
+        return;
+      }
+
+      // 3. [우선순위 3: 동적 목표가 달성 -> 시장가 익절 매도]
+      if (livePrice >= dynamicTargetPrice) {
+        console.log(`[ScalpingEngine] Target reached for ${pos.stockName} (${livePrice} >= ${dynamicTargetPrice}, Stage ${stage})! Selling ${quantity} shares...`);
+        const sellRes = await tossClient.submitOrder({
+          symbol: pos.symbol,
+          side: 'SELL',
+          orderType: 'MARKET',
+          quantity: quantity,
           clientOrderId: `SCALP-TP-${Date.now()}`
         });
 
         telegramBot.sendGeneralMessage(
-          `🎯 <b>[토스증권] ${marketLabel} 초단타 목표가 익절 달성! (+2.5%)</b>\n\n` +
+          `🎯 <b>[토스증권] ${marketLabel} 초단타 목표가 익절 달성! (+${targetPct}%, ${stage}단계)</b>\n\n` +
           `• <b>종목명:</b> ${pos.stockName} (<code>${pos.symbol}</code>)\n` +
+          `• <b>익절 수량:</b> <b>${quantity}주</b> (전량 매도)\n` +
+          `• <b>보유 시간:</b> ${elapsedMinutes}분\n` +
           `• <b>매수 단가:</b> ${entryStr}\n` +
           `• <b>청산 가격:</b> ${liveStr}\n` +
           `• <b>실현 손익:</b> <b>${pnlStr} (+${returnPct}%)</b>`
         );
 
-        const closedRecord = {
-          ...pos,
-          exitPrice: livePrice,
-          realizedPnl: pnl,
-          realizedPnlKrw: pnlKrw,
-          returnPct,
-          exitReason: 'TAKE_PROFIT',
-          closedAt: new Date().toISOString()
-        };
-
-        this.scalpingStatus.history.unshift(closedRecord);
-        if (this.scalpingStatus.history.length > 50) {
-          this.scalpingStatus.history = this.scalpingStatus.history.slice(0, 50);
-        }
-        this.scalpingStatus.currentPosition = null;
-        this.scalpingStatus.isActive = false;
-        this.saveScalpingStatus();
-
-        // 🌟 [주식 매매일지에도 영구 기록 동기화]
-        this.recordScalpingToJournal(pos, livePrice, pnl, returnPct, 'TAKE_PROFIT', `🎯 초단타 +2.5% 목표가 익절 (${marketLabel})`, sellRes?.orderId, fxRate);
-
-        if (this.scalpingTimer) {
-          clearInterval(this.scalpingTimer);
-          this.scalpingTimer = null;
-        }
+        await this.handleScalpingExit(pos, livePrice, pnl, pnlKrw, returnPct, 'TAKE_PROFIT', `🎯 초단타 +${targetPct}% 목표가 익절 (제${stage}단계, ${marketLabel})`, sellRes?.orderId, fxRate);
         return;
       }
 
-      // 2. 손절가(-1.5%) 이탈 -> 시장가 즉시 손절
-      if (livePrice <= pos.stopLossPrice) {
-        console.log(`[ScalpingEngine] Stop loss hit for ${pos.stockName} (${livePrice} <= ${pos.stopLossPrice})! Selling...`);
+      // 4. [우선순위 4: 동적 손절가 이탈 -> 시장가 즉시 손절]
+      if (livePrice <= dynamicStopPrice) {
+        console.log(`[ScalpingEngine] Stop loss hit for ${pos.stockName} (${livePrice} <= ${dynamicStopPrice}, Stage ${stage})! Selling ${quantity} shares...`);
         const sellRes = await tossClient.submitOrder({
           symbol: pos.symbol,
           side: 'SELL',
           orderType: 'MARKET',
-          quantity: 1,
+          quantity: quantity,
           clientOrderId: `SCALP-SL-${Date.now()}`
         });
 
         telegramBot.sendGeneralMessage(
-          `⛔ <b>[토스증권] ${marketLabel} 초단타 손절선 이탈 청산 (-1.5%)</b>\n\n` +
+          `⛔ <b>[토스증권] ${marketLabel} 초단타 손절선 이탈 청산 (${stopLossPct}%, ${stage}단계)</b>\n\n` +
           `• <b>종목명:</b> ${pos.stockName} (<code>${pos.symbol}</code>)\n` +
+          `• <b>손절 수량:</b> <b>${quantity}주</b> (전량 매도)\n` +
+          `• <b>보유 시간:</b> ${elapsedMinutes}분\n` +
           `• <b>매수 단가:</b> ${entryStr}\n` +
           `• <b>청산 가격:</b> ${liveStr}\n` +
           `• <b>실현 손익:</b> <b>${lossStr} (${returnPct}%)</b>`
         );
 
-        const closedRecord = {
-          ...pos,
-          exitPrice: livePrice,
-          realizedPnl: pnl,
-          realizedPnlKrw: pnlKrw,
-          returnPct,
-          exitReason: 'STOP_LOSS',
-          closedAt: new Date().toISOString()
-        };
-
-        this.scalpingStatus.history.unshift(closedRecord);
-        if (this.scalpingStatus.history.length > 50) {
-          this.scalpingStatus.history = this.scalpingStatus.history.slice(0, 50);
-        }
-        this.scalpingStatus.currentPosition = null;
-        this.scalpingStatus.isActive = false;
-        this.saveScalpingStatus();
-
-        // 🌟 [주식 매매일지에도 영구 기록 동기화]
-        this.recordScalpingToJournal(pos, livePrice, pnl, returnPct, 'STOP_LOSS', `⛔ 초단타 -1.5% 손절 청산 (${marketLabel})`, sellRes?.orderId, fxRate);
-
-        if (this.scalpingTimer) {
-          clearInterval(this.scalpingTimer);
-          this.scalpingTimer = null;
-        }
+        await this.handleScalpingExit(pos, livePrice, pnl, pnlKrw, returnPct, 'STOP_LOSS', `⛔ 초단타 ${stopLossPct}% 손절 청산 (제${stage}단계, ${marketLabel})`, sellRes?.orderId, fxRate);
       }
     } catch (err) {
       console.error('[ScalpingEngine] checkScalpingPosition error:', err.message);
+    }
+  }
+
+  async handleScalpingExit(pos, exitPrice, realizedPnl, realizedPnlKrw, returnPct, exitReason, reasonTitle, sellOrderId, fxRate) {
+    const closedRecord = {
+      ...pos,
+      exitPrice,
+      realizedPnl,
+      realizedPnlKrw,
+      returnPct,
+      exitReason,
+      closedAt: new Date().toISOString()
+    };
+
+    this.scalpingStatus.history.unshift(closedRecord);
+    if (this.scalpingStatus.history.length > 50) {
+      this.scalpingStatus.history = this.scalpingStatus.history.slice(0, 50);
+    }
+    this.scalpingStatus.currentPosition = null;
+    this.scalpingStatus.isActive = false;
+    this.saveScalpingStatus();
+
+    this.recordScalpingToJournal(pos, exitPrice, realizedPnl, returnPct, exitReason, reasonTitle, sellOrderId, fxRate);
+
+    if (this.scalpingTimer) {
+      clearInterval(this.scalpingTimer);
+      this.scalpingTimer = null;
     }
   }
 
@@ -2403,6 +2761,15 @@ class StockAutoTrader {
       const effectiveFx = isUs ? (fxRate || 1350) : null;
       const realizedPnlKrw = isUs ? Math.round(realizedPnl * effectiveFx) : realizedPnl;
 
+      let exitDesc = '익절';
+      if (reasonCode === 'STOP_LOSS') exitDesc = '손절';
+      else if (reasonCode === 'TIME_OUT') exitDesc = '타임아웃청산';
+      else if (reasonCode === 'MARKET_CLOSE_EXIT') exitDesc = '장마감청산';
+
+      const qty = Number(pos.quantity) || 1;
+      const investedAmount = isUs ? parseFloat((pos.entryPrice * qty).toFixed(2)) : (pos.entryPrice * qty);
+      const proceedsAmount = isUs ? parseFloat((exitPrice * qty).toFixed(2)) : (exitPrice * qty);
+
       const journalItem = {
         id: `SCALP-${Date.now()}`,
         strategyType: 'SCALPING',
@@ -2412,11 +2779,11 @@ class StockAutoTrader {
         currency: pos.currency || 'KRW',
         entryFxRate: effectiveFx,
         exitFxRate: effectiveFx,
-        totalQuantity: 1,
+        totalQuantity: qty,
         averagePrice: pos.entryPrice,
         exitPrice: exitPrice,
-        investedAmount: pos.entryPrice,
-        proceedsAmount: exitPrice,
+        investedAmount: investedAmount,
+        proceedsAmount: proceedsAmount,
         realizedPnl: realizedPnl,
         realizedPnlKrw: realizedPnlKrw,
         returnPct: returnPct,
@@ -2426,7 +2793,7 @@ class StockAutoTrader {
         sellOrderId: sellOrderId || null,
         startedAt: pos.enteredAt,
         closedAt: new Date().toISOString(),
-        note: `${isUs ? '미장' : '국장'} 개장 실시간 거래대금 1위 초단타 스캘핑 (${reasonCode === 'TAKE_PROFIT' ? '익절' : '손절'})`
+        note: `${isUs ? '미장' : '국장'} 개장 실시간 거래대금 1위 초단타 스캘핑 (${exitDesc})`
       };
 
       journal.history.unshift(journalItem);

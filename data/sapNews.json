@@ -1,47 +1,272 @@
 [
     {
+        "id":  "sap_news_779c06db",
+        "title":  "Integration Cell activation fails at 51% with TTL001 on US10 BTP Trial",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/integration-cell-activation-fails-at-51-with-ttl001-on-us10-btp-trial/qaq-p/14492425",
+        "category":  "Migration",
+        "summary":  "Hello SAP Community, I am using an SAP BTP Trial account in US10 with the SAP Integration Suite trial plan. Manage APIs, API Modelling, and Developer Hub are activated. My user has the Integration_...",
+        "published_at":  "2026-09-25T18:04:46Z"
+    },
+    {
+        "id":  "sap_news_476988c3",
+        "title":  "Automating Learning Enrollment Communication with External Training Providers from LMS Using CPI",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/human-capital-management-blog-posts-by-members/automating-learning-enrollment-communication-with-external-training/ba-p/14480492",
+        "category":  "Migration",
+        "summary":  "Introduction Recently, I worked on an interesting requirement in SAP SuccessFactors Learning, where the customer wanted to automate the communication between their Learning team and external trainin...",
+        "published_at":  "2026-09-28T09:19:08Z"
+    },
+    {
+        "id":  "sap_news_eb572841",
+        "title":  "Beyond LLMs, Are We Hallucinating About AI Concepts?",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/beyond-llms-are-we-hallucinating-about-ai-concepts/ba-p/14492742",
+        "category":  "Migration",
+        "summary":  "We spend a lot of time worrying about AI hallucinations. The model confidently says something that is not true. We add guardrails, evaluation loops, grounding pipelines. We are very serious about thi...",
+        "published_at":  "2026-09-26T16:06:32Z"
+    },
+    {
+        "id":  "sap_news_c89b33e7",
+        "title":  "Why n8n Workflows Will Not Replace Solid SAP Integration Suite iFlow Development",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/why-n8n-workflows-will-not-replace-solid-sap-integration-suite-iflow/ba-p/14493100",
+        "category":  "Migration",
+        "summary":  "Disclaimer: The views expressed in this article are entirely my own and are based on my experience working extensively with SAP Integration Suite (formerly CPI) and more recently experimenting with ...",
+        "published_at":  "2026-09-28T06:29:39Z"
+    },
+    {
+        "id":  "sap_news_5f4c89f7",
+        "title":  "API 중심 통합, S/4HANA API를 통한 통합 제품군을 갖춘 MCP 서버",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/mcp-server-with-integration-suite-via-api-centric-integration-s-4hana-api/ba-p/14491660",
+        "category":  "Migration",
+        "summary":  "소개/시나리오 이 게시물은 이전 기사인 Integration Suite가 포함된 MCP 서버, S/4HANA 공개... - SAP 커뮤니티에 이어 A...를 사용하여 확인된 문제를 해결하는 데 중점을 둡니다.",
+        "published_at":  "2026-09-26T16:02:56Z"
+    },
+    {
+        "id":  "sap_news_0a2b6bbd",
+        "title":  "SAP API 관리: 정책 중심 프록시에서 API 중심 통합으로",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/sap-api-management-from-policy-centric-proxies-to-api-centric-integration/ba-p/14492269",
+        "category":  "Migration",
+        "summary":  "Classic API Management와 새로운 Integration Cell 런타임 SAP Integration Suite를 직접 비교해 보면 역사적으로 두 가지 관심사가 상대적으로 뚜렷하게 유지되었습니다. 바로 노출을 위한 API 관리입니다.",
+        "published_at":  "2026-09-25T13:40:52Z"
+    },
+    {
+        "id":  "sap_news_ba38fa2f",
+        "title":  "SAP Integration Suite MCP 실행: SAP S/4HANA Public Cloud Sandbox를 AI 클라이언트와 통합",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/sap-integration-suite-mcp-in-action-integrating-sap-s-4hana-public-cloud/ba-p/14491515",
+        "category":  "Migration",
+        "summary":  "소개 이 문서는 Ashutosh Singh의 뛰어난 기본 블로그인 \"SAP Integration Suite의 MCP 서버: API 아티팩트에서 첫 번째 MCP 서버 구축\"을 기반으로 작성되었습니다. - MCP Serv...",
+        "published_at":  "2026-09-25T05:14:19Z"
+    },
+    {
+        "id":  "sap_news_fcb7029a",
+        "title":  "BTP CI-SFTP 발신자(.gpg 파일을 선택하는 동안 파일 존재 메커니즘 사전 확인)",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/btp-ci-sftp-sender-pre-check-file-exist-mechanism-while-picking-gpg-file/qaq-p/14491560",
+        "category":  "Migration",
+        "summary":  "친애하는 커뮤니티 여러분, 안녕하세요. SFTP Sender를 통해 .gpg 파일을 선택하는 동안 SFTP Sender Adapter에서 사전 구성된 매개변수를 검색하여 해당 파일 확인 메커니즘을 확인하고 있습니다.",
+        "published_at":  "2026-09-24T15:39:47Z"
+    },
+    {
+        "id":  "sap_news_73131898",
+        "title":  "Integration Suite에서 RFC를 MCP 도구로 노출",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/expose-rfcs-as-mcp-tools-in-integration-suite/ba-p/14487029",
+        "category":  "Migration",
+        "summary":  "소개 SAP 시스템은 수십 년의 비즈니스 로직을 보유하고 있습니다. 조달, 주문 관리, 재고 및 재무를 추진하는 RFC 기능 모듈은 수년간의 생산 사용을 통해 개선되었습니다. 유...",
+        "published_at":  "2026-09-24T08:11:16Z"
+    },
+    {
+        "id":  "sap_news_ac83954b",
+        "title":  "SAP API 관리 분석: 1차원 이상의 분석 보고서",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-api-management-analytics-more-than-one-dimensional-analytics-report/qaq-p/14490726",
+        "category":  "Migration",
+        "summary":  "안녕하세요 팀, 저는 두 개 이상의 측정기준(API 이름 및 소비자)이 포함된 맞춤 보고서를 만들려고 합니다. 그러나 첫 번째 차원과 해당 측정값만 그래프에서 사용할 수 있습니다. 그 사람 말대로...",
+        "published_at":  "2026-09-23T14:34:15Z"
+    },
+    {
+        "id":  "sap_news_2dcebb1e",
+        "title":  "Integration Suite에서 RFC를 MCP 도구로 노출",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/expose-rfc-as-mcp-tools-in-integration-suite/ba-p/14487029",
+        "category":  "Migration",
+        "summary":  "소개 SAP 시스템은 수십 년의 비즈니스 로직을 보유하고 있습니다. 조달, 주문 관리, 재고 및 재무를 추진하는 RFC 기능 모듈은 수년간의 생산 사용을 통해 개선되었습니다. 유...",
+        "published_at":  "2026-09-24T08:11:16Z"
+    },
+    {
+        "id":  "sap_news_bc66bf95",
+        "title":  "SAP Integration Suite의 API 중심 통합 및 MCP 게이트웨이",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/api-centric-integration-and-mcp-gateway-in-sap-integration-suite/ba-p/14490948",
+        "category":  "Migration",
+        "summary":  "API와 AI 에이전트가 엔터프라이즈 규모에서 함께 작동해야 하면 어떻게 되나요? 그것이 일이 흥미로워지는 곳입니다. API 중심 통합 및 MCP 게이트웨이에 관한 SAP 파트너 웹 세미나에 참여하세요.",
+        "published_at":  "2026-09-24T07:00:00Z"
+    },
+    {
+        "id":  "sap_news_d1030fe8",
+        "title":  "Ariba Discovery API에는 항상 콘텐츠가 없습니다.",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/ariba-discovery-api-always-no-content/qaq-p/14489766",
+        "category":  "Migration",
+        "summary":  "안녕하세요. Ariba Discovery에서 이벤트를 가져오려고 하는데 시도했을 때 응답이 항상 \"204 No Content\"입니다. Ariba Discovery에는 공개 이벤트도 게시되어 있습니다. RFI만 있고 RFP는 없습니다.",
+        "published_at":  "2026-09-22T11:30:46Z"
+    },
+    {
+        "id":  "sap_news_7a55708c",
+        "title":  "클라우드 통합 기능 활성화 중 오류 TSM001",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/error-tsm001-during-cloud-integration-capability-activation/qaq-p/14490230",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "통합 제품군에서 클라우드 통합 기능을 활성화하는 동안 TSM001 오류가 발생했습니다. 누구든지 이 문제와 관련된 해결책을 가지고 있습니까? 감사해요.",
+        "published_at":  "2026-09-23T03:52:27Z"
+    },
+    {
+        "id":  "sap_news_690814b6",
+        "title":  "CPI의 재시도 상태 처리에 대한 설명이 필요합니다.",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/clarification-required-on-retry-state-processing-in-cpi/qaq-p/14490253",
+        "category":  "Migration",
+        "summary":  "지난 주에 CPI에서 MSSQL로 데이터를 보내는 동안 현재 단일 아티팩트에 대한 4,000개 이상의 트랜잭션이 재시도 상태에 있는 것을 관찰하고 있습니다. 재시도 처리에 대해 알고 싶습니다...",
+        "published_at":  "2026-09-23T05:44:10Z"
+    },
+    {
+        "id":  "sap_news_a15f39a2",
+        "title":  "SAP BTP 추적 - IS - 액세스 문제 - 놀랍게도 편집 액세스가 취소되었습니다.",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-btp-trail-is-access-issue-edit-access-revoked-surprisingly/qaq-p/14490277",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "어느 날 아침 갑자기 SAP BTP 평가판 IS에서 IFlow에 액세스하는 동안 이 문제가 발생했습니다. 이 문제에 직면했다면 도와주세요. SAP 프로세스 통합 SAP 통합 제품군",
+        "published_at":  "2026-09-23T06:38:32Z"
+    },
+    {
+        "id":  "sap_news_43c514f0",
+        "title":  "SAP 클라우드 통합을 사용하여 비공개 GitHub 리포지토리에서 애플리케이션 Runbook 검색",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/retrieval-of-application-runbooks-from-private-github-repositories-using/ba-p/14487671",
+        "category":  "Migration",
+        "summary":  "많은 기업 환경에서 애플리케이션 소스 코드와 지원 문서는 비공개 GitHub 리포지토리에 유지됩니다. 소스 코드와 함께 이러한 저장소에는 종종 중요한 정보가 포함되어 있습니다.",
+        "published_at":  "2026-09-23T06:56:52Z"
+    },
+    {
+        "id":  "sap_news_54eb16d1",
+        "title":  "SAP CPI 및 Power Automate를 사용하여 SAP 워크플로 승인을 Microsoft Teams와 통합",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/abap-blog-posts/integrating-sap-workflow-approvals-with-microsoft-teams-using-sap-cpi-and/ba-p/14488284",
+        "category":  "Migration",
+        "summary":  "SAP CPI 및 Power Automate를 사용하여 SAP 워크플로 승인을 Microsoft Teams와 통합 소개 많은 SAP 비즈니스 프로세스에서 승인은 SAP 워크플로를 통해 처리됩니다. 그러나 승인자는 ...",
+        "published_at":  "2026-09-23T07:50:46Z"
+    },
+    {
+        "id":  "sap_news_73fed374",
+        "title":  "SAP CPI의 SuccessFactors OData Upsert: 워크플로우 확인 오류 해결",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/human-capital-management-blog-posts-by-members/successfactors-odata-upsert-from-sap-cpi-resolving-the-workflowconfirmed/ba-p/14488970",
+        "category":  "Migration",
+        "summary":  "소개 SAP SuccessFactors와 SAP Integration Suite, Cloud Integration 간의 통합 작업을 진행하는 동안 워크플로 지원 MD에서 OData Upsert를 수행하는 동안 문제가 발생했습니다.",
+        "published_at":  "2026-09-23T07:13:48Z"
+    },
+    {
+        "id":  "sap_news_0b9df0cc",
+        "title":  "SAP TechEd 2026 학습 영역으로 통합 기술을 강화하세요.",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/strengthen-your-integration-skills-with-the-learning-zone-for-sap-teched/ba-p/14489537",
+        "category":  "Migration",
+        "summary":  "통합 기술을 강화할 수 있는 학습 기회를 통해 SAP TechEd 2026을 준비하세요. 구축하는 동안 기업 전반에 걸쳐 에이전트, 애플리케이션 및 데이터를 통합하는 방법을 알아보세요.",
+        "published_at":  "2026-09-23T06:38:02Z"
+    },
+    {
+        "id":  "sap_news_bb21dae4",
+        "title":  "HTTP 발신자와 HTTP 수신자 사이에서 CamelHttpPath를 어떻게 처리해야 합니까?",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/how-should-camelhttppath-be-handled-between-an-http-sender-and-http/qaq-p/14489137",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "SAP Cloud Integration에서 내 HTTPS 발신자는 `/salesorder/*`를 사용하고 이후 HTTP 수신자는 `${property.salesOrder}`를 사용하여 해당 URL을 동적으로 구축합니다. 발신자는 다음에서 `CamelHttpPath` 헤더를 생성합니다.",
+        "published_at":  "2026-09-21T15:45:05Z"
+    },
+    {
+        "id":  "sap_news_85500d4a",
+        "title":  "SAP BTP 평가판 – Integration Suite 구독이 21시간 이상 중단되어 중단됨",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-btp-trial-integration-suite-subscription-stuck-in-decommissioning-for/qaq-p/14489347",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "안녕하세요 SAP 커뮤니티입니다. 저는 SAP BTP 평가판 계정을 사용하고 있는데 SAP Integration Suite를 구독할 수 없습니다. 대략 2026년 9월 21일 오전 10시부터 구독이 중단되었습니다. ...",
+        "published_at":  "2026-09-22T02:20:51Z"
+    },
+    {
+        "id":  "sap_news_af2520f4",
+        "title":  "BTP 평가판 계정에서 통합 제품군을 사용할 수 없습니다.",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/unable-to-use-integration-suite-on-btp-trial-account/qaq-p/14489402",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "안녕하세요. 저는 BTP 평가판 계정이 있고 통합 제품군을 구독했습니다. Integration Suite에 액세스하면 승인되지 않은 오류가 표시됩니다. 필요한 역할을 추가했는데도...",
+        "published_at":  "2026-09-22T05:04:43Z"
+    },
+    {
+        "id":  "sap_news_f27f6ce3",
+        "title":  "인터페이스 최적화",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/optimization-of-interface/qaq-p/14489533",
+        "category":  "Q\u0026A / Troubleshooting",
+        "summary":  "안녕하세요 팀, 인터페이스 성능을 개선해야 합니다. 활동 방법을 제안해주세요.",
+        "published_at":  "2026-09-22T08:38:39Z"
+    },
+    {
+        "id":  "sap_news_8ed12f6f",
+        "title":  "이벤트 중심 아키텍처: 에이전트 AI의 신경계 - 지금 참여하세요!",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/integration-blog-posts/event-driven-architecture-the-nervous-system-of-agentic-ai-join-us-now/ba-p/14489469",
+        "category":  "Migration",
+        "summary":  "미래는 이벤트에 따라 진행되며 AI 에이전트도 마찬가지입니다. 기업이 실시간 에이전트 자동화로 전환함에 따라 시스템이 통신하는 방식도 시스템이 수행하는 작업만큼 중요해졌습니다. 이벤트 중심 AR...",
+        "published_at":  "2026-09-22T07:19:48Z"
+    },
+    {
         "id":  "sap_news_1ac09c5a",
-        "title":  "Governance at Scale: Why a Clean Core Is What Makes Agent Governance Enforceable",
+        "title":  "규모에 따른 거버넌스: 클린 코어가 에이전트 거버넌스를 시행할 수 있게 만드는 이유",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/artificial-intelligence-blogs-posts/governance-at-scale-why-a-clean-core-is-what-makes-agent-governance/ba-p/14489167",
         "category":  "Blog",
-        "summary":  "Governance at Scale: Why a Clean Core Is What Makes Agent Governance Enforceable (Series 3, Part 6: Clean Core + AI — Series Finale) By Deepa Dorairaj | SAP AI Solution Architect | Series 3, Pa...",
+        "summary":  "규모에 따른 거버넌스: 클린 코어가 에이전트 거버넌스를 시행할 수 있게 만드는 이유(시리즈 3, 파트 6: 클린 코어 + AI - 시리즈 피날레) 작성자: Deepa Dorairaj | SAP AI 솔루션 아키텍트 | 시리즈 3, 파...",
         "published_at":  "2026-09-21T17:47:11Z"
     },
     {
         "id":  "sap_news_2c31baee",
-        "title":  "Connecting MCP Gateway on Integration Suite  with Copilot Studio - Updating business partners",
+        "title":  "Copilot Studio를 사용하여 Integration Suite의 MCP 게이트웨이 연결 - 비즈니스 파트너 업데이트",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/connecting-mcp-gateway-on-integration-suite-with-copilot-studio-updating/ba-p/14488725",
         "category":  "Migration",
-        "summary":  "Over the last weeks I have been working on a tutorial series that shows how to connect Microsoft Copilot Studio with SAP through the MCP Gateway on SAP Integration Suite. For an SAP-f...",
+        "summary":  "지난 몇 주 동안 저는 SAP Integration Suite의 MCP 게이트웨이를 통해 Microsoft Copilot Studio를 SAP와 연결하는 방법을 보여주는 튜토리얼 시리즈를 작업해 왔습니다. SAP-F의 경우...",
         "published_at":  "2026-09-21T11:14:24Z"
     },
     {
         "id":  "sap_news_e1ebc56a",
-        "title":  "BTP Trial – Requested runtime location (cloudintegration) is not supported for tenant",
+        "title":  "BTP 평가판 – 요청한 런타임 위치(클라우드 통합)는 테넌트에 대해 지원되지 않습니다.",
         "source":  "SAP Community (Q\u0026A)",
         "source_url":  "https://community.sap.com/t5/technology-q-a/btp-trial-requested-runtime-location-cloudintegration-is-not-supported-for/qaq-p/14488014",
         "category":  "Migration",
-        "summary":  "Hi SAP Community, I am facing an issue with SAP Integration Suite on a BTP Trial account. Every Cloud Integration iFlow deployment fails immediately with the following error: \u003ciFlow name\u003e de...",
+        "summary":  "안녕하세요 SAP 커뮤니티, BTP 평가판 계정의 SAP Integration Suite에 문제가 있습니다. 모든 클라우드 통합 iFlow 배포는 다음 오류로 인해 즉시 실패합니다. \u003ciFlow 이름\u003e de...",
         "published_at":  "2026-09-19T11:25:14Z"
     },
     {
         "id":  "sap_news_69742f1e",
-        "title":  "MCP Server for SAP Plant Maintenance on SAP Integration Suite: From CAP to the Governed Path",
+        "title":  "SAP Integration Suite의 SAP 플랜트 유지 관리용 MCP 서버: CAP에서 관리되는 경로까지",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/mcp-server-for-sap-plant-maintenance-on-sap-integration-suite-from-cap-to/ba-p/14485732",
         "category":  "Blog",
-        "summary":  "Three months ago I built an AI agent for SAP Plant Maintenance using MCP, CAP and Claude Desktop. A maintenance planner could ask “Equipment 10001949 — does it have more than one open maintenance ord...",
+        "summary":  "3개월 전 저는 MCP, CAP 및 Claude Desktop을 사용하여 SAP Plant Maintenance용 AI 에이전트를 구축했습니다. 유지보수 계획자는 \"장비 10001949 - 두 개 이상의 유지보수 요청이 있습니까?\"라고 질문할 수 있습니다.",
         "published_at":  "2026-09-21T04:49:49Z"
     },
     {
         "id":  "sap_news_6e56cc79",
-        "title":  "Principal Propagation for MCP Servers: SAP Integration Suite to SAP S/4HANA On-Premise",
+        "title":  "MCP 서버의 주요 전파: SAP Integration Suite에서 SAP S/4HANA On-Premise로",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/principal-propagation-for-mcp-servers-sap-integration-suite-to-sap-s-4hana/ba-p/14488137",
         "category":  "Blog",
-        "summary":  "Principal Propagation for SAP MCP Servers: SAP Integration Suite to SAP S/4HANA On-Premise Introduction MCP Servers can now be built and deployed on SAP Integration Suite, turning existing OData se...",
+        "summary":  "SAP MCP 서버에 대한 주요 전파: SAP Integration Suite에서 SAP S/4HANA 온프레미스로 소개 이제 MCP 서버를 SAP Integration Suite에 구축 및 배포하여 기존 OData 서버를 전환할 수 있습니다.",
         "published_at":  "2026-09-19T19:06:36Z"
     },
     {

@@ -12,6 +12,7 @@ const telegramBot = require('./app/utils/telegramBotHelper');
 const stockAutoTrader = require('./app/services/stockAutoTrader');
 const tossInvestClient = require('./app/utils/tossInvestClient');
 const gcsStorage = require('./app/utils/gcsStorageHelper');
+const trendScraper = require('./app/utils/trendScraper');
 
 const app = express();
 app.set('trust proxy', true);
@@ -291,7 +292,7 @@ app.post('/api/planet/world', async (req, res) => {
       return res.status(503).json({
         success: false,
         code: 'LAPTOP_OFFLINE',
-        message: '로컬 노트북(개발/홈서버)이 꺼져 있어 행성 월드 저장이 차단되었습니다.',
+        message: '로컬 노트북(개발/홈서버)이 꺼져 있어 자료 월드 저장이 차단되었습니다.',
         secondsAgo
       });
     }
@@ -340,6 +341,219 @@ app.get('/api/planet/search', (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// 🔥 실시간 트렌드 및 검색순위 API (Google Trends, BlackKiwi, Daum Cafe)
+app.get('/api/trends/all', async (req, res) => {
+  try {
+    const data = await trendScraper.getData();
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/trends/sync', async (req, res) => {
+  try {
+    const data = await trendScraper.syncAll(true);
+    res.json({ success: true, ...data, syncedAt: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 🌐 Detailed.com 분야별 웹사이트 순위 API
+app.get('/api/trends/detailed-categories', async (req, res) => {
+  try {
+    const categories = await trendScraper.fetchDetailedCategories();
+    res.json({ success: true, categories });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/trends/detailed', async (req, res) => {
+  try {
+    const category = (req.query.category || 'tech-blogs').toLowerCase();
+    const rankings = await trendScraper.fetchDetailedRankings(category);
+    res.json({ success: true, category, rankings });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 📚 교보문고 종합 주간 베스트셀러 API
+app.get('/api/trends/kyobo', async (req, res) => {
+  try {
+    let rankings = (trendScraper.cache && trendScraper.cache.kyobo && trendScraper.cache.kyobo.length > 0)
+      ? trendScraper.cache.kyobo
+      : await trendScraper.fetchKyoboBestseller();
+    res.json({ success: true, count: rankings.length, rankings });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 🎬 플레이보드 토픽차트 분야별 1순위 채널 API
+app.get('/api/trends/playboard', async (req, res) => {
+  try {
+    let rankings = (trendScraper.cache && trendScraper.cache.playboard && trendScraper.cache.playboard.length > 0)
+      ? trendScraper.cache.playboard
+      : await trendScraper.fetchPlayboardTopics();
+    res.json({ success: true, count: rankings.length, rankings });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 🌳 나무위키 실시간 검색어 API
+app.get('/api/trends/namu', async (req, res) => {
+  try {
+    let rankings = (trendScraper.cache && trendScraper.cache.namu && trendScraper.cache.namu.length > 0)
+      ? trendScraper.cache.namu
+      : await trendScraper.fetchNamuWiki();
+    res.json({ success: true, count: rankings.length, rankings });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/trends/ai-explain', async (req, res) => {
+  try {
+    const { keyword, title, sourceName, description, domain, type, author, publisher, category, channelName, topicName, subscriberCount, dailyViews, latestVideoTitle, keywords } = req.body || {};
+    const targetTerm = channelName || title || keyword || domain || '';
+    if (!targetTerm) {
+      return res.status(400).json({ success: false, error: '키워드 또는 채널/도서/사이트명이 필요합니다.' });
+    }
+
+    const isNamu = type === 'namu' || (sourceName && sourceName.includes('나무위키'));
+    const isYoutube = !isNamu && (type === 'youtube' || type === 'channel' || (sourceName && sourceName.includes('Playboard')));
+    const isBook = !isNamu && !isYoutube && (type === 'book' || (sourceName && sourceName.includes('교보')));
+    const isWebsite = !isNamu && !isYoutube && !isBook && (type === 'website' || !!domain);
+    const geminiKey = (typeof getGeminiApiKey === 'function') ? getGeminiApiKey() : process.env.GEMINI_API_KEY;
+
+    if (!geminiKey) {
+      if (isNamu) {
+        return res.json({
+          success: true,
+          explanation: `🌳 [${targetTerm}] (나무위키 실시간 검색어) 핵심 요약:\n1. [화제 배경]: 나무위키 이용자들의 실시간 문서 검색량이 폭증하며 인기 검색어 상위에 올랐습니다.\n2. [이슈 핵심]: ${description || '최근 뉴스 보도, 온라인 커뮤니티 화제 또는 방송/콘텐츠 출연과 밀접하게 연관되어 있습니다.'}\n3. [탐색 포인트]: 상단 [나무위키 문서 ↗]를 통해 상세한 사건 경과와 배경 지식을 확인해보세요.`
+        });
+      }
+      if (isYoutube) {
+        return res.json({
+          success: true,
+          explanation: `🎬 [${targetTerm}] (${topicName || '유튜브'} 분야 1위) 핵심 요약:\n1. [채널 정체성]: ${topicName || '해당'} 분야를 대표하는 유튜브 1위 채널로 탄탄한 팬덤을 보유하고 있습니다.\n2. [인기 비결]: 구독자 ${subscriberCount || '다수'}와 높은 일간 조회수로 독보적인 영향력을 보여주고 있습니다.\n3. [추천 포인트]: 상단 [유튜브 바로가기]를 통해 대표 영상과 채널 최신 콘텐츠를 직접 감상해보세요.`
+        });
+      }
+      if (isBook) {
+        return res.json({
+          success: true,
+          explanation: `📚 [${targetTerm}] 도서 핵심 요약:\n1. [도서 핵심 내용]: ${description ? description.substring(0, 150) + '...' : '교보문고 종합 주간 베스트셀러에 오른 화제의 인기 도서입니다.'}\n2. [인기 비결]: 저자(${author || '전문가'})의 탄탄한 집필력과 독자들의 높은 공감을 얻고 있습니다.\n3. [추천 포인트]: 관련 분야(${category || '종합'})에 관심 있는 독자에게 강력 추천하는 필독서입니다.`
+        });
+      }
+      if (isWebsite) {
+        return res.json({
+          success: true,
+          explanation: `💡 [${targetTerm}] 웹사이트 핵심 요약:\n1. [핵심 서비스]: ${description || '글로벌 상위권 트래픽과 인지도를 보유한 대표 웹사이트입니다.'}\n2. [상위권 랭킹 비결]: 검증된 퀄리티의 콘텐츠와 탄탄한 글로벌 독자층을 확보하고 있습니다.\n3. [활용/인사이트]: 상단 [사이트 방문] 링크를 통해 실제 플랫폼 UI와 콘텐츠를 벤치마킹해보세요.`
+        });
+      }
+      return res.json({
+        success: true,
+        explanation: `💡 [${targetTerm}] 요약:\n1. [배경]: 현재 ${sourceName || '주요 포털'}에서 실시간 급상승 중인 주요 키워드입니다.\n2. [이슈 핵심]: ${description || '대중의 높은 관심과 온라인 미디어 보도가 집중되고 있습니다.'}\n3. [관전 포인트]: 포털 검색을 통해 최신 뉴스와 여론 반응을 바로 확인하실 수 있습니다.`
+      });
+    }
+
+    let prompt = '';
+    if (isYoutube) {
+      prompt = `당신은 대한민국 유튜브 트렌드 및 크리에이터 비즈니스 분석 전문가입니다.
+분석 대상 채널: "${targetTerm}" (토픽/분야: ${topicName || category || '유튜브'})
+구독자 수: ${subscriberCount || '비공개'} | 일간 조회수: ${dailyViews || '집계중'}
+대표 영상/콘텐츠: ${latestVideoTitle || description || ''}
+주요 키워드: ${keywords || ''}
+출처: 플레이보드(Playboard) 분야별 1위 차트
+
+질문: 이 채널이 어떤 채널이며 왜 해당 분야 1위를 달성했는지, 다음 형식으로 깔끔하게 3줄로 핵심만 요약해주세요:
+1. [채널 정체성 & 핵심 콘텐츠]: (어떤 콘텐츠를 다루는 채널인지 1줄)
+2. [분야 1위 달성 비결]: (왜 시청자와 구독자가 열광하는지 1줄)
+3. [채널 매력 포인트/시청 팁]: (어떤 매력이 있으며 어떤 사람에게 추천하는지 1줄)
+
+한국어로 정중하고 명쾌하게 답변하세요.`;
+    } else if (isBook) {
+      prompt = `당신은 대한민국 베스트셀러 및 도서 트렌드 전문 서평가입니다.
+분석 대상 도서: "${targetTerm}"
+저자: ${author || '미상'} | 출판사: ${publisher || '미상'} | 장르/분야: ${category || '일반'}
+출처: 교보문고 종합 주간 베스트셀러
+소개 및 내용: ${description || ''}
+
+질문: 이 책이 어떤 책이며 왜 독자들의 사랑을 받으며 주간 종합 베스트셀러 상위권에 올랐는지, 다음 형식으로 깔끔하게 3줄로 핵심만 요약해주세요:
+1. [도서 핵심 내용]: (이 책의 중심 주제와 핵심 메시지 1줄)
+2. [베스트셀러 인기 비결]: (왜 지금 독자들에게 큰 호응과 반향을 얻고 있는지 1줄)
+3. [추천 독자 & 읽는 포인트]: (어떤 사람에게 특히 유익하며 무엇을 얻을 수 있는지 1줄)
+
+한국어로 정중하고 명쾌하게 답변하세요.`;
+    } else if (isWebsite) {
+      prompt = `당신은 글로벌 웹사이트 및 비즈니스 모델 분석 전문가입니다.
+분석 대상 웹사이트: "${targetTerm}" (${domain || ''})
+출처: Detailed.com
+설명: ${description || ''}
+
+질문: 이 웹사이트가 어떤 사이트이며 왜 해당 분야 글로벌 상위권에 랭크되었는지, 다음 형식으로 깔끔하게 3줄로 핵심만 요약해주세요:
+1. [핵심 서비스/정체성]: (어떤 사이트이며 무엇을 제공하는지 1줄)
+2. [상위권 랭킹 비결]: (왜 사용자와 트래픽이 몰리는지 1줄)
+3. [활용/인사이트]: (우리가 이 사이트에서 배울 점 또는 활용 팁 1줄)
+
+한국어로 정중하고 명쾌하게 답변하세요.`;
+    } else if (isNamu) {
+      prompt = `당신은 대한민국 온라인 문화 및 실시간 이슈 트렌드 분석 전문가입니다.
+현재 나무위키 실시간 검색어 1~10위 상위에 오른 키워드: "${targetTerm}"
+출처: 나무위키 실시간 검색어
+부가정보: ${description || ''}
+
+질문: 이 키워드가 왜 지금 사람들의 큰 관심을 받으며 나무위키 실시간 검색어 순위에 올랐는지, 핵심 배경과 의미를 다음 형식으로 깔끔하게 3줄로 핵심만 요약해주세요:
+1. [키워드/인물 정체성]: (이 검색어가 가리키는 인물, 사건, 작품 등의 정체성 1줄)
+2. [실시간 검색 급상승 배경]: (어떤 이슈나 소식으로 인해 네티즌들의 검색이 집중되었는지 1줄)
+3. [주요 관심/체크 포인트]: (이 이슈에서 가장 주목해야 할 점이나 시사점 1줄)
+
+한국어로 정중하고 명쾌하게 답변하세요.`;
+    } else {
+      prompt = `당신은 대한민국 실시간 트렌드 분석가입니다.
+현재 실시간 순위에 오른 키워드/이슈: "${targetTerm}"
+출처: ${sourceName || '실시간 트렌드'}
+부가정보: ${description || ''}
+
+질문: 이 키워드가 왜 지금 사람들의 큰 관심을 받으며 실시간 순위에 올랐는지, 핵심 배경과 의미를 다음 형식으로 깔끔하게 3줄로 핵심만 요약해주세요:
+1. [배경]: (무슨 일이 일어났는지 1줄)
+2. [이슈 핵심]: (왜 사람들이 검색/주목하는지 1줄)
+3. [시사점/관전 포인트]: (앞으로 주목할 점 1줄)
+
+한국어로 정중하고 명쾌하게 답변하세요.`;
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+    const geminiRes = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 300 }
+      })
+    });
+
+    if (!geminiRes.ok) {
+      throw new Error(`Gemini API HTTP ${geminiRes.status}`);
+    }
+
+    const gData = await geminiRes.json();
+    const explanation = gData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    return res.json({ success: true, explanation });
+  } catch (err) {
+    console.warn('[AI Explain Error]:', err.message);
+    const targetTerm = req.body?.keyword || req.body?.title || req.body?.domain || '항목';
+    return res.json({
+      success: true,
+      explanation: `💡 [${targetTerm}] 요약:\n1. [핵심 요약]: ${req.body?.description || '해당 분야의 대표적인 주요 서비스/이슈입니다.'}\n2. [특징]: 온라인 미디어와 사용자들 사이에서 높은 인지도와 트래픽을 형성하고 있습니다.\n3. [바로가기]: 상단 버튼을 통해 원문 사이트 및 상세 정보를 직접 탐색하실 수 있습니다.`
+    });
   }
 });
 
@@ -1621,6 +1835,126 @@ app.get('/api/blogger-posts', async (req, res) => {
 });
 
 // ==========================================
+// 5-2. Gemini Spark 주간 경제/거시 보고서 연동 & Threads 타래 발행 API
+// ==========================================
+const SparkReportService = require('./app/services/sparkReportService');
+const sparkReportService = new SparkReportService(dataDir, getValidGoogleAccessToken, getGeminiApiKey);
+
+// 1) 최신 주간 보고서 목록 조회
+app.get('/api/spark-reports/latest', (req, res) => {
+  try {
+    const data = sparkReportService.getLatestReports();
+    const config = sparkReportService.getConfig();
+    res.json({
+      success: true,
+      data,
+      config: {
+        driveFolderName: config.driveFolderName,
+        autoDeleteAfterImport: config.autoDeleteAfterImport,
+        lastWeeklySyncAt: config.lastWeeklySyncAt,
+        hasDriveFolderId: Boolean(config.driveFolderId)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2) 설정 조회
+app.get('/api/spark-reports/config', (req, res) => {
+  try {
+    res.json({ success: true, config: sparkReportService.getConfig() });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3) 설정 저장
+app.post('/api/spark-reports/config', (req, res) => {
+  try {
+    const updated = sparkReportService.saveConfig(req.body || {});
+    res.json({ success: true, config: updated, message: 'Gemini Spark 연동 설정이 저장되었습니다.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4) Google Drive 임시 폴더에서 즉시 수집 & 원본 즉시 완전 삭제 트리거
+app.post('/api/spark-reports/sync', async (req, res) => {
+  try {
+    const folderId = req.body?.folderId || null;
+    const result = await sparkReportService.syncFromGoogleDrive(folderId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5) 내용요약 4.1 프롬프트 기반 Gemini AI 가공 & 스레드 타래 생성
+app.post('/api/spark-reports/summarize', async (req, res) => {
+  try {
+    const reportId = req.body?.reportId;
+    const customTarget = req.body?.target || '생뷰님';
+    if (!reportId) {
+      return res.status(400).json({ success: false, error: 'reportId가 누락되었습니다.' });
+    }
+    const result = await sparkReportService.summarizeWithPrompt41(reportId, customTarget);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 6) Threads 본문 및 댓글 타래(Reply Chain) 순차 발행
+app.post('/api/spark-reports/publish-threads', async (req, res) => {
+  try {
+    const threadsThread = req.body?.threadsThread;
+    if (!Array.isArray(threadsThread) || threadsThread.length === 0) {
+      return res.status(400).json({ success: false, error: '발행할 스레드 타래 배열이 비어있습니다.' });
+    }
+    const result = await sparkReportService.publishToThreads(threadsThread);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7) 기본 샘플 보고서 복원 (테스트용)
+app.post('/api/spark-reports/reset-seed', (req, res) => {
+  try {
+    const seed = sparkReportService.generateSeedReports();
+    sparkReportService.saveLatestReports(seed);
+    res.json({ success: true, message: '7개 기본 경제/거시 보고서로 성공적으로 복원되었습니다.', data: seed });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 8) 주간 월요일 09:10 KST Google Drive 자동 수집 & 원본 삭제 백그라운드 데몬
+setInterval(async () => {
+  try {
+    const now = new Date();
+    const kstDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const kstDay = kstDate.getDay(); // 1 = 월요일
+    const kstHour = kstDate.getHours();
+    const kstMin = kstDate.getMinutes();
+
+    // 월요일 09:10 ~ 09:40 KST
+    if (kstDay === 1 && kstHour === 9 && kstMin >= 10 && kstMin <= 40) {
+      const cfg = sparkReportService.getConfig();
+      const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(now).split(' ')[0];
+      const lastSyncDate = cfg.lastWeeklySyncAt ? cfg.lastWeeklySyncAt.split('T')[0] : '';
+      if (lastSyncDate !== todayStr) {
+        console.log(`[SparkReportDaemon] ⏰ 월요일 09:10 KST 주간 보고서 자동 동기화 시작 (${todayStr})`);
+        await sparkReportService.syncFromGoogleDrive();
+      }
+    }
+  } catch (err) {
+    console.warn('[SparkReportDaemon] Check error:', err.message);
+  }
+}, 300000); // 5분 주기
+
+// ==========================================
 // 6. 토스증권 Open API & AI 끝장토론 자동매매/매매일지 API
 // ==========================================
 try { stockAutoTrader.init(); } catch (e) { console.warn('[StockAutoTrader] Init warning:', e.message); }
@@ -1852,6 +2186,15 @@ app.post('/api/trading/scalping/start', async (req, res) => {
 app.post('/api/trading/scalping/stop', (req, res) => {
   try {
     const result = stockAutoTrader.stopScalping();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/trading/scalping/reset', (req, res) => {
+  try {
+    const result = stockAutoTrader.clearScalpingPosition();
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -4326,8 +4669,264 @@ app.post('/api/portal-search-chat', async (req, res) => {
       }
     }
 
+    // 7. Gemini Spark 주간 경제/거시 보고서 (sparkReportsLatest.json)
+    let sparkData = readJsonSafe('sparkReportsLatest.json');
+    if (!sparkData || !Array.isArray(sparkData.reports) || sparkData.reports.length === 0) {
+      if (typeof sparkReportService !== 'undefined' && sparkReportService.getLatestReports) {
+        sparkData = sparkReportService.getLatestReports();
+      }
+    }
+    if (sparkData && Array.isArray(sparkData.reports)) {
+      for (const rep of sparkData.reports) {
+        let score = 0;
+        const text = `${rep.title || ''} ${rep.categoryLabel || ''} ${rep.summarySnippet || ''} ${rep.content || ''}`.toLowerCase();
+        for (const tok of tokens) {
+          if (!tok || tok.length < 2) continue;
+          if (rep.title && rep.title.toLowerCase().includes(tok)) score += 8;
+          if (rep.categoryLabel && rep.categoryLabel.toLowerCase().includes(tok)) score += 5;
+          if (text.includes(tok)) score += 2;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: 'Spark 경제리포트',
+            title: `✨ [Spark 리포트] ${rep.title || rep.categoryLabel}`,
+            summary: rep.summarySnippet || (rep.content ? rep.content.slice(0, 120) + '...' : 'Gemini Spark 주간 경제·거시 심층 분석 보고서'),
+            targetView: 'spark-reports',
+            id: rep.id
+          });
+        }
+      }
+    }
+
+    // 8. 실시간 트렌드 및 검색순위 (trend_cache.json)
+    const trendData = readJsonSafe('trend_cache.json');
+    if (trendData && typeof trendData === 'object') {
+      const channelKeys = [
+        { key: 'google', label: '구글 트렌드' },
+        { key: 'blackkiwi', label: '블랙키위 키워드' },
+        { key: 'daum', label: '다음 실시간 토픽' },
+        { key: 'namu', label: '나무위키 검색' },
+        { key: 'kyobo', label: '교보 베스트셀러' },
+        { key: 'playboard', label: '유튜브 인기 차트' }
+      ];
+
+      for (const ch of channelKeys) {
+        const list = trendData[ch.key];
+        if (Array.isArray(list)) {
+          for (const item of list) {
+            let score = 0;
+            const kw = item.keyword || item.title || item.name || '';
+            const desc = item.description || item.reason || item.category || '';
+            const text = `${kw} ${desc} ${ch.label}`.toLowerCase();
+            for (const tok of tokens) {
+              if (!tok || tok.length < 2) continue;
+              if (kw && kw.toLowerCase().includes(tok)) score += 7;
+              if (text.includes(tok)) score += 2;
+            }
+            if (score > 0) {
+              matchedItems.push({
+                score,
+                type: '실시간 트렌드',
+                title: `🚀 [${ch.label}] ${kw}`,
+                summary: desc || `${ch.label} 실시간 인기 순위 ${item.rank ? `${item.rank}위` : ''}`,
+                targetView: 'trend-ranking',
+                id: kw
+              });
+            }
+          }
+        }
+      }
+
+      // Detailed 글로벌 블로그 랭킹
+      if (trendData.detailedRankings && typeof trendData.detailedRankings === 'object') {
+        Object.keys(trendData.detailedRankings).forEach(catSlug => {
+          const dList = trendData.detailedRankings[catSlug];
+          if (Array.isArray(dList)) {
+            for (const dItem of dList) {
+              let score = 0;
+              const name = dItem.name || dItem.title || '';
+              const text = `${name} ${dItem.domain || ''} ${dItem.description || ''} ${catSlug}`.toLowerCase();
+              for (const tok of tokens) {
+                if (!tok || tok.length < 2) continue;
+                if (name && name.toLowerCase().includes(tok)) score += 6;
+                if (text.includes(tok)) score += 2;
+              }
+              if (score > 0) {
+                matchedItems.push({
+                  score,
+                  type: '실시간 트렌드',
+                  title: `🌐 [글로벌 블로그] ${name}`,
+                  summary: dItem.description || `${dItem.domain || ''} (Detailed.com 랭킹)`,
+                  targetView: 'trend-ranking',
+                  id: dItem.domain || name
+                });
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // 9. K-증시 분위기 & 감정 온도 리포트 (stockTemp.json)
+    const stockTempList = readJsonSafe('stockTemp.json');
+    if (Array.isArray(stockTempList)) {
+      for (const item of stockTempList) {
+        let score = 0;
+        const text = `${item.date || ''} ${item.temp || ''} ${item.headline || ''} ${(item.tags || []).join(' ')} ${item.detail || ''}`.toLowerCase();
+        for (const tok of tokens) {
+          if (!tok || tok.length < 2) continue;
+          if (item.headline && item.headline.toLowerCase().includes(tok)) score += 7;
+          if (text.includes(tok)) score += 3;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: 'K-증시온도',
+            title: `☀️ [K-증시 온도] ${item.date || ''} (${item.temp ?? '-'}℃)`,
+            summary: item.headline || (item.detail ? item.detail.slice(0, 110) + '...' : '일별 증시 호재 vs 악재 감정 지수 리포트'),
+            targetView: 'stock-temp',
+            id: item.date || item.id
+          });
+        }
+      }
+    }
+
+    // 10. GitHub 트렌딩 오픈소스 리포지토리 (githubTrending.json)
+    const ghTrending = readJsonSafe('githubTrending.json');
+    if (Array.isArray(ghTrending)) {
+      for (const item of ghTrending) {
+        let score = 0;
+        const text = `${item.name || ''} ${item.author || ''} ${item.language || ''} ${item.description || ''}`.toLowerCase();
+        for (const tok of tokens) {
+          if (!tok || tok.length < 2) continue;
+          if (item.name && item.name.toLowerCase().includes(tok)) score += 7;
+          if (item.language && item.language.toLowerCase().includes(tok)) score += 4;
+          if (text.includes(tok)) score += 2;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: 'GitHub 트렌딩',
+            title: `💻 [GitHub] ${item.name || '오픈소스'}`,
+            summary: `${item.language ? `[${item.language}] ` : ''}${item.description || 'GitHub 실시간 급상승 오픈소스 리포지토리'} (⭐ ${item.stars || '-'})`,
+            targetView: 'github-trending',
+            id: item.name
+          });
+        }
+      }
+    }
+
+    // 11. SAP 최신 뉴스 & 업데이트 (sapNews.json)
+    const sapNewsList = readJsonSafe('sapNews.json');
+    if (Array.isArray(sapNewsList)) {
+      for (const item of sapNewsList) {
+        let score = 0;
+        const text = `${item.title || ''} ${item.category || ''} ${item.summary || ''} ${item.content || ''}`.toLowerCase();
+        for (const tok of tokens) {
+          if (!tok || tok.length < 2) continue;
+          if (item.title && item.title.toLowerCase().includes(tok)) score += 6;
+          if (text.includes(tok)) score += 2;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: 'SAP 뉴스',
+            title: `📰 [SAP 뉴스] ${item.title}`,
+            summary: item.summary || item.category || 'SAP Integration Suite 최신 공식 릴리즈 및 기능 업데이트',
+            targetView: 'sap-suite',
+            id: item.id || item.link
+          });
+        }
+      }
+    }
+
+    // 12. SAP 핵심 용어사전 (sapTerms.json)
+    const sapTermsList = readJsonSafe('sapTerms.json');
+    if (Array.isArray(sapTermsList)) {
+      for (const item of sapTermsList) {
+        let score = 0;
+        const text = `${item.term || ''} ${item.fullForm || ''} ${item.korean || ''} ${item.summary || ''} ${item.definition || ''}`.toLowerCase();
+        for (const tok of tokens) {
+          if (!tok || tok.length < 2) continue;
+          if (item.term && item.term.toLowerCase().includes(tok)) score += 8;
+          if (item.korean && item.korean.toLowerCase().includes(tok)) score += 7;
+          if (text.includes(tok)) score += 3;
+        }
+        if (score > 0) {
+          matchedItems.push({
+            score,
+            type: 'SAP 용어',
+            title: `🧠 [SAP 용어] ${item.term}${item.korean ? ` (${item.korean})` : ''}`,
+            summary: item.summary || item.definition || item.fullForm || 'SAP BTP & Integration 용어 설명',
+            targetView: 'sap-terms',
+            id: item.term
+          });
+        }
+      }
+    }
+
+    // 13. 교회 주보 및 공지 소식 (church_news.json)
+    const churchNewsData = readJsonSafe('church_news.json');
+    if (churchNewsData && typeof churchNewsData === 'object') {
+      const churchSources = [
+        { key: 'suwon', label: '수원중앙침례교회' },
+        { key: 'gapck', label: '대한예수교장로회' }
+      ];
+      for (const cs of churchSources) {
+        const cItems = churchNewsData[cs.key]?.items;
+        if (Array.isArray(cItems)) {
+          for (const cItem of cItems) {
+            let score = 0;
+            const text = `${cItem.title || ''} ${cItem.date || ''} ${cItem.summary || ''} ${cItem.content || ''} ${cs.label}`.toLowerCase();
+            for (const tok of tokens) {
+              if (!tok || tok.length < 2) continue;
+              if (cItem.title && cItem.title.toLowerCase().includes(tok)) score += 6;
+              if (text.includes(tok)) score += 2;
+            }
+            if (score > 0) {
+              matchedItems.push({
+                score,
+                type: '교회 소식',
+                title: `⛪ [교회 소식] ${cItem.title}`,
+                summary: `${cs.label} | ${cItem.date || ''} | ${cItem.summary || (cItem.content ? cItem.content.slice(0, 80) : '교회 최신 주보 및 주요 소식')}`,
+                targetView: 'church-news',
+                id: cItem.id || cItem.title
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 14. 3D 행성 월드 (planet_world.json)
+    const planetData = readJsonSafe('planet_world.json');
+    if (planetData && Array.isArray(planetData.buildings)) {
+      for (const bld of planetData.buildings) {
+        let score = 0;
+        const floorTexts = (bld.floors || []).map(fl => `${fl.title || ''} ${fl.desc || ''} ${(fl.tags || []).join(' ')}`).join(' ');
+        const text = `${bld.name || ''} ${bld.category || ''} ${bld.type || ''} ${floorTexts}`.toLowerCase();
+        for (const tok of tokens) {
+          if (!tok || tok.length < 2) continue;
+          if (bld.name && bld.name.toLowerCase().includes(tok)) score += 7;
+          if (text.includes(tok)) score += 3;
+        }
+        if (score > 0) {
+          const firstFloor = (bld.floors && bld.floors[0]) || {};
+          matchedItems.push({
+            score,
+            type: '행성 월드',
+            title: `🌍 [행성 월드] ${bld.name}`,
+            summary: firstFloor.title ? `${firstFloor.title} - ${firstFloor.desc || ''}` : `${bld.category || '가족'} 테마 3D 건물 (총 ${bld.floors?.length || 1}개 층)`,
+            targetView: 'planet-world',
+            id: bld.id
+          });
+        }
+      }
+    }
+
     matchedItems.sort((a, b) => b.score - a.score);
-    const topItems = matchedItems.slice(0, 6);
+    const topItems = matchedItems.slice(0, 8);
 
     // Gemini API 호출 시도
     const geminiKey = getGeminiApiKey();
@@ -4485,6 +5084,38 @@ app.post('/api/threads-dashboard/config', (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// --- [NEW] 시스템 아키텍처 & 확장 마인드맵 데이터 관리 API ---
+const systemMindmapConfigFile = path.join(__dirname, 'data', 'systemMindmap.json');
+
+app.get('/api/admin/mindmap-data', (req, res) => {
+  try {
+    if (fs.existsSync(systemMindmapConfigFile)) {
+      const data = JSON.parse(fs.readFileSync(systemMindmapConfigFile, 'utf8'));
+      return res.json({ success: true, data });
+    }
+    return res.status(404).json({ success: false, error: '마인드맵 데이터 파일이 존재하지 않습니다.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/admin/mindmap-data', (req, res) => {
+  try {
+    const incomingData = req.body?.data || req.body;
+    if (!incomingData || !incomingData.root) {
+      return res.status(400).json({ success: false, error: '유효한 마인드맵 데이터 형식이 아닙니다.' });
+    }
+    incomingData.lastUpdated = new Date().toISOString();
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(systemMindmapConfigFile, JSON.stringify(incomingData, null, 2), 'utf8');
+    res.json({ success: true, message: '마인드맵 데이터 및 계획 메모가 성공적으로 저장되었습니다.', lastUpdated: incomingData.lastUpdated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 
 app.all('/api/threads-agent/*', async (req, res) => {
   let subPath = req.params[0] || '';

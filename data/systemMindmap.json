@@ -1,0 +1,522 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-09-25T18:45:00.000Z",
+  "root": {
+    "id": "root",
+    "name": "🌐 마당(Madang) 통합 지능형 에코시스템",
+    "category": "root",
+    "badge": "🏛️ 전체 아키텍처",
+    "summary": "madang3(포털·웹)과 madang6(AI에이전트·배치)의 기능, 외부 API 파이프라인 및 MCP/멀티LLM 확장 로드맵",
+    "children": [
+      {
+        "id": "madang3-core",
+        "name": "💻 madang3 포털 웹 & 핵심 기능",
+        "category": "madang3",
+        "badge": "🖥️ 웹 서비스",
+        "summary": "사용자 및 관리자 인터페이스, 주식 분석/자동매매, AI토론실, 업무 도구 통합 포털",
+        "children": [
+          {
+            "id": "m3-portal-home",
+            "name": "🏠 포털 메인 홈 & 실시간 대시보드",
+            "category": "madang3",
+            "badge": "🟢 운영중",
+            "summary": "실시간 급등락 랭킹, 주요 지수(KOSPI/KOSDAQ), 크롬 북마크 동기화, 포털 챗봇",
+            "description": "포털 첫 화면으로 실시간 시장 상황을 한눈에 파악하고 자주 쓰는 웹 자원 및 챗봇 인터페이스를 제공합니다.",
+            "paths": [
+              "index.html",
+              "app/controllers/appController.js",
+              "app/views/trendRankingView.js",
+              "app/views/portalChatbotView.js",
+              "app/views/bookmarkView.js"
+            ],
+            "triggers": "사용자 접속 및 1분 주기 시세 자동 폴링",
+            "externalApis": ["네이버 금융 시세 API", "다음 금융 크롤링", "Google Gemini (챗봇)"],
+            "expansionRoadmap": "MCP Web-Search 및 포털 RAG 검색 도구로 챗봇 지식베이스 확장",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m3-stock-temp",
+            "name": "🌡️ 투자 분석실 (주식 온도계 & 차트)",
+            "category": "madang3",
+            "badge": "🟢 운영중",
+            "summary": "기술적 지표 계산(RSI, MACD, 볼린저), 재무제표 시각화, 멀티 타임프레임 차트",
+            "description": "국내 주요 종목의 실시간 수급, 재무 건전성 및 기술적 지표를 기반으로 투자 매력도 점수를 산출합니다.",
+            "paths": [
+              "app/views/stockTempView.js",
+              "app/models/stockTempModel.js",
+              "data/stockTemp.json"
+            ],
+            "triggers": "종목 선택 시 실시간 산출 및 5분 주기 캐시 갱신",
+            "externalApis": ["한국투자증권 시세 API", "KRX 마스터 데이터", "네이버 증권 리서치"],
+            "expansionRoadmap": "Python 기반 고급 퀀트 지표(QuantLib)를 FastMCP 툴로 분리하여 초고속 정량 분석 연동",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m3-debate-arena",
+            "name": "⚔️ AI 끝장 토론실 (Debate Arena)",
+            "category": "madang3",
+            "badge": "🟢 운영중",
+            "summary": "5개 AI 페르소나 간 실시간 논쟁, 즉시 토론 소집, 최종 의결문 도출, 관리자 삭제",
+            "description": "특정 종목에 대해 서로 다른 투자 철학을 가진 에이전트들이 끝장 토론을 벌여 편향 없는 종합 의결 리포트를 생성합니다.",
+            "paths": [
+              "app/views/stockDebateView.js",
+              "app/models/stockDebateModel.js",
+              "server.js (/api/stock-debates/*)",
+              "data/stockDebateLogs.json"
+            ],
+            "triggers": "정기 시간별(1시간) 자동 실행 및 관리자 즉시 소집 버튼",
+            "externalApis": ["Google Gemini 1.5 Pro/Flash", "madang6 debate_arena.py"],
+            "expansionRoadmap": "단일 Gemini 의존에서 벗어나 페르소나별로 Claude, DeepSeek, Ollama 멀티 LLM 호출 파이프라인으로 전환",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m3-auto-trading",
+            "name": "🤖 주식 자동매매 & 초단타 (Scalping)",
+            "category": "madang3",
+            "badge": "🟢 운영중",
+            "summary": "국장 개장(09:00) 거래대금 1위 실시간 매수, 토스/한투 API 연동, 익절/손절 감시",
+            "description": "개장 직후 폭발적인 거래대금이 쏠리는 1위 종목을 1주 시장가 자동 매수 후 정밀한 손익절 룰(익절 +2.5%, 손절 -1.5%)로 자동 청산합니다.",
+            "paths": [
+              "app/services/stockAutoTrader.js",
+              "app/views/stockTradingAdminView.js",
+              "app/utils/telegramBotHelper.js",
+              "data/scalpingStatus.json"
+            ],
+            "triggers": "평일 09:00:02 KST 개장 트리거 및 1초 주기 손익절 모니터링",
+            "externalApis": ["한국투자증권 KIS Open API", "토스증권 API", "Telegram Bot API (실시간 체결 알림)"],
+            "expansionRoadmap": "KIS/토스 주문 집행 로직을 안전한 표준 MCP Server(kis-broker-mcp)로 격리하여 보안 및 타 플랫폼 재사용성 극대화",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m3-stock-journal",
+            "name": "📜 주식 매매일지 (Trading Journal)",
+            "category": "madang3",
+            "badge": "🟢 운영중",
+            "summary": "초단타 및 수동 매매 내역 영구 보존, 실현 손익 분석, 승률 및 복기 통계",
+            "description": "집행된 모든 매매의 체결가, 청산가, 실현손익, 보유기간 및 매매 사유를 기록하고 누적 수익률 차트를 제공합니다.",
+            "paths": [
+              "app/views/stockJournalView.js",
+              "data/stockTradingJournal.json"
+            ],
+            "triggers": "체결 이벤트 발생 시 자동 기록 및 수동 일지 작성",
+            "externalApis": ["로컬 JSON 스토리지", "Supabase PostgreSQL 동기화"],
+            "expansionRoadmap": "AI 기반 매매 패턴 복기 및 피드백 생성 에이전트(LLM 회고 리포트) 연결",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m3-biz-tools",
+            "name": "🧰 업무 도구 & 인텔리전스",
+            "category": "madang3",
+            "badge": "🟢 운영중",
+            "summary": "DART 전자공시 추출, SAP 지식 사전, AI 개념 마인드맵, GitHub 트렌드",
+            "description": "기업 공시, ERP/SAP 전문 용어, 최신 인공지능 용어 및 깃허브 오픈소스 랭킹을 학습/검색할 수 있는 업무 도구 모음입니다.",
+            "paths": [
+              "app/views/sapSuiteView.js",
+              "app/views/mindmapView.js",
+              "app/views/githubTrendingView.js",
+              "data/sapKnowledge.json",
+              "data/aiTerms.json"
+            ],
+            "triggers": "실시간 사용자 조회 및 주기적 크롤러 동기화",
+            "externalApis": ["DART 전자공시 Open API", "GitHub API", "SAP Community RSS"],
+            "expansionRoadmap": "DART 재무제표 추출기를 DART-MCP Tool로 변환하여 자연어 질의 지원",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m3-admin-mgmt",
+            "name": "⚙️ 관리자 거버넌스 & 원격 제어",
+            "category": "madang3",
+            "badge": "🟢 운영중",
+            "summary": "사이트 기술 정보 & 아키텍처, Threads 대시보드 연동, IP 텔레그램 보안 가디언",
+            "description": "시스템 인프라 메트릭스 모니터링, 메뉴 노출 커스터마이징, Cloudflare Tunnel 원격 대시보드 제어 및 IP 화이트리스트 관리를 수행합니다.",
+            "paths": [
+              "app/views/techStackView.js",
+              "data/threadsDashboardConfig.json",
+              "data/allowed_ips.json",
+              "server.js"
+            ],
+            "triggers": "관리자 접근 및 실시간 보안 이벤트 감지",
+            "externalApis": ["GCP Cloud Run API", "Telegram Bot API (IP 승인)", "Cloudflare Tunnel"],
+            "expansionRoadmap": "인터랙티브 시스템 아키텍처 마인드맵 및 MCP/LLM 로드맵 관리 탭 통합",
+            "userPlanNote": ""
+          }
+        ]
+      },
+      {
+        "id": "madang6-agents",
+        "name": "🤖 madang6 자율 AI 에이전트군",
+        "category": "madang6",
+        "badge": "🧠 백엔드 에이전트",
+        "summary": "투자 분석 5대 페르소나, 오케스트레이터, 뉴스 필터링, SAP 연동 및 백그라운드 워커",
+        "children": [
+          {
+            "id": "m6-orchestrator",
+            "name": "👑 메인주식총괄에이전트 (Lead Orchestrator)",
+            "category": "madang6",
+            "badge": "🚀 핵심 총괄",
+            "summary": "시장 데이터 검증, 서브에이전트 의견 취합, 토론 중재 및 madang3 동기화",
+            "description": "5개 서브에이전트의 개별 분석 리포트를 수집하고 상충되는 논점을 중재하여 종합 브리핑과 텔레그램 알림을 발송합니다.",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/메인주식총괄에이전트/main.py",
+              "C:/Users/bangt/Downloads/madang6/메인주식총괄에이전트/orchestrator.py",
+              "C:/Users/bangt/Downloads/madang6/메인주식총괄에이전트/council_arbitrator.py",
+              "C:/Users/bangt/Downloads/madang6/메인주식총괄에이전트/madang3_bridge.py"
+            ],
+            "triggers": "1시간 주기 정규 배치 및 시장 급변 시 수시 트리거",
+            "externalApis": ["Google Gemini 1.5 Pro", "Telegram Bot API", "madang3 REST API"],
+            "expansionRoadmap": "LangGraph 기반 멀티 에이전트 상태 머신으로 승격하여 에이전트 간 순환 토론 정밀화",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m6-subagent-technical",
+            "name": "📊 서브에이전트: 기술적분석가 (Technical Analyst)",
+            "category": "madang6",
+            "badge": "🚀 활성 에이전트",
+            "summary": "이동평균선(5/20/60/120일), 볼린저밴드, 거래량 폭증, 골든/데드크로스 정량 분석",
+            "description": "과거 가격 데이터와 캔들 패턴, 지지/저항 라인을 수치화하여 단기/중기 매매 타이밍을 진단합니다.",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_기술적분석가/persona_technical.py",
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_기술적분석가/main.py"
+            ],
+            "triggers": "메인 오케스트레이터 호출 시 실시간 실행",
+            "externalApis": ["KRX/네이버 시세 차트 데이터", "Gemini 1.5 Flash"],
+            "expansionRoadmap": "DeepSeek-R1 추론 모델을 연동하여 수학적/통계적 패턴 인식 정밀도 향상",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m6-subagent-daankal",
+            "name": "💰 서브에이전트: 단가 (단칼/수급추적자)",
+            "category": "madang6",
+            "badge": "🚀 활성 에이전트",
+            "summary": "세력 매집 단가 추정, 외국인/기관 순매수 수급 분석, 손익비(Risk/Reward) 계산",
+            "description": "기관과 외인의 대량 거래 체결 가격대와 유목민 매매 전략을 결합하여 안전 마진이 확보된 진입 단가를 산출합니다.",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_단가/daankal_kb.py",
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_단가/treasure_hunter.py",
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_단가/market_data.py"
+            ],
+            "triggers": "메인 오케스트레이터 호출 시 실시간 실행",
+            "externalApis": ["증권사 수급 Open API", "Telegram 알림 채널"],
+            "expansionRoadmap": "실시간 틱 체결 데이터 스트리밍(Websocket)을 처리하는 고속 MCP 수급 분석 서버 구축",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m6-subagent-growth",
+            "name": "🚀 서브에이전트: 성장론자 (Growth Visionary)",
+            "category": "madang6",
+            "badge": "🚀 활성 에이전트",
+            "summary": "AI/반도체/신재생 미래 모멘텀, 신성장 동력, 업종 호재, 공격적 매수 뷰 제시",
+            "description": "산업 트렌드 리포트와 글로벌 테크 동향을 분석하여 중장기 업사이드 포텐셜이 큰 종목에 적극적 투자의견을 피력합니다.",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_성장론자/persona_growth.py",
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_성장론자/main.py"
+            ],
+            "triggers": "메인 오케스트레이터 호출 시 실시간 실행",
+            "externalApis": ["글로벌 테크 뉴스 피드", "Gemini 1.5 Pro"],
+            "expansionRoadmap": "Perplexity API 또는 Tavily Search API 연동으로 실시간 최신 뉴스 근거(Grounding) 강화",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m6-subagent-cautious",
+            "name": "🛡️ 서브에이전트: 신중론자 (Risk Manager)",
+            "category": "madang6",
+            "badge": "🚀 활성 에이전트",
+            "summary": "하방 리스크, 거시 경제 악재(환율·유가·금리), 밸류에이션 고평가 경고, 손실 방어",
+            "description": "낙관론에 대한 비판적 반박자(Devil's Advocate)로서 최악의 시나리오와 손절 기준점을 엄격하게 제시합니다.",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_신중론자/persona_cautious.py",
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_신중론자/main.py"
+            ],
+            "triggers": "메인 오케스트레이터 호출 시 실시간 실행",
+            "externalApis": ["글로벌 매크로 지표 API", "Gemini 1.5 Flash"],
+            "expansionRoadmap": "Claude 3.5 Sonnet 연동: 논리적 허점 탐색 및 엄격한 계약/리스크 검토에 최적화",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m6-subagent-jurini",
+            "name": "🐣 서브에이전트: 주린이 (Beginner Viewpoint)",
+            "category": "madang6",
+            "badge": "🚀 활성 에이전트",
+            "summary": "초보 투자자 시각의 상식적 의문 제기, 쉬운 용어 풀이, 대중 심리(FOMO/공포) 반영",
+            "description": "난해한 전문 용어 뒤에 숨은 실질적 위험과 기회를 일반 대중의 관점에서 직관적으로 질문하고 검증합니다.",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_주린이/persona_jurini.py",
+              "C:/Users/bangt/Downloads/madang6/서브주식에이전트_주린이/main.py"
+            ],
+            "triggers": "메인 오케스트레이터 호출 시 실시간 실행",
+            "externalApis": ["네이버 종목토론방 감성 피드", "Gemini 1.5 Flash"],
+            "expansionRoadmap": "로컬 경량 LLM (Ollama Llama-3-8B / EXAONE)을 활용하여 가볍고 친근한 페르소나 상시 유지",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m6-infra-supervisor",
+            "name": "👁️ 에이전트 수퍼바이저 & 헬스체크",
+            "category": "madang6",
+            "badge": "🛡️ 인프라 감시",
+            "summary": "모든 에이전트 프로세스 생존 주기(PID) 감시, 자동 재시작, 리소스 모니터링, 텔레그램 경보",
+            "description": "Background Agent들의 Crash 또는 좀비 프로세스를 감지하고 자율 재시작 및 시스템 상태를 madang3에 동기화합니다.",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/agent_supervisor/process_manager.py",
+              "C:/Users/bangt/Downloads/madang6/agent_supervisor/resource_monitor.py",
+              "C:/Users/bangt/Downloads/madang6/agent_heartbeat_sync.py"
+            ],
+            "triggers": "상시 데몬 실행 (10초 주기 헬스체크)",
+            "externalApis": ["Windows OS Native Process API", "Telegram Bot API", "madang3 /api/agent-status"],
+            "expansionRoadmap": "OpenTelemetry 표준 기반 메트릭 수집 및 Grafana 대시보드 익스포터 연동",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m6-newsfilter-threads",
+            "name": "🧵 뉴스 필터 & Threads 자동 게시 에이전트",
+            "category": "madang6",
+            "badge": "🚀 활성 에이전트",
+            "summary": "다중 소스 뉴스 크롤링, 어그로/잡담 필터링(KNN), Threads 자동 포스팅, Cloudflare 서빙",
+            "description": "네이버, 텔레그램, 구글 뉴스 등에서 양질의 경제/증시 정보만 추출하여 Threads에 자동 배포하고 터널 대시보드를 제공합니다.",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/newsfilter_threads_agent/main.py",
+              "C:/Users/bangt/Downloads/madang6/newsfilter_threads_agent/cloudflared.exe",
+              "C:/Users/bangt/Downloads/madang6/newsfilter_threads_agent/check_cf.py"
+            ],
+            "triggers": "10분 주기 실시간 크롤링 및 필터링 후 30분~1시간 주기 포스팅",
+            "externalApis": ["Meta Threads Graph API", "Naver Open API", "Telegram News Channels", "Cloudflare Tunnel"],
+            "expansionRoadmap": "Threads 외에 X(구 Twitter), LinkedIn, Bluesky 멀티 SNS 동시 발행 MCP 에이전트로 확장",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m6-sap-agent",
+            "name": "🏢 SAP ERP 통합 에이전트",
+            "category": "madang6",
+            "badge": "🚀 활성 에이전트",
+            "summary": "SAP 기술 커뮤니티, BTP/S4HANA 지식베이스 수집, ERP 데이터 동기화",
+            "description": "SAP 공식 릴리즈 노트와 커뮤니티 지식을 자동 수집하여 madang3 포털의 SAP 인텔리전스 스위트에 피드합니다.",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/sap-integration-agent/main.py",
+              "C:/Users/bangt/Downloads/madang6/sap-integration-agent/sap_collector.ps1"
+            ],
+            "triggers": "매일 06:00 정기 스케줄러",
+            "externalApis": ["SAP Community RSS", "PowerShell Windows Scheduler"],
+            "expansionRoadmap": "SAP BTP AI Core 및 SAP RFC 커넥터를 MCP 프로토콜로 래핑하여 엔터프라이즈 ERP 자율 조회 지원",
+            "userPlanNote": ""
+          },
+          {
+            "id": "m6-scout-workers",
+            "name": "🔭 트렌드 & 매크로 스카우트 워커군",
+            "category": "madang6",
+            "badge": "🚀 활성 에이전트",
+            "summary": "실시간 글로벌 매크로 지표 수집, 검색 트렌드 탐색, 정기 토론 스케줄러",
+            "description": "환율/유가/미국채금리 등 글로벌 지표를 24시간 감시하고 시간별 토론 생성(`hourly_debate_worker.py`)을 구동합니다.",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/cloud_macro_scout.py",
+              "C:/Users/bangt/Downloads/madang6/trend_scout_agent.py",
+              "C:/Users/bangt/Downloads/madang6/hourly_debate_worker.py",
+              "C:/Users/bangt/Downloads/madang6/subagent_scout_engine.py"
+            ],
+            "triggers": "1시간 주기 정규 토론 및 15분 주기 트렌드 모니터링",
+            "externalApis": ["Yahoo Finance API", "Google Trends API", "Gemini API"],
+            "expansionRoadmap": "글로벌 이상 징후 발생 시 관리자에게 즉각 브레이킹 알림을 보내는 초저지연 이벤트 파이프라인 결합",
+            "userPlanNote": ""
+          }
+        ]
+      },
+      {
+        "id": "external-pipelines",
+        "name": "🔌 외부 API 연동 & 크롤링 파이프라인",
+        "category": "pipeline",
+        "badge": "🌐 인터페이스",
+        "summary": "텔레그램, 스레드, 증권사 OpenAPI, DART, 제미나이 LLM, 클라우드플레어 터널",
+        "children": [
+          {
+            "id": "pipe-telegram",
+            "name": "📱 Telegram Bot API (양방향 가디언 & 실시간 체결)",
+            "category": "pipeline",
+            "badge": "🟢 운영중",
+            "summary": "초단타 매수/매도 실시간 체결 전송, 비인가 IP 감지 시 인라인 키보드 차단/허용",
+            "description": "HTML 파싱 안정화(에러 폴백 내장) 및 양방향 웹훅/폴링을 통해 원격 관리자 제어 채널로 작동합니다.",
+            "paths": [
+              "app/utils/telegramBotHelper.js",
+              "data/telegramConfig.json",
+              "C:/Users/bangt/Downloads/madang6/agent_supervisor/telegram_bot.py"
+            ],
+            "triggers": "체결 이벤트 발생 시 즉시 / 보안 이벤트 발생 시 1초 내",
+            "externalApis": ["https://api.telegram.org/bot<TOKEN>/sendMessage"],
+            "expansionRoadmap": "텔레그램 대화형 봇 명령어로 madang6 에이전트들에게 즉시 토론 소집 및 종목 분석 명령 기능 추가",
+            "userPlanNote": ""
+          },
+          {
+            "id": "pipe-threads",
+            "name": "🧵 Meta Threads API (소셜 오토메이션)",
+            "category": "pipeline",
+            "badge": "🟢 운영중",
+            "summary": "뉴스 필터링 에이전트의 선별 브리핑 자동 포스팅, 토큰 갱신, Cloudflare 터널링",
+            "description": "Meta Graph API 규격에 맞춰 미디어 컨테이너 생성 후 게시하며, Cloudflare Tunnel을 통해 원격 대시보드를 서빙합니다.",
+            "paths": [
+              "data/threadsDashboardConfig.json",
+              "data/threadsTokenConfig.json",
+              "C:/Users/bangt/Downloads/madang6/newsfilter_threads_agent/main.py"
+            ],
+            "triggers": "선별 뉴스 발생 시 (30분~1시간 단위)",
+            "externalApis": ["https://graph.threads.net/v1.0/me/threads", "Cloudflare TryCloudflare Tunnel"],
+            "expansionRoadmap": "스레드 댓글 반응(답글, 인용)을 역수집하여 대중 센티먼트 지표로 분석실에 피드백하는 역방향 파이프라인 구축",
+            "userPlanNote": ""
+          },
+          {
+            "id": "pipe-broker-api",
+            "name": "📈 증권사 Open API (한국투자증권 KIS / 토스증권)",
+            "category": "pipeline",
+            "badge": "🟢 운영중",
+            "summary": "국내주식 실시간 시세 조회, 잔고 확인, 09:00 초단타 시장가 주문 집행",
+            "description": "OAuth 2.0 접근 토큰 발급 및 HMAC 서명 기반 거래 요청으로 안전하게 주문 및 계좌 잔고를 관리합니다.",
+            "paths": [
+              "app/services/stockAutoTrader.js",
+              "data/tossConfig.json",
+              "data/scalpingStatus.json"
+            ],
+            "triggers": "영업일 09:00:02 개장 주문 및 실시간 포지션 청산 감시",
+            "externalApis": ["KIS Open API (openapi.koreainvestment.com)", "토스증권 내부 게이트웨이"],
+            "expansionRoadmap": "안전한 주문 집행 및 모의투자 격리를 위한 별도 인증 중계 MCP Server(Broker Gateway MCP) 구축",
+            "userPlanNote": ""
+          },
+          {
+            "id": "pipe-dart",
+            "name": "📑 DART 전자공시 Open API (금융감독원)",
+            "category": "pipeline",
+            "badge": "🟢 운영중",
+            "summary": "기업 고유번호(Corp Code) 매핑, 주요 경영사항, 분기/사업보고서 실시간 수집",
+            "description": "상장 기업들의 유상증자, 무상증자, 전환사채, 단일판매 공급계약 등 주가 급변 공시를 실시간 파싱합니다.",
+            "paths": [
+              "data/dart_corp_codes.json",
+              "server.js (/api/dart/*)"
+            ],
+            "triggers": "사용자 기업 조회 시 & 10분 주기 주요 공시 스캐닝",
+            "externalApis": ["opendart.fss.or.kr/api/*"],
+            "expansionRoadmap": "DART XML/XBRL 재무제표 전문 파싱 엔진을 MCP Resource로 등록하여 LLM이 즉시 수치 검증 가능케 구성",
+            "userPlanNote": ""
+          },
+          {
+            "id": "pipe-gemini-llm",
+            "name": "🧠 Google Gemini LLM API (지능 엔진)",
+            "category": "pipeline",
+            "badge": "🟢 운영중",
+            "summary": "토론 공방 생성, 페르소나 프롬프트 주입, 투자 리포트 요약 및 합의 도출",
+            "description": "Gemini 1.5 Pro의 방대한 컨텍스트 창과 Flash의 초고속 응답성을 결합하여 실시간 다자간 토론 및 분석을 생성합니다.",
+            "paths": [
+              "server.js",
+              "C:/Users/bangt/Downloads/madang6/debate_arena.py",
+              "C:/Users/bangt/Downloads/madang6/hourly_debate_worker.py"
+            ],
+            "triggers": "토론 소집, 리포트 생성, 챗봇 대화 시 실시간 호출",
+            "externalApis": ["Google Generative AI SDK (gemini-1.5-pro, gemini-1.5-flash)"],
+            "expansionRoadmap": "Anthropic Claude 3.5 Sonnet 및 DeepSeek V3 API를 추가하여 멀티 LLM 앙상블 체계 구축",
+            "userPlanNote": ""
+          },
+          {
+            "id": "pipe-crawlers",
+            "name": "🕷️ 웹 크롤러 & 데이터 스크래퍼",
+            "category": "pipeline",
+            "badge": "🟢 운영중",
+            "summary": "네이버 금융 뉴스/랭킹, 다음 증권, GitHub Trending 수집 엔진",
+            "description": "실시간 거래대금 랭킹, 급상승 검색어, 개발자 트렌드 레포지토리를 백그라운드 수집하여 캐싱합니다.",
+            "paths": [
+              "fetch_ranking.js",
+              "data/githubTrending.json",
+              "C:/Users/bangt/Downloads/madang6/newsfilter_threads_agent/test_naver_parser.py"
+            ],
+            "triggers": "1분~1시간 주기 백그라운드 캐시 갱신",
+            "externalApis": ["네이버 증권 웹페이지", "GitHub Explore"],
+            "expansionRoadmap": "헤드리스 브라우저(Playwright) 기반의 스크래핑을 MCP 툴(Browser MCP)로 추상화하여 차단 우회 및 안정화",
+            "userPlanNote": ""
+          }
+        ]
+      },
+      {
+        "id": "mcp-llm-roadmap",
+        "name": "🔮 향후 확장 로드맵 (MCP & 멀티 LLM & 신규 AI)",
+        "category": "mcp_llm_roadmap",
+        "badge": "🚀 계획 & 확장",
+        "summary": "Anthropic MCP 서버화, Claude/DeepSeek/Ollama 멀티 LLM 연동, 신규 AI 서비스 통합",
+        "children": [
+          {
+            "id": "plan-mcp-broker",
+            "name": "📦 1. KIS/토스 증권 매매 MCP Server (kis-broker-mcp)",
+            "category": "mcp_llm_roadmap",
+            "badge": "🔵 기획/구축예정",
+            "summary": "주식 잔고/주문/호가를 표준 MCP(Model Context Protocol) 도구로 모듈화",
+            "description": "클라우드 및 로컬의 다양한 LLM(Claude, Gemini 등)이 동일한 표준 인터페이스(`tools/call: place_order`, `tools/call: get_balance`)로 안전하게 매매를 집행하도록 격리합니다.",
+            "paths": [
+              "scripts/mcp/kis_broker_mcp.py (신규 생성 예정)",
+              "app/services/stockAutoTrader.js"
+            ],
+            "triggers": "LLM 의사결정 시 도구 호출(Tool Calling)",
+            "externalApis": ["Anthropic MCP Protocol SDK", "KIS Open API"],
+            "expansionRoadmap": "모의계좌 가상 샌드박스 우선 구축 -> 실계좌 승인 절차 안전 연동",
+            "userPlanNote": ""
+          },
+          {
+            "id": "plan-mcp-dart",
+            "name": "📦 2. DART 기업 공시 분석 MCP Server (dart-intel-mcp)",
+            "category": "mcp_llm_roadmap",
+            "badge": "🔵 기획/구축예정",
+            "summary": "DART 전자공시 검색 및 재무제표 데이터를 표준 MCP 리소스 & 툴로 변환",
+            "description": "에이전트가 `resources/read: dart://corp/{code}/recent-filings`를 통해 별도 크롤러 없이 표준 프로토콜로 기업 공시를 즉시 열람하도록 만듭니다.",
+            "paths": [
+              "scripts/mcp/dart_intel_mcp.py (신규 생성 예정)",
+              "data/dart_corp_codes.json"
+            ],
+            "triggers": "종목 분석 시 실시간 온디맨드 질의",
+            "externalApis": ["DART Open API", "MCP Python SDK"],
+            "expansionRoadmap": "공시 원문 중 수치 데이터 테이블을 마크다운/JSON으로 자동 변환하는 파서 내장",
+            "userPlanNote": ""
+          },
+          {
+            "id": "plan-multi-llm",
+            "name": "🔀 3. 멀티 LLM 페르소나 라우팅 (Gemini + Claude + DeepSeek + Ollama)",
+            "category": "mcp_llm_roadmap",
+            "badge": "🔵 기획/구축예정",
+            "summary": "에이전트별 특성에 맞춰 최적의 LLM 엔진 분할 배정 및 비용/품질 극대화",
+            "description": "- 신중론자: Claude 3.5 Sonnet (엄격한 리스크 및 계약 검토)\n- 기술적분석가: DeepSeek R1/V3 (수학·통계 추론 최강)\n- 성장론자: Gemini 1.5 Pro (방대한 웹 검색 지식)\n- 주린이: Ollama Llama 3 8B (로컬 제로 비용 추론)",
+            "paths": [
+              "C:/Users/bangt/Downloads/madang6/debate_arena.py",
+              "server.js (/api/ai/multi-model)"
+            ],
+            "triggers": "토론 소집 시 페르소나별 분기 호출",
+            "externalApis": ["Anthropic Claude API", "DeepSeek API", "Ollama Local API", "Google Gemini API"],
+            "expansionRoadmap": "LiteLLM 또는 자체 라우터 프록시를 서버에 구축하여 일관된 OpenAI 호환 형식으로 호출 통일",
+            "userPlanNote": ""
+          },
+          {
+            "id": "plan-rag-vector",
+            "name": "📚 4. 벡터 지식베이스 & RAG 파이프라인 (Vector DB)",
+            "category": "mcp_llm_roadmap",
+            "badge": "🔵 기획/구축예정",
+            "summary": "과거 매매일지, 역대 토론 합의문, SAP 지식, 공시 이력의 벡터 임베딩 검색",
+            "description": "과거 유사 차트 패턴이나 유사 공시 발생 시 당시 토론 내용과 수익률 결과를 RAG로 인출하여 현재 토론에 근거 자료로 제공합니다.",
+            "paths": [
+              "data/vector_store/ (신규 생성 예정)",
+              "C:/Users/bangt/Downloads/madang6/knowledge_base/*"
+            ],
+            "triggers": "새 토론 생성 및 종목 분석 시 컨텍스트 보강",
+            "externalApis": ["Google text-embedding-004", "Qdrant 또는 Supabase pgvector"],
+            "expansionRoadmap": "Supabase의 pgvector 확장을 활성화하여 기존 DB 인프라에 추가 비용 없이 벡터 검색 통합",
+            "userPlanNote": ""
+          },
+          {
+            "id": "plan-new-ai-services",
+            "name": "🌐 5. 신규 AI 서비스 파이프라인 (Perplexity / FinBERT)",
+            "category": "mcp_llm_roadmap",
+            "badge": "🔵 기획/구축예정",
+            "summary": "실시간 팩트체크 검색(Perplexity) 및 금융 특화 감성 분석(FinBERT) 결합",
+            "description": "실시간 루머나 찌라시 발생 시 Perplexity API로 즉시 팩트체크를 수행하고, 네이버 종토방 글의 공포/탐욕 지수를 FinBERT로 수치화합니다.",
+            "paths": [
+              "app/services/sentimentAnalyzer.js (신규 생성 예정)",
+              "C:/Users/bangt/Downloads/madang6/trend_scout_agent.py"
+            ],
+            "triggers": "15분 주기 트렌드 감시 및 토론 소집 시",
+            "externalApis": ["Perplexity Sonar API", "Hugging Face Inference API"],
+            "expansionRoadmap": "시장 공포/탐욕 복합 인덱스(Fear & Greed Index)를 포털 메인 홈에 신규 위젯으로 탑재",
+            "userPlanNote": ""
+          }
+        ]
+      }
+    ]
+  }
+}

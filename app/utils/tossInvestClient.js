@@ -551,6 +551,29 @@ class TossInvestClient {
   }
 
   /**
+   * 정규장 마감 임박 여부 판별 (오버나잇 차단용, 마감 15분 전부터)
+   * - 국장: 15:15 KST 이후 (915분 이상)
+   * - 미장: 15:45 ET 이후 (945분 이상)
+   */
+  isMarketClosingSoon(market = 'KR') {
+    const now = new Date();
+
+    if (market === 'US') {
+      const etDate = this.getEtDate(now);
+      const day = etDate.getDay();
+      if (day === 0 || day === 6 || this.isUsHoliday(etDate)) return true; // 비영업일
+      const etMinutes = etDate.getHours() * 60 + etDate.getMinutes();
+      return etMinutes >= 945; // 15:45 ET 이후
+    }
+
+    const kstDate = this.getKstDate(now);
+    const day = kstDate.getDay();
+    if (day === 0 || day === 6 || this.isKrHoliday(kstDate)) return true; // 비영업일
+    const totalMinutes = kstDate.getHours() * 60 + kstDate.getMinutes();
+    return totalMinutes >= 915; // 15:15 KST 이후
+  }
+
+  /**
    * 다음 국내 정규장(KRX) 개장 영업일(날짜, 요일, 상대문구) 계산 (주말/공휴일/휴장일 제외)
    */
   getNextKrTradingDay(baseDate = new Date()) {
@@ -988,43 +1011,137 @@ class TossInvestClient {
     }
 
     const excludeSet = new Set((excludeSymbols || []).map(s => String(s || '').trim()).filter(Boolean));
+    const highRiskKeywords = ['레버리지', '인버스', '2X', '-2X', '2x', '-2x', 'ETN', '스팩', 'SPAC'];
 
-    // 단가 상한 이하 및 중복 방지 제외 종목(집중운용/맞춤전략) 필터링
-    const eligible = rankRes.rankings.filter(item => {
+    const candidates = [];
+    for (const item of rankRes.rankings) {
       const sym = String(item.symbol || '').trim();
-      if (excludeSet.has(sym)) {
-        console.log(`[TossClient] Scalping candidate ${sym} excluded (already in other position/strategy)`);
-        return false;
+      if (!sym || excludeSet.has(sym)) {
+        continue;
       }
       const price = parseFloat(item.price?.lastPrice || item.lastPrice || (typeof item.price === 'number' ? item.price : 0) || 0);
-      return price > 0 && price <= effectiveMaxPrice;
+      if (price <= 0 || price > effectiveMaxPrice) {
+        continue;
+      }
+
+      // 종목명 조회 및 레버리지/인버스/ETN/스팩 필터링
+      let stockName = item.name || sym;
+      try {
+        const info = await this.getStockInfo(sym);
+        if (info && info.name) {
+          stockName = info.name;
+        }
+      } catch (e) {}
+
+      // 레버리지, 인버스, ETN, 스팩 등 기본예탁금(1천만원) 규제 또는 파생 고위험 종목 제외
+      const isHighRisk = highRiskKeywords.some(kw => stockName.includes(kw) || sym.toUpperCase().includes(kw));
+      if (isHighRisk) {
+        console.log(`[TossClient] High-risk/Leveraged candidate excluded: ${stockName} (${sym})`);
+        continue;
+      }
+
+      candidates.push({
+        symbol: sym,
+        stockName: stockName,
+        market: marketCountry,
+        currency: item.currency || (isUs ? 'USD' : 'KRW'),
+        currentPrice: price,
+        changeRate: parseFloat(item.price?.changeRate || item.changeRate || 0),
+        tradingAmount: parseFloat(item.tradingAmount || 0),
+        tradingVolume: parseFloat(item.tradingVolume || 0)
+      });
+
+      if (candidates.length >= 5) break;
+    }
+
+    return candidates;
+  }
+
+  /**
+   * 한미 초단타 1순위 타깃 종목 발굴 (복수 후보 중 1위 반환)
+   */
+  async findScalpingTargetStock(market = 'KR', maxPrice = null, excludeSymbols = []) {
+    const candidates = await this.findScalpingCandidates(market, maxPrice, excludeSymbols);
+    return candidates && candidates.length > 0 ? candidates[0] : null;
+  }
+
+  /**
+   * 한미 초단타 상위 후보군(최대 5개) 발굴 (레버리지/인버스/스팩 제외)
+   */
+  async findScalpingCandidates(market = 'KR', maxPrice = null, excludeSymbols = []) {
+    const isUs = String(market).toUpperCase() === 'US';
+    const marketCountry = isUs ? 'US' : 'KR';
+    const defaultMaxPrice = isUs ? 100.0 : 100000;
+    const effectiveMaxPrice = (typeof maxPrice === 'number' && maxPrice > 0) ? maxPrice : defaultMaxPrice;
+
+    let rankRes = await this.getRankings({
+      type: 'MARKET_TRADING_AMOUNT',
+      marketCountry,
+      duration: 'realtime',
+      count: 50,
+      excludeInvestmentCaution: true
     });
 
-    if (eligible.length === 0) return null;
-
-    const topStock = eligible[0];
-    const curPrice = parseFloat(topStock.price?.lastPrice || topStock.lastPrice || (typeof topStock.price === 'number' ? topStock.price : 0) || 0);
-    const changeRate = parseFloat(topStock.price?.changeRate || topStock.changeRate || 0);
-
-    // 종목명 조회 (토스 종목 마스터 API 연동)
-    let stockName = topStock.symbol;
-    try {
-      const info = await this.getStockInfo(topStock.symbol);
-      if (info && info.name) {
-        stockName = info.name;
+    if (!rankRes.success || !rankRes.rankings || rankRes.rankings.length === 0) {
+      const backupRes = await this.getRankings({
+        type: 'MARKET_TRADING_AMOUNT',
+        marketCountry,
+        duration: '1d',
+        count: 50,
+        excludeInvestmentCaution: true
+      });
+      if (backupRes.success && backupRes.rankings && backupRes.rankings.length > 0) {
+        rankRes = backupRes;
       }
-    } catch (e) {}
+    }
 
-    return {
-      symbol: topStock.symbol,
-      stockName: stockName,
-      market: marketCountry,
-      currency: topStock.currency || (isUs ? 'USD' : 'KRW'),
-      currentPrice: curPrice,
-      changeRate: changeRate,
-      tradingAmount: parseFloat(topStock.tradingAmount || 0),
-      tradingVolume: parseFloat(topStock.tradingVolume || 0)
-    };
+    if (!rankRes.rankings || rankRes.rankings.length === 0) {
+      return [];
+    }
+
+    const excludeSet = new Set((excludeSymbols || []).map(s => String(s || '').trim()).filter(Boolean));
+    const highRiskKeywords = ['레버리지', '인버스', '2X', '-2X', '2x', '-2x', 'ETN', '스팩', 'SPAC'];
+
+    const candidates = [];
+    for (const item of rankRes.rankings) {
+      const sym = String(item.symbol || '').trim();
+      if (!sym || excludeSet.has(sym)) {
+        continue;
+      }
+      const price = parseFloat(item.price?.lastPrice || item.lastPrice || (typeof item.price === 'number' ? item.price : 0) || 0);
+      if (price <= 0 || price > effectiveMaxPrice) {
+        continue;
+      }
+
+      let stockName = item.name || sym;
+      try {
+        const info = await this.getStockInfo(sym);
+        if (info && info.name) {
+          stockName = info.name;
+        }
+      } catch (e) {}
+
+      const isHighRisk = highRiskKeywords.some(kw => stockName.includes(kw) || sym.toUpperCase().includes(kw));
+      if (isHighRisk) {
+        console.log(`[TossClient] High-risk/Leveraged candidate excluded: ${stockName} (${sym})`);
+        continue;
+      }
+
+      candidates.push({
+        symbol: sym,
+        stockName: stockName,
+        market: marketCountry,
+        currency: item.currency || (isUs ? 'USD' : 'KRW'),
+        currentPrice: price,
+        changeRate: parseFloat(item.price?.changeRate || item.changeRate || 0),
+        tradingAmount: parseFloat(item.tradingAmount || 0),
+        tradingVolume: parseFloat(item.tradingVolume || 0)
+      });
+
+      if (candidates.length >= 5) break;
+    }
+
+    return candidates;
   }
 }
 

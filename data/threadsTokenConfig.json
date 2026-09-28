@@ -1,1 +1,13 @@
-{"agentBaseUrl":"https://recorded-may-anytime-test.trycloudflare.com/","tokenIssuedDate":"2026-08-31","validDays":60,"recipientEmail":"admin@example.com","smtpHost":"smtp.gmail.com","smtpPort":587,"smtpUser":"","smtpPass":"","enableEmailAlert":true}
+{
+  "agentBaseUrl": "https://recorded-may-anytime-test.trycloudflare.com/",
+  "threadsAccessToken": "THAAPAPWzHYZARBYmFVVlp5TmNOeUVHTFBEMk5hc2JESWVzWW4yZADRaSkxmTjhJb2pyeFhtX3RpLXAtWjZAvRWk1WW1NTG5iM1ludlBaVzdKM2hwYTN4S0xRNmE3RHZAEZAEtULXUxQmtLX2h5UUdoWWlzR0F2V0gycXNHUVJVNDFfeHJBdwZDZD",
+  "threadsUserId": "26018379514525702",
+  "tokenIssuedDate": "2026-08-31",
+  "validDays": 60,
+  "recipientEmail": "admin@example.com",
+  "smtpHost": "smtp.gmail.com",
+  "smtpPort": 587,
+  "smtpUser": "",
+  "smtpPass": "",
+  "enableEmailAlert": true
+}

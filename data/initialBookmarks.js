@@ -1,7 +1,7 @@
 ﻿// data/initialBookmarks.js - Extracted Chrome Bookmarks
 window.PORTAL_DATA_BOOKMARKS = {
     "totalCount":  747,
-    "updatedAt":  "2026-09-22 22:56:26",
+    "updatedAt":  "2026-09-22 22:58:44",
     "tree":  {
                  "name":  "전체 북마크",
                  "path":  "전체",

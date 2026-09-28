@@ -8,16 +8,22 @@
     "market": "KR",
     "currency": "KRW",
     "status": "FILLED",
-    "quantity": 1,
+    "quantity": 2,
     "entryPrice": 86400,
-    "averagePrice": 86400,
-    "targetPrice": 99360,
-    "stopLossPrice": 82080,
+    "averagePrice": 87066.5,
+    "currentPrice": 82700,
+    "targetPrice": 100126,
+    "stopLossPrice": 82713,
+    "totalInvestedKrw": 174133,
+    "unrealizedPnl": -8733,
+    "returnPct": -5.02,
     "orderId": "gFtzcABZuVp4o",
     "debateId": "debate-20260914-153401-034020",
     "debateSummary": "두산에너빌리티 원전/SMR 모멘텀 및 실적 턴어라운드 AI 끝장토론 매수 의결",
     "startedAt": "2026-09-14T23:30:00.000Z",
-    "filledAt": "2026-09-14T23:30:00.000Z"
+    "filledAt": "2026-09-14T23:30:00.000Z",
+    "lastUpdatedAt": "2026-09-26T09:15:00.000Z",
+    "note": "토스증권 실제 잔고 2주 보유 중 (유령 매도 오류 정상 복구 완료)"
   },
   "customStrategies": [
     {
@@ -39,9 +45,9 @@
       "averagingStatus": "WATCHING",
       "status": "FILLED",
       "entryPrice": 16.49,
-      "currentPrice": 14.51,
-      "unrealizedPnl": -1.98,
-      "returnPct": -12.01,
+      "currentPrice": 14.58,
+      "unrealizedPnl": -1.91,
+      "returnPct": -11.58,
       "orderId": null,
       "orderHistory": [
         {
@@ -53,14 +59,64 @@
         }
       ],
       "notes": "",
-      "note": "정규장 마감 대기 (현재가: $14.51, 수익률: -12.01%)",
+      "note": "정규장 마감 대기 (현재가: $14.58, 수익률: -11.58%)",
       "createdAt": "2026-09-17T07:49:20.849Z",
-      "lastUpdatedAt": "2026-09-17T07:49:26.683Z"
+      "lastUpdatedAt": "2026-09-23T13:48:44.229Z"
     }
   ],
   "currentMonth": "2026-09",
   "monthlyArchives": {},
   "history": [
+    {
+      "id": "SCALP-1790170433228",
+      "strategyType": "SCALPING",
+      "stockName": "코어위브",
+      "itemCode": "CRWV",
+      "market": "US",
+      "currency": "USD",
+      "entryFxRate": 1364.64,
+      "exitFxRate": 1364.64,
+      "totalQuantity": 1,
+      "averagePrice": 89.03,
+      "exitPrice": 87.39,
+      "investedAmount": 89.03,
+      "proceedsAmount": 87.39,
+      "realizedPnl": -1.64,
+      "realizedPnlKrw": -2238,
+      "returnPct": -1.84,
+      "reasonCode": "STOP_LOSS",
+      "reasonTitle": "⛔ 초단타 -1.5% 손절 청산 (미장)",
+      "orderId": "kTYDSwQEfG3IX6cZPCaZajjatJ0NftwPLDWYpjayGKT0ncYUtrFHP_xd4kNyMwTw",
+      "sellOrderId": "kTYDSwQEfG3IX6cZPCaZajjatJ0NftwPLDWYpjayGKSUVgtb_gkdF51Ycob4xrvd",
+      "startedAt": "2026-09-23T13:30:09.229Z",
+      "closedAt": "2026-09-23T13:33:53.228Z",
+      "note": "미장 개장 실시간 거래대금 1위 초단타 스캘핑 (손절)"
+    },
+    {
+      "id": "SCALP-1790121702257",
+      "strategyType": "SCALPING",
+      "stockName": "유디엠",
+      "itemCode": "486990",
+      "market": "KR",
+      "currency": "KRW",
+      "entryFxRate": null,
+      "exitFxRate": null,
+      "totalQuantity": 1,
+      "averagePrice": 24300,
+      "exitPrice": 25000,
+      "investedAmount": 24300,
+      "proceedsAmount": 25000,
+      "realizedPnl": 700,
+      "realizedPnlKrw": 700,
+      "returnPct": 2.88,
+      "reasonCode": "TAKE_PROFIT",
+      "reasonTitle": "🎯 초단타 +2.5% 목표가 익절 (국장)",
+      "orderId": "qsqDyraL-Mu_5ThykqylRuvVK6S7X6FQjon0KVG9uDvi2i-6w7VxTJsvl1fwOvbOjA7jhdq_ok8P2FnR3dnDag",
+      "sellOrderId": "qsqDyraL-Mu_5ThykqylRorIUM-1EliggamZ_STxtC5LZ2KEd-Ge2iUHvCN1NzR6WjGoxGYOCQbg8HSJ7bVjFw",
+      "startedAt": "2026-09-23T00:00:06.758Z",
+      "closedAt": "2026-09-23T00:01:42.257Z",
+      "note": "국장 개장 실시간 거래대금 1위 초단타 스캘핑 (익절)"
+    },
     {
       "id": "SCALP-1790045000000",
       "strategyType": "SCALPING",
@@ -113,11 +169,11 @@
     }
   ],
   "stats": {
-    "totalTrades": 2,
-    "winTrades": 2,
-    "lossTrades": 0,
-    "winRate": 100,
-    "totalProfitKrw": 2261
+    "totalTrades": 4,
+    "winTrades": 3,
+    "lossTrades": 1,
+    "winRate": 75,
+    "totalProfitKrw": 723
   },
-  "lastCheckAt": "2026-09-22T02:30:00.000Z"
+  "lastCheckAt": "2026-09-26T09:15:00.000Z"
 }

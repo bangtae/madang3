@@ -140,6 +140,11 @@ window.AppController = {
         window.StockJournalView.applyAdminVisibility();
       } catch (e) {}
     }
+    if (window.SparkReportsView && typeof window.SparkReportsView.renderView === 'function' && window.SparkReportsView.initialized) {
+      try {
+        window.SparkReportsView.renderView();
+      } catch (e) {}
+    }
   },
 
   scrollToBoardList(targetId) {
@@ -1322,11 +1327,13 @@ window.AppController = {
       'sap-suite': 'work',
       'github-trending': 'work',
       'stock-temp': 'invest',
+      'spark-reports': 'invest',
       'stock-debate': 'invest',
       'stock-blog': 'invest',
       'blogger-news': 'invest',
       'stock-journal': 'invest',
       'planet-world': 'life',
+      'trend-ranking': 'life',
       'church-news': 'life',
       'monster-wave': 'life',
       'monster-defense': 'life',
@@ -1471,6 +1478,8 @@ window.AppController = {
       if (viewMenuConfig) viewMenuConfig.classList.add('hidden');
       if (viewTechStack) viewTechStack.classList.add('hidden');
       if (viewStockTemp) viewStockTemp.classList.add('hidden');
+      const viewSparkReports = document.getElementById('view-spark-reports');
+      if (viewSparkReports) viewSparkReports.classList.add('hidden');
       const viewStockDebate = document.getElementById('view-stock-debate');
       if (viewStockDebate) viewStockDebate.classList.add('hidden');
       const viewStockBlog = document.getElementById('view-stock-blog');
@@ -1488,6 +1497,8 @@ window.AppController = {
       if (viewMonsterWave) viewMonsterWave.classList.add('hidden');
       if (viewChurchNews) viewChurchNews.classList.add('hidden');
       if (viewPlanetWorld) viewPlanetWorld.classList.add('hidden');
+      const viewTrendRanking = document.getElementById('view-trend-ranking');
+      if (viewTrendRanking) viewTrendRanking.classList.add('hidden');
     };
 
     // 다른 뷰로 이동 시 게임 루프 및 3D 렌더 루프 일시정지 (리소스 절약)
@@ -1505,6 +1516,10 @@ window.AppController = {
       if (window.PlanetWorldView) {
         window.PlanetWorldView.resume();
       }
+    } else if (sideView === 'trend-ranking') {
+      const viewTrendRanking = document.getElementById('view-trend-ranking');
+      if (viewTrendRanking) viewTrendRanking.classList.remove('hidden');
+      if (window.TrendRankingView) window.TrendRankingView.init();
     } else if (sideView === 'church-news') {
       if (viewChurchNews) viewChurchNews.classList.remove('hidden');
       if (window.ChurchNewsView) window.ChurchNewsView.render();
@@ -1538,6 +1553,12 @@ window.AppController = {
         window.StockDebateModel.loadDebates().then(() => {
           window.StockDebateView.render();
         });
+      }
+    } else if (sideView === 'spark-reports') {
+      const viewSparkReports = document.getElementById('view-spark-reports');
+      if (viewSparkReports) viewSparkReports.classList.remove('hidden');
+      if (window.SparkReportsView) {
+        window.SparkReportsView.init();
       }
     } else if (sideView === 'stock-blog') {
       const viewStockBlog = document.getElementById('view-stock-blog');
@@ -1620,6 +1641,9 @@ window.AppController = {
       if (viewTechStack) viewTechStack.classList.remove('hidden');
       if (window.TechStackView) {
         window.TechStackView.init();
+      }
+      if (window.SystemMindmapView) {
+        window.SystemMindmapView.init();
       }
     } else if (sideView === 'stock-trading-admin') {
       const viewStockTradingAdmin = document.getElementById('view-stock-trading-admin');
@@ -1795,6 +1819,7 @@ window.AppController = {
   async loadMenuConfig() {
     const defaultMenus = [
       { id: "stock-temp", name: "K증시 온도", icon: "☀️", category: "invest", statCardId: "card-stat-stock-temp", guest: true, admin: true, description: "일별 K증시 호재 vs 악재 감정 지수 및 분위기 실시간 요약" },
+      { id: "spark-reports", name: "Gemini Spark 경제리포트", icon: "✨", category: "invest", statCardId: "card-stat-spark-reports", guest: true, admin: true, description: "Gemini Spark 주간 거시경제·금융·IT·부동산 심층 보고서 및 내용요약 4.1 스레드 타래 연동" },
       { id: "stock-debate", name: "AI 끝장 토론실", icon: "🔥", category: "invest", statCardId: "card-stat-stock-debate", guest: true, admin: true, description: "서브에이전트 5인의 실시간 격론 및 상호 반박 끝장 토론 피드" },
       { id: "stock-blog", name: "배고픈투자씨 데일리", icon: "📰", category: "invest", statCardId: "card-stat-stock-blog", guest: true, admin: true, description: "배고픈투자씨 네이버 블로그 최신 증시분위기 리포트 및 게시글 실시간 연동" },
       { id: "blogger-news", name: "방태 데일리 뉴스", icon: "🌐", category: "invest", statCardId: "card-stat-blogger-news", guest: true, admin: true, description: "구글 Blogger API v3 기반 bangtae.blogspot.com 데일리 뉴스요약 연동" },
