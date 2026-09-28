@@ -592,22 +592,27 @@
       }
 
       // 9. K-증시 온도
-      const stockTempArr = window.PORTAL_DATA_STOCK_TEMP || (window.StockTempModel && window.StockTempModel.stockTempList) || [];
+      const stockTempRaw = window.PORTAL_DATA_STOCK_TEMP || (window.StockTempModel && window.StockTempModel.stockTempList) || [];
+      const stockTempArr = Array.isArray(stockTempRaw) ? stockTempRaw : (stockTempRaw.stockTempList || []);
       if (Array.isArray(stockTempArr)) {
         for (const item of stockTempArr) {
           let score = 0;
-          const text = `${item.date || ''} ${item.temp || ''} ${item.headline || ''} ${(item.tags || []).join(' ')} ${item.detail || ''}`.toLowerCase();
+          const headlineOrTitle = item.title || item.headline || item.summary || '';
+          const tagsStr = (item.tags || []).join(' ');
+          const text = `${item.date || ''} ${item.temp ?? ''}도 ${item.temp ?? ''}℃ ${headlineOrTitle} ${tagsStr} ${item.detail || ''} 증시온도 분위기 감정온도 코스피`.toLowerCase();
           for (const tok of tokens) {
             if (!tok || tok.length < 2) continue;
-            if (item.headline && item.headline.toLowerCase().includes(tok)) score += 7;
+            if (headlineOrTitle.toLowerCase().includes(tok)) score += 8;
+            if (tagsStr.toLowerCase().includes(tok)) score += 6;
             if (text.includes(tok)) score += 3;
           }
+          if (query.includes('온도') || query.includes('증시온도')) score += 5;
           if (score > 0) {
             results.push({
               score,
               type: 'K-증시온도',
               title: `☀️ [K-증시 온도] ${item.date || ''} (${item.temp ?? '-'}℃)`,
-              summary: item.headline || (item.detail ? item.detail.slice(0, 100) + '...' : '일별 증시 호재 vs 악재 감정 지수'),
+              summary: headlineOrTitle || (item.detail ? item.detail.slice(0, 100) + '...' : '일별 증시 호재 vs 악재 감정 지수'),
               targetView: 'stock-temp',
               id: item.date || item.id
             });
@@ -616,25 +621,30 @@
       }
 
       // 10. GitHub 트렌딩
-      const ghList = window.PORTAL_DATA_GITHUB_TRENDING || [];
+      const ghRaw = window.PORTAL_DATA_GITHUB_TRENDING || (window.GithubTrendingModel && window.GithubTrendingModel.data) || [];
+      const ghList = Array.isArray(ghRaw) ? ghRaw : (ghRaw.repositories || []);
       if (Array.isArray(ghList)) {
         for (const item of ghList) {
           let score = 0;
-          const text = `${item.name || ''} ${item.author || ''} ${item.language || ''} ${item.description || ''}`.toLowerCase();
+          const name = item.name || item.repo || '';
+          const desc = item.summary || item.whatIsIt || item.description || '';
+          const tags = [item.tag || '', item.category || '', item.language || ''].join(' ');
+          const text = `${name} ${tags} ${desc} github 깃허브 트렌딩 오픈소스`.toLowerCase();
           for (const tok of tokens) {
             if (!tok || tok.length < 2) continue;
-            if (item.name && item.name.toLowerCase().includes(tok)) score += 7;
-            if (item.language && item.language.toLowerCase().includes(tok)) score += 4;
-            if (text.includes(tok)) score += 2;
+            if (name.toLowerCase().includes(tok)) score += 8;
+            if (tags.toLowerCase().includes(tok)) score += 5;
+            if (text.includes(tok)) score += 3;
           }
+          if (query.toLowerCase().includes('github') || query.includes('깃허브') || query.includes('트렌딩')) score += 4;
           if (score > 0) {
             results.push({
               score,
               type: 'GitHub 트렌딩',
-              title: `💻 [GitHub] ${item.name || '오픈소스'}`,
-              summary: `${item.language ? `[${item.language}] ` : ''}${item.description || 'GitHub 실시간 급상승 오픈소스'} (⭐ ${item.stars || '-'})`,
+              title: `💻 [GitHub] ${name || item.repo || '오픈소스'}`,
+              summary: `${item.language ? `[${item.language}] ` : ''}${desc || 'GitHub 실시간 급상승 오픈소스'} (⭐ ${item.stars || '-'})`,
               targetView: 'github-trending',
-              id: item.name
+              id: name || item.repo
             });
           }
         }
@@ -668,13 +678,14 @@
       if (Array.isArray(sapTermsArr)) {
         for (const item of sapTermsArr) {
           let score = 0;
-          const text = `${item.term || ''} ${item.korean || ''} ${item.summary || ''} ${item.definition || ''}`.toLowerCase();
+          const text = `${item.term || ''} ${item.korean || ''} ${item.summary || ''} ${item.definition || ''} sap 에스에이피 용어 용어사전 btp`.toLowerCase();
           for (const tok of tokens) {
             if (!tok || tok.length < 2) continue;
-            if (item.term && item.term.toLowerCase().includes(tok)) score += 8;
-            if (item.korean && item.korean.toLowerCase().includes(tok)) score += 7;
+            if (item.term && item.term.toLowerCase().includes(tok)) score += 9;
+            if (item.korean && item.korean.toLowerCase().includes(tok)) score += 8;
             if (text.includes(tok)) score += 3;
           }
+          if (query.includes('용어') || query.includes('사전') || query.toLowerCase().includes('sap')) score += 3;
           if (score > 0) {
             results.push({
               score,
@@ -691,23 +702,25 @@
       // 13. 교회 소식 & 14. 3D 행성 월드
       const churchData = window.ChurchNewsModel && window.ChurchNewsModel.newsData;
       if (churchData && typeof churchData === 'object') {
+        const cLabels = { suwon: '수원중앙침례교회', gapck: '대한예수교장로회' };
         ['suwon', 'gapck'].forEach(k => {
           const list = churchData[k]?.items;
           if (Array.isArray(list)) {
             for (const item of list) {
               let score = 0;
-              const text = `${item.title || ''} ${item.date || ''} ${item.summary || ''}`.toLowerCase();
+              const text = `${item.title || ''} ${item.date || ''} ${item.summary || ''} ${cLabels[k] || ''} 교회 주보 소식`.toLowerCase();
               for (const tok of tokens) {
                 if (!tok || tok.length < 2) continue;
-                if (item.title && item.title.toLowerCase().includes(tok)) score += 6;
-                if (text.includes(tok)) score += 2;
+                if (item.title && item.title.toLowerCase().includes(tok)) score += 7;
+                if (text.includes(tok)) score += 3;
               }
+              if (query.includes('교회') || query.includes('주보') || query.includes('설교')) score += 4;
               if (score > 0) {
                 results.push({
                   score,
                   type: '교회 소식',
                   title: `⛪ [교회 소식] ${item.title}`,
-                  summary: `${item.date || ''} | ${item.summary || '교회 소식'}`,
+                  summary: `${item.date || ''} | ${cLabels[k] || ''} | ${item.summary || '교회 소식'}`,
                   targetView: 'church-news',
                   id: item.id || item.title
                 });
@@ -722,12 +735,13 @@
         for (const bld of planetData.buildings) {
           let score = 0;
           const flTexts = (bld.floors || []).map(fl => `${fl.title || ''} ${fl.desc || ''}`).join(' ');
-          const text = `${bld.name || ''} ${bld.category || ''} ${flTexts}`.toLowerCase();
+          const text = `${bld.name || ''} ${bld.category || ''} ${flTexts} 행성 3d 월드 메타버스 planet 우주 지구`.toLowerCase();
           for (const tok of tokens) {
             if (!tok || tok.length < 2) continue;
-            if (bld.name && bld.name.toLowerCase().includes(tok)) score += 7;
-            if (text.includes(tok)) score += 3;
+            if (bld.name && bld.name.toLowerCase().includes(tok)) score += 8;
+            if (text.includes(tok)) score += 4;
           }
+          if (query.includes('행성') || query.toLowerCase().includes('planet') || query.includes('3d') || query.includes('메타버스')) score += 5;
           if (score > 0) {
             results.push({
               score,

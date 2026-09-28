@@ -4773,18 +4773,22 @@ app.post('/api/portal-search-chat', async (req, res) => {
     if (Array.isArray(stockTempList)) {
       for (const item of stockTempList) {
         let score = 0;
-        const text = `${item.date || ''} ${item.temp || ''} ${item.headline || ''} ${(item.tags || []).join(' ')} ${item.detail || ''}`.toLowerCase();
+        const headlineOrTitle = item.title || item.headline || item.summary || '';
+        const tagsStr = (item.tags || []).join(' ');
+        const text = `${item.date || ''} ${item.temp ?? ''}도 ${item.temp ?? ''}℃ ${headlineOrTitle} ${tagsStr} ${item.detail || ''} 증시온도 분위기 k-증시온도 감정온도 코스피 시장`.toLowerCase();
         for (const tok of tokens) {
           if (!tok || tok.length < 2) continue;
-          if (item.headline && item.headline.toLowerCase().includes(tok)) score += 7;
+          if (headlineOrTitle.toLowerCase().includes(tok)) score += 8;
+          if (tagsStr.toLowerCase().includes(tok)) score += 6;
           if (text.includes(tok)) score += 3;
         }
+        if (qClean.includes('온도') || qClean.includes('증시온도')) score += 5;
         if (score > 0) {
           matchedItems.push({
             score,
             type: 'K-증시온도',
             title: `☀️ [K-증시 온도] ${item.date || ''} (${item.temp ?? '-'}℃)`,
-            summary: item.headline || (item.detail ? item.detail.slice(0, 110) + '...' : '일별 증시 호재 vs 악재 감정 지수 리포트'),
+            summary: headlineOrTitle || (item.detail ? item.detail.slice(0, 110) + '...' : '일별 증시 호재 vs 악재 감정 지수 리포트'),
             targetView: 'stock-temp',
             id: item.date || item.id
           });
@@ -4793,25 +4797,30 @@ app.post('/api/portal-search-chat', async (req, res) => {
     }
 
     // 10. GitHub 트렌딩 오픈소스 리포지토리 (githubTrending.json)
-    const ghTrending = readJsonSafe('githubTrending.json');
-    if (Array.isArray(ghTrending)) {
-      for (const item of ghTrending) {
+    const ghTrendingData = readJsonSafe('githubTrending.json');
+    const ghList = Array.isArray(ghTrendingData) ? ghTrendingData : (ghTrendingData?.repositories || []);
+    if (Array.isArray(ghList)) {
+      for (const item of ghList) {
         let score = 0;
-        const text = `${item.name || ''} ${item.author || ''} ${item.language || ''} ${item.description || ''}`.toLowerCase();
+        const name = item.name || item.repo || '';
+        const desc = item.summary || item.whatIsIt || item.description || '';
+        const tags = [item.tag || '', item.category || '', item.language || '', ...(item.whatCanDo || [])].join(' ');
+        const text = `${name} ${item.owner || ''} ${tags} ${desc} github 깃허브 트렌딩 오픈소스 opensource`.toLowerCase();
         for (const tok of tokens) {
           if (!tok || tok.length < 2) continue;
-          if (item.name && item.name.toLowerCase().includes(tok)) score += 7;
-          if (item.language && item.language.toLowerCase().includes(tok)) score += 4;
-          if (text.includes(tok)) score += 2;
+          if (name.toLowerCase().includes(tok)) score += 8;
+          if (tags.toLowerCase().includes(tok)) score += 5;
+          if (text.includes(tok)) score += 3;
         }
+        if (qClean.toLowerCase().includes('github') || qClean.includes('깃허브') || qClean.includes('트렌딩') || qClean.includes('오픈소스')) score += 3;
         if (score > 0) {
           matchedItems.push({
             score,
             type: 'GitHub 트렌딩',
-            title: `💻 [GitHub] ${item.name || '오픈소스'}`,
-            summary: `${item.language ? `[${item.language}] ` : ''}${item.description || 'GitHub 실시간 급상승 오픈소스 리포지토리'} (⭐ ${item.stars || '-'})`,
+            title: `💻 [GitHub] ${name || item.repo || '오픈소스'}`,
+            summary: `${item.language ? `[${item.language}] ` : ''}${desc || 'GitHub 실시간 급상승 오픈소스 리포지토리'} (⭐ ${item.stars || '-'})`,
             targetView: 'github-trending',
-            id: item.name
+            id: name || item.repo
           });
         }
       }
@@ -4846,13 +4855,14 @@ app.post('/api/portal-search-chat', async (req, res) => {
     if (Array.isArray(sapTermsList)) {
       for (const item of sapTermsList) {
         let score = 0;
-        const text = `${item.term || ''} ${item.fullForm || ''} ${item.korean || ''} ${item.summary || ''} ${item.definition || ''}`.toLowerCase();
+        const text = `${item.term || ''} ${item.fullForm || ''} ${item.korean || ''} ${item.summary || ''} ${item.definition || ''} sap 에스에이피 용어 용어사전 btp`.toLowerCase();
         for (const tok of tokens) {
           if (!tok || tok.length < 2) continue;
-          if (item.term && item.term.toLowerCase().includes(tok)) score += 8;
-          if (item.korean && item.korean.toLowerCase().includes(tok)) score += 7;
+          if (item.term && item.term.toLowerCase().includes(tok)) score += 9;
+          if (item.korean && item.korean.toLowerCase().includes(tok)) score += 8;
           if (text.includes(tok)) score += 3;
         }
+        if (qClean.includes('용어') || qClean.includes('사전') || qClean.toLowerCase().includes('sap')) score += 2;
         if (score > 0) {
           matchedItems.push({
             score,
@@ -4902,15 +4912,17 @@ app.post('/api/portal-search-chat', async (req, res) => {
     // 14. 3D 행성 월드 (planet_world.json)
     const planetData = readJsonSafe('planet_world.json');
     if (planetData && Array.isArray(planetData.buildings)) {
+      const planetTitle = planetData.planetConfig?.name || '아이와 함께 만드는 행성 지구';
       for (const bld of planetData.buildings) {
         let score = 0;
         const floorTexts = (bld.floors || []).map(fl => `${fl.title || ''} ${fl.desc || ''} ${(fl.tags || []).join(' ')}`).join(' ');
-        const text = `${bld.name || ''} ${bld.category || ''} ${bld.type || ''} ${floorTexts}`.toLowerCase();
+        const text = `${bld.name || ''} ${bld.category || ''} ${bld.type || ''} ${floorTexts} 행성 3d 월드 메타버스 planet 우주 지구 ${planetTitle}`.toLowerCase();
         for (const tok of tokens) {
           if (!tok || tok.length < 2) continue;
-          if (bld.name && bld.name.toLowerCase().includes(tok)) score += 7;
-          if (text.includes(tok)) score += 3;
+          if (bld.name && bld.name.toLowerCase().includes(tok)) score += 8;
+          if (text.includes(tok)) score += 4;
         }
+        if (qClean.includes('행성') || qClean.toLowerCase().includes('planet') || qClean.includes('3d') || qClean.includes('메타버스')) score += 5;
         if (score > 0) {
           const firstFloor = (bld.floors && bld.floors[0]) || {};
           matchedItems.push({

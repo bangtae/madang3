@@ -3289,19 +3289,23 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                     $stList = $raw | ConvertFrom-Json
                                     foreach ($item in $stList) {
                                         $sc = 0
-                                        $txt = "$($item.date) $($item.temp) $($item.headline) $($item.tags -join ' ') $($item.detail)".ToLower()
+                                        $ht = if ($item.title) { $item.title } elseif ($item.headline) { $item.headline } else { $item.summary }
+                                        $tagsStr = if ($item.tags) { $item.tags -join ' ' } else { '' }
+                                        $txt = "$($item.date) $($item.temp)도 $($item.temp)℃ $ht $tagsStr $($item.detail) 증시온도 분위기 k-증시온도 감정온도 코스피 시장".ToLower()
                                         foreach ($t in $qTokens) {
                                             if ($t.Length -ge 2) {
-                                                if ($item.headline -and $item.headline.ToLower().Contains($t)) { $sc += 7 }
+                                                if ($ht -and $ht.ToLower().Contains($t)) { $sc += 8 }
+                                                elseif ($tagsStr -and $tagsStr.ToLower().Contains($t)) { $sc += 6 }
                                                 elseif ($txt.Contains($t)) { $sc += 3 }
                                             }
                                         }
+                                        if ($qClean.Contains('온도') -or $qClean.Contains('증시온도')) { $sc += 5 }
                                         if ($sc -gt 0) {
                                             [void]$matchedList.Add([PSCustomObject]@{
                                                 score = $sc
                                                 type = "K-증시온도"
                                                 title = "☀️ [K-증시 온도] $($item.date) ($($item.temp)℃)"
-                                                summary = if ($item.headline) { $item.headline } else { "일별 증시 호재 vs 악재 감정 지수 리포트" }
+                                                summary = if ($ht) { $ht } else { "일별 증시 호재 vs 악재 감정 지수 리포트" }
                                                 targetView = "stock-temp"
                                                 id = if ($item.date) { $item.date } else { $item.id }
                                             })
@@ -3315,25 +3319,30 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                             if (Test-Path $ghFile) {
                                 try {
                                     $raw = [System.IO.File]::ReadAllText($ghFile, [System.Text.Encoding]::UTF8)
-                                    $ghList = $raw | ConvertFrom-Json
+                                    $ghObj = $raw | ConvertFrom-Json
+                                    $ghList = if ($ghObj.repositories) { $ghObj.repositories } else { $ghObj }
                                     foreach ($item in $ghList) {
                                         $sc = 0
-                                        $txt = "$($item.name) $($item.author) $($item.language) $($item.description)".ToLower()
+                                        $nm = if ($item.name) { $item.name } else { $item.repo }
+                                        $ds = if ($item.summary) { $item.summary } elseif ($item.whatIsIt) { $item.whatIsIt } else { $item.description }
+                                        $tagsStr = "$($item.tag) $($item.category) $($item.language)"
+                                        $txt = "$nm $($item.owner) $tagsStr $ds github 깃허브 트렌딩 오픈소스 opensource".ToLower()
                                         foreach ($t in $qTokens) {
                                             if ($t.Length -ge 2) {
-                                                if ($item.name -and $item.name.ToLower().Contains($t)) { $sc += 7 }
-                                                elseif ($item.language -and $item.language.ToLower().Contains($t)) { $sc += 4 }
-                                                elseif ($txt.Contains($t)) { $sc += 2 }
+                                                if ($nm -and $nm.ToLower().Contains($t)) { $sc += 8 }
+                                                elseif ($tagsStr.ToLower().Contains($t)) { $sc += 5 }
+                                                elseif ($txt.Contains($t)) { $sc += 3 }
                                             }
                                         }
+                                        if ($qClean.ToLower().Contains('github') -or $qClean.Contains('깃허브') -or $qClean.Contains('트렌딩') -or $qClean.Contains('오픈소스')) { $sc += 3 }
                                         if ($sc -gt 0) {
                                             [void]$matchedList.Add([PSCustomObject]@{
                                                 score = $sc
                                                 type = "GitHub 트렌딩"
-                                                title = "💻 [GitHub] $($item.name)"
-                                                summary = "$($item.description) (⭐ $($item.stars))"
+                                                title = "💻 [GitHub] $nm"
+                                                summary = "$(if ($item.language) { '[' + $item.language + '] ' })$ds (⭐ $($item.stars))"
                                                 targetView = "github-trending"
-                                                id = $item.name
+                                                id = $nm
                                             })
                                         }
                                     }
@@ -3445,13 +3454,14 @@ $(if (-not [string]::IsNullOrWhiteSpace($newsSnippet)) { "[사내 등록 최신 
                                         foreach ($bld in $pData.buildings) {
                                             $sc = 0
                                             $flTexts = ($bld.floors | ForEach-Object { "$($_.title) $($_.desc)" }) -join " "
-                                            $txt = "$($bld.name) $($bld.category) $flTexts".ToLower()
+                                            $txt = "$($bld.name) $($bld.category) $flTexts 행성 3d 월드 메타버스 planet 우주 지구".ToLower()
                                             foreach ($t in $qTokens) {
                                                 if ($t.Length -ge 2) {
-                                                    if ($bld.name -and $bld.name.ToLower().Contains($t)) { $sc += 7 }
-                                                    elseif ($txt.Contains($t)) { $sc += 3 }
+                                                    if ($bld.name -and $bld.name.ToLower().Contains($t)) { $sc += 8 }
+                                                    elseif ($txt.Contains($t)) { $sc += 4 }
                                                 }
                                             }
+                                            if ($qClean.Contains('행성') -or $qClean.ToLower().Contains('planet') -or $qClean.Contains('3d') -or $qClean.Contains('메타버스')) { $sc += 5 }
                                             if ($sc -gt 0) {
                                                 [void]$matchedList.Add([PSCustomObject]@{
                                                     score = $sc
