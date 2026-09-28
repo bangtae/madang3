@@ -1,24 +1,24 @@
 {
-  "lastUpdated": "2026-09-28T20:33:39.089013",
+  "lastUpdated": "2026-09-29T05:56:06.976843",
   "totalSources": 17,
   "recentChanges": [
     {
       "id": "google_kr",
       "source": "구글 트렌드 (KR)",
       "region": "KR",
-      "prev_title": "송일국",
-      "new_title": "한국 대 우루과이",
+      "prev_title": "미스터 트롯",
+      "new_title": "벨기에 대 프랑스",
       "link": "https://trends.google.com/trending/rss?geo=KR",
       "raw_item": {
         "id": "google_kr",
         "source": "구글 트렌드 (KR)",
         "region": "KR",
-        "title": "한국 대 우루과이",
+        "title": "벨기에 대 프랑스",
         "link": "https://trends.google.com/trending/rss?geo=KR",
-        "image_url": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTwfF8vAXH47WPeyIerWcpidzz3R9T4grGJzqyX1rjNqQBLzdkAIHYkpUy-zj8",
-        "image_source": "조선일보",
-        "traffic": "100000+",
-        "news_title": "손흥민, 오늘 우루과이전서 차범근의 대기록에 도전...이강인-손흥민 투톱 뜰까",
+        "image_url": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSFigJmvSPN5UQKjOWFK8moJYbjUMzHfpU1sW5mWuv07Uwq0Nlp-AxjjraPTjU",
+        "image_source": "Laodong.vn",
+        "traffic": "2000+",
+        "news_title": "네이션스 리그 벨기에 대 프랑스 생중계 링크",
         "news_snippet": ""
       }
     },
@@ -26,123 +26,45 @@
       "id": "signal_bz",
       "source": "시그널 실시간 검색어",
       "region": "KR",
-      "prev_title": "삼성전기 AI 기판 투자",
-      "new_title": "한국 컴파운드 4명 8강 진출!",
+      "prev_title": "로베르토 모레노 감독, 우루과이전 준비",
+      "new_title": "남자 계주 동메달!",
       "link": "https://signal.bz/",
       "raw_item": {
         "id": "signal_bz",
         "source": "시그널 실시간 검색어",
         "region": "KR",
-        "title": "한국 컴파운드 4명 8강 진출!",
+        "title": "남자 계주 동메달!",
         "link": "https://signal.bz/"
-      }
-    },
-    {
-      "id": "namu_wiki",
-      "source": "나무위키 실시간 검색어",
-      "region": "KR",
-      "prev_title": "배그",
-      "new_title": "김봉수",
-      "link": "https://namu.wiki/w/%EA%B9%80%EB%B4%89%EC%88%98",
-      "raw_item": {
-        "id": "namu_wiki",
-        "source": "나무위키 실시간 검색어",
-        "region": "KR",
-        "title": "김봉수",
-        "link": "https://namu.wiki/w/%EA%B9%80%EB%B4%89%EC%88%98",
-        "image_url": "",
-        "image_source": "나무위키 (namu.wiki)",
-        "doc_desc": "교수 군인 농구인 축구인 1970년생 1999년생 테니스 선수 야구 선수 배우 장항선의 본명"
       }
     },
     {
       "id": "daum_cafe",
       "source": "다음 카페 인기글",
       "region": "KR",
-      "prev_title": "오랜만에 인스스 올린 강아지 담비 계정..",
-      "new_title": "10월 2일까지 애슐리 디너도 런치가격으로 먹을수있음...",
+      "prev_title": "해외살때 진짜진짜 많이 들었던 코리안컬러",
+      "new_title": "뉴욕 공연 취소된 투바투 레전드 대처ㄷㄷ",
       "link": "https://m.cafe.daum.net/",
       "raw_item": {
         "id": "daum_cafe",
         "source": "다음 카페 인기글",
         "region": "KR",
-        "title": "10월 2일까지 애슐리 디너도 런치가격으로 먹을수있음...",
+        "title": "뉴욕 공연 취소된 투바투 레전드 대처ㄷㄷ",
         "link": "https://m.cafe.daum.net/"
       }
     },
     {
-      "id": "naver_webtoon",
-      "source": "네이버 웹툰 (WEDNESDAY) 1위",
-      "region": "KR",
-      "prev_title": "나노마신",
-      "new_title": "화산귀환",
-      "link": "https://comic.naver.com/webtoon/list?titleId=769209",
-      "raw_item": {
-        "id": "naver_webtoon",
-        "source": "네이버 웹툰 (WEDNESDAY) 1위",
-        "region": "KR",
-        "title": "화산귀환",
-        "link": "https://comic.naver.com/webtoon/list?titleId=769209"
-      }
-    },
-    {
-      "id": "google_us",
-      "source": "구글 트렌드 (US)",
-      "region": "US",
-      "prev_title": "mortgage rates today",
-      "new_title": "when is daylight savings time",
-      "link": "https://trends.google.com/trending/rss?geo=US",
-      "raw_item": {
-        "id": "google_us",
-        "source": "구글 트렌드 (US)",
-        "region": "US",
-        "title": "when is daylight savings time",
-        "link": "https://trends.google.com/trending/rss?geo=US"
-      }
-    },
-    {
-      "id": "github_trending",
-      "source": "GitHub Trending (글로벌 1위)",
+      "id": "coingecko_trending",
+      "source": "CoinGecko 트렌딩 코인 1위",
       "region": "GLOBAL",
-      "prev_title": "paperclipai/paperclip",
-      "new_title": "debpalash/VoiceStudio",
-      "link": "https://github.com/debpalash/VoiceStudio",
+      "prev_title": "Baby Cali (BABYCALI)",
+      "new_title": "Quant (QNT)",
+      "link": "https://www.coingecko.com/en/coins/quant-network",
       "raw_item": {
-        "id": "github_trending",
-        "source": "GitHub Trending (글로벌 1위)",
+        "id": "coingecko_trending",
+        "source": "CoinGecko 트렌딩 코인 1위",
         "region": "GLOBAL",
-        "title": "debpalash/VoiceStudio",
-        "link": "https://github.com/debpalash/VoiceStudio"
-      }
-    },
-    {
-      "id": "hacker_news",
-      "source": "Hacker News (글로벌 1위)",
-      "region": "GLOBAL",
-      "prev_title": "Owed a billion dollars in Nvidia stock",
-      "new_title": "Parley: Federated, decentralised chat that speaks plain IRC",
-      "link": "https://git.mills.io/prologic/parley",
-      "raw_item": {
-        "id": "hacker_news",
-        "source": "Hacker News (글로벌 1위)",
-        "region": "GLOBAL",
-        "title": "Parley: Federated, decentralised chat that speaks plain IRC",
-        "link": "https://git.mills.io/prologic/parley"
-      }
-    },
-    {
-      "id": "product_hunt",
-      "source": "Product Hunt (일간 1위)",
-      "region": "GLOBAL",
-      "prev_title": "Okara",
-      "new_title": "vantage.ai",
-      "link": "https://www.producthunt.com",
-      "raw_item": {
-        "id": "product_hunt",
-        "source": "Product Hunt (일간 1위)",
-        "region": "GLOBAL",
-        "title": "vantage.ai",
-        "link": "https://www.producthunt.com"
+        "title": "Quant (QNT)",
+        "link": "https://www.coingecko.com/en/coins/quant-network"
       }
     }
   ],
@@ -151,19 +73,19 @@
       "id": "google_kr",
       "source": "구글 트렌드 (KR)",
       "region": "KR",
-      "title": "한국 대 우루과이",
+      "title": "벨기에 대 프랑스",
       "link": "https://trends.google.com/trending/rss?geo=KR",
-      "image_url": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTwfF8vAXH47WPeyIerWcpidzz3R9T4grGJzqyX1rjNqQBLzdkAIHYkpUy-zj8",
-      "image_source": "조선일보",
-      "traffic": "100000+",
-      "news_title": "손흥민, 오늘 우루과이전서 차범근의 대기록에 도전...이강인-손흥민 투톱 뜰까",
+      "image_url": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSFigJmvSPN5UQKjOWFK8moJYbjUMzHfpU1sW5mWuv07Uwq0Nlp-AxjjraPTjU",
+      "image_source": "Laodong.vn",
+      "traffic": "2000+",
+      "news_title": "네이션스 리그 벨기에 대 프랑스 생중계 링크",
       "news_snippet": ""
     },
     {
       "id": "signal_bz",
       "source": "시그널 실시간 검색어",
       "region": "KR",
-      "title": "한국 컴파운드 4명 8강 진출!",
+      "title": "남자 계주 동메달!",
       "link": "https://signal.bz/"
     },
     {
@@ -177,17 +99,17 @@
       "id": "namu_wiki",
       "source": "나무위키 실시간 검색어",
       "region": "KR",
-      "title": "김봉수",
-      "link": "https://namu.wiki/w/%EA%B9%80%EB%B4%89%EC%88%98",
-      "image_url": "",
+      "title": "망내",
+      "link": "https://namu.wiki/w/%EB%A7%9D%EB%82%B4",
+      "image_url": "https://i.namu.wiki/i/DD61OJc2PZv_y68pIldQ6nhhQIRHNDbrFBJBMiTxRpXm-fc6LymUB2Ysemth-bq2OC-jxPaQIVPXsD21Y9jPdeKT2t-fOmzCXhTm1WGlzkMFrbLr_JGAyqEgRgEyEhs6Aque2un-lGYG19uAay8mId-dp6PFZHj4BaE3xuk4c-k.webp",
       "image_source": "나무위키 (namu.wiki)",
-      "doc_desc": "교수 군인 농구인 축구인 1970년생 1999년생 테니스 선수 야구 선수 배우 장항선의 본명"
+      "doc_desc": "대한민국 의 前  인터넷 방송인 . 2024년 1월 21일 허니즈 멤버로 데뷔했지만 2026년 9월 22일  소속사"
     },
     {
       "id": "daum_cafe",
       "source": "다음 카페 인기글",
       "region": "KR",
-      "title": "10월 2일까지 애슐리 디너도 런치가격으로 먹을수있음...",
+      "title": "뉴욕 공연 취소된 투바투 레전드 대처ㄷㄷ",
       "link": "https://m.cafe.daum.net/"
     },
     {
@@ -199,10 +121,10 @@
     },
     {
       "id": "naver_webtoon",
-      "source": "네이버 웹툰 (WEDNESDAY) 1위",
+      "source": "네이버 웹툰 (THURSDAY) 1위",
       "region": "KR",
-      "title": "화산귀환",
-      "link": "https://comic.naver.com/webtoon/list?titleId=769209"
+      "title": "나노마신",
+      "link": "https://comic.naver.com/webtoon/list?titleId=747271"
     },
     {
       "id": "kyobo_book",
@@ -229,7 +151,7 @@
       "id": "google_us",
       "source": "구글 트렌드 (US)",
       "region": "US",
-      "title": "when is daylight savings time",
+      "title": "warren county ky",
       "link": "https://trends.google.com/trending/rss?geo=US"
     },
     {
@@ -243,14 +165,14 @@
       "id": "hacker_news",
       "source": "Hacker News (글로벌 1위)",
       "region": "GLOBAL",
-      "title": "Parley: Federated, decentralised chat that speaks plain IRC",
-      "link": "https://git.mills.io/prologic/parley"
+      "title": "Pirating the Pirates",
+      "link": "https://mubi.com/en/notebook/posts/pirating-the-pirates"
     },
     {
       "id": "product_hunt",
       "source": "Product Hunt (일간 1위)",
       "region": "GLOBAL",
-      "title": "vantage.ai",
+      "title": "PIP",
       "link": "https://www.producthunt.com"
     },
     {

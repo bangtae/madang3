@@ -2529,9 +2529,9 @@
             </div>
             <form id="form-planet-upload" style="padding: 24px;">
               <div style="margin-bottom: 16px;">
-                <label style="display: block; color: #cbd5e1; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px;">파일 선택 (이미지, 사진, 아이 그림, 문서)</label>
-                <input type="file" id="planet-file-input" accept="image/*,.pdf,.txt,.docx" class="form-input" style="width: 100%; padding: 8px; border-radius: 8px; background: rgba(15,23,42,0.8); border: 1px dashed rgba(56,189,248,0.4); color: #f8fafc;" required />
-                <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">* 아이가 그린 스케치북 그림을 선택하면 흰색 배경을 자동으로 투명화하여 캐릭터로 소환합니다.</div>
+                <label style="display: block; color: #cbd5e1; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px;">파일 선택 (이미지, 사진 여러 장 선택 가능, 문서)</label>
+                <input type="file" id="planet-file-input" accept="image/*,.pdf,.txt,.docx" class="form-input" style="width: 100%; padding: 8px; border-radius: 8px; background: rgba(15,23,42,0.8); border: 1px dashed rgba(56,189,248,0.4); color: #f8fafc;" multiple required />
+                <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">* 여러 장의 사진(예: 음식 소스 사진들)을 선택하면 하나의 독립 타워에 1층, 2층, 3층으로 순차 적층됩니다.</div>
               </div>
 
               <!-- 투명 배경 변환 미리보기 -->

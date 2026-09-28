@@ -2083,21 +2083,25 @@ window.PlanetWorldView = {
       btnCancelUpload.addEventListener('click', closeModal);
     }
 
-    // 2. 파일 선택 & 배경 투명화 미리보기
+    // 2. 파일 선택 & 배경 투명화 미리보기 (다중 파일 지원)
     const fileInput = document.getElementById('planet-file-input');
     const previewBox = document.getElementById('planet-preview-box') || document.getElementById('planet-preview-container');
     const previewImg = document.getElementById('planet-preview-img');
+    this.selectedFiles = [];
 
     if (fileInput) {
       fileInput.addEventListener('change', async (e) => {
-        if (e.target.files && e.target.files[0]) {
-          const file = e.target.files[0];
+        const files = Array.from(e.target.files || []);
+        this.selectedFiles = files;
+
+        if (files.length > 0) {
+          const firstFile = files[0];
           const reader = new FileReader();
           reader.onload = async (evt) => {
             const rawBase64 = evt.target.result;
             this.originalRawBase64 = rawBase64;
 
-            if (file.type.startsWith('image/')) {
+            if (firstFile.type.startsWith('image/')) {
               try {
                 const transparentBase64 = await window.PlanetWorldModel.processTransparentBackground(rawBase64);
                 this.processedImageBase64 = transparentBase64;
@@ -2110,9 +2114,24 @@ window.PlanetWorldView = {
               this.processedImageBase64 = rawBase64;
               if (previewImg) previewImg.src = 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=400';
             }
-            if (previewBox) previewBox.style.display = 'block';
+
+            if (previewBox) {
+              previewBox.style.display = 'block';
+              let countBadge = document.getElementById('planet-multi-badge');
+              if (!countBadge) {
+                countBadge = document.createElement('div');
+                countBadge.id = 'planet-multi-badge';
+                countBadge.style.cssText = 'font-size:0.8rem; color:#38bdf8; margin-top:8px; font-weight:bold;';
+                previewBox.appendChild(countBadge);
+              }
+              if (files.length > 1) {
+                countBadge.textContent = `📁 총 ${files.length}개의 파일이 선택되었습니다. (하나의 타워에 1층~${files.length}층으로 순차 적층)`;
+              } else {
+                countBadge.textContent = '';
+              }
+            }
           };
-          reader.readAsDataURL(file);
+          reader.readAsDataURL(firstFile);
         }
       });
     }
@@ -2155,14 +2174,45 @@ window.PlanetWorldView = {
 
       try {
         const model = window.PlanetWorldModel;
+
+        // 다중 파일 전체 Base64 비동기 변환
+        let multiFloors = [];
+        if (this.selectedFiles && this.selectedFiles.length > 1) {
+          btnSubmitUpload.textContent = `📷 ${this.selectedFiles.length}개 이미지 일괄 처리 중...`;
+          for (let i = 0; i < this.selectedFiles.length; i++) {
+            const f = this.selectedFiles[i];
+            const fileB64 = await new Promise((resolve) => {
+              const r = new FileReader();
+              r.onload = (ev) => resolve(ev.target.result);
+              r.onerror = () => resolve('');
+              r.readAsDataURL(f);
+            });
+            multiFloors.push({
+              title: `${name} ${i + 1}층`,
+              desc: desc ? `${desc} (${i + 1}번 자료)` : `${name} ${i + 1}층 자료입니다.`,
+              imageBase64: fileB64,
+              tags: [name, `Floor${i + 1}`]
+            });
+          }
+        }
+
+        btnSubmitUpload.textContent = '🤖 Gemini 분석 및 스마트 시티 설계 중...';
         const analysis = await model.analyzeMaterialWithLLM(this.processedImageBase64, desc, type, name);
+
+        const isExplicitBuilding = (type === 'building');
+        const forceNew = isExplicitBuilding || (analysis.forceNewBuilding === true);
 
         const payload = {
           ...analysis,
-          name: name,
+          name: analysis.buildingName || name,
           title: name,
+          category: analysis.category || (isExplicitBuilding ? 'custom' : 'general'),
+          type: analysis.buildingType || type,
+          buildingType: analysis.buildingType || type,
+          forceNewBuilding: forceNew,
           imageBase64: this.processedImageBase64,
-          imageUrl: this.processedImageBase64 || 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=500'
+          imageUrl: this.processedImageBase64 || 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=500',
+          multiFloors: multiFloors.length > 0 ? multiFloors : undefined
         };
 
         const res = await model.uploadItem(payload);
@@ -2177,11 +2227,16 @@ window.PlanetWorldView = {
         if (previewBox) previewBox.style.display = 'none';
         this.processedImageBase64 = '';
         this.originalRawBase64 = '';
+        this.selectedFiles = [];
+
+        const toastMsg = multiFloors.length > 1
+          ? `✨ '${name}' 타워에 총 ${multiFloors.length}개의 층이 순차적으로 건축되었습니다!`
+          : `✨ '${name}'(이)가 행성에 성공적으로 배치되었습니다!`;
 
         if (window.UiView && window.UiView.showToast) {
-          window.UiView.showToast(`✨ '${name}'(이)가 행성에 성공적으로 배치되었습니다!`);
+          window.UiView.showToast(toastMsg);
         } else {
-          alert(`✨ '${name}'(이)가 행성에 성공적으로 배치되었습니다!`);
+          alert(toastMsg);
         }
 
         if (payload.id) {

@@ -559,9 +559,26 @@ app.post('/api/trends/ai-explain', async (req, res) => {
 
 // 🤖 Gemini 기반 스마트 시티 디렉터 (Smart City Director) 분석 API
 app.post('/api/planet/analyze', async (req, res) => {
-  const { note = '', forceType = 'auto', suggestedName = '자료' } = req.body || {};
+  const { note = '', forceType = 'auto', suggestedName = '자료', imageBase64 = '' } = req.body || {};
 
-  // 스마트 시티 디렉터 로컬 룰 엔진 (Gemini 키 없거나 호출 실패 시 100% 무중단 폴백)
+  // 현재 행성의 기존 타워 목록 컨텍스트 로드
+  let existingBuildingsList = [];
+  try {
+    if (fs.existsSync(planetWorldFile)) {
+      const raw = JSON.parse(fs.readFileSync(planetWorldFile, 'utf8'));
+      if (raw && Array.isArray(raw.buildings)) {
+        existingBuildingsList = raw.buildings.map(b => ({
+          name: b.name,
+          category: b.category,
+          floorsCount: b.floors?.length || 0
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn('[Planet Director] failed to read existing buildings context:', e.message);
+  }
+
+  // 스마트 시티 디렉터 로컬 룰 엔진 (Gemini 호출 불가 시 100% 무중단 스마트 폴백)
   const getSmartFallbackAnalysis = () => {
     const text = `${suggestedName} ${note}`.toLowerCase();
     const isChar = (forceType === 'character') || text.includes('그림') || text.includes('토끼') || text.includes('용') || text.includes('마스코트') || text.includes('아이') || text.includes('동물');
@@ -575,42 +592,73 @@ app.post('/api/planet/analyze', async (req, res) => {
         floorDesc: note || '행성에 새롭게 소환된 사랑스러운 마스코트입니다.',
         tags: ['아이그림', '캐릭터', '마스코트'],
         natureBonus: 'forest',
+        forceNewBuilding: false,
         cityNews: `📢 [시장 보고] 아이가 그린 새로운 친구 '${suggestedName}'이(가) 행성 공원에 활기차게 소환되었습니다!`
       };
     }
 
-    let cat = 'family';
-    let bName = '꿈꾸는 패밀리 타워';
-    let nBonus = 'lake';
-    let col = '#f97316';
+    let cat = 'general';
+    let bName = suggestedName ? `${suggestedName} 타워` : '새로운 미래 랜드마크';
+    let nBonus = 'forest';
+    let col = '#0284c7';
+    let bType = 'cozy_house';
 
-    if (text.includes('바다') || text.includes('여행') || text.includes('휴가') || text.includes('제주') || text.includes('등대')) {
+    if (text.includes('소스') || text.includes('양념') || text.includes('음식') || text.includes('요리') || text.includes('맛') || text.includes('푸드') || text.includes('식당') || text.includes('치킨')) {
+      cat = 'food';
+      bName = text.includes('소스') ? '달콤매콤 소스 미식 연구 타워' : '맛있는 구르메 푸드 타워';
+      nBonus = 'forest';
+      col = '#f97316';
+      bType = 'food_bistro';
+    } else if (text.includes('아이돌') || text.includes('가수') || text.includes('kpop') || text.includes('음악') || text.includes('콘서트')) {
+      cat = 'entertainment';
+      bName = 'K-POP 스타 아레나 타워';
+      nBonus = 'lake';
+      col = '#ec4899';
+      bType = 'observatory';
+    } else if (text.includes('바다') || text.includes('여행') || text.includes('휴가') || text.includes('제주') || text.includes('등대')) {
       cat = 'travel';
       bName = '푸른 오션 아쿠아 타워';
       nBonus = 'beach';
       col = '#0ea5e9';
+      bType = 'lighthouse';
     } else if (text.includes('공부') || text.includes('책') || text.includes('우주') || text.includes('연구') || text.includes('과학')) {
       cat = 'study';
       bName = '별빛 아카데미 & 지혜의 도서관';
       nBonus = 'forest';
       col = '#8b5cf6';
-    } else if (text.includes('돈') || text.includes('통장') || text.includes('경제') || text.includes('금융') || text.includes('은행')) {
+      bType = 'observatory';
+    } else if (text.includes('돈') || text.includes('통장') || text.includes('경제') || text.includes('금융') || text.includes('은행') || text.includes('투자')) {
       cat = 'finance';
       bName = '황금빛 미래 금융 센터';
       nBonus = 'none';
       col = '#eab308';
+      bType = 'bank_tower';
+    } else if (text.includes('가족') || text.includes('집') || text.includes('일상')) {
+      cat = 'family';
+      bName = '꿈꾸는 패밀리 타워';
+      nBonus = 'lake';
+      col = '#f97316';
+      bType = 'cozy_house';
     }
+
+    // forceType이 building(신규 타워 착공)이거나 기존 타워에 없는 카테고리면 신규 독립 타워로 지정
+    const matchedExisting = existingBuildingsList.find(b => b.category === cat);
+    const forceNew = (forceType === 'building') || !matchedExisting;
 
     return {
       isCharacter: false,
       category: cat,
       color: col,
-      buildingName: bName,
-      floorTitle: suggestedName || '새로운 기록실',
+      buildingName: (forceNew || !matchedExisting) ? bName : matchedExisting.name,
+      buildingType: bType,
+      floorTitle: suggestedName || '새로운 아카이브 기록실',
       floorDesc: note || '도시 발전에 기여하는 소중한 아카이브 자료입니다.',
       tags: [cat, '기록', '스마트시티'],
       natureBonus: nBonus,
-      cityNews: `📢 [도시 개발 보고] 시장님! '${bName}'에 새로운 층이 성공적으로 증축되어 도시 인구와 활력이 상승했습니다!`
+      forceNewBuilding: forceNew,
+      cityNews: forceNew
+        ? `📢 [도시 개발 보고] 시장님! 새로운 분야의 독창적인 '${bName}' 독립 타워 기초 공사가 착공되었습니다!`
+        : `📢 [도시 개발 보고] 시장님! '${matchedExisting?.name || bName}'에 새로운 층이 성공적으로 증축되어 도시 인구와 활력이 상승했습니다!`
     };
   };
 
@@ -621,23 +669,63 @@ app.post('/api/planet/analyze', async (req, res) => {
       return res.json({ success: true, data: getSmartFallbackAnalysis(), isFallback: true });
     }
 
-    const systemInstruction = `당신은 심시티 2000 스타일 행성 도시 '메트로폴리스 노바'의 최고 도시설계관(Smart City Director AI)입니다.
-사용자가 입력한 메모/자료 내용을 분석하여 도시 발전 계획을 세우세요.
+    const systemInstruction = `당신은 메타버스 행성 도시 '메트로폴리스 노바'의 최고 도시설계관(Smart City Director AI)입니다.
+사용자가 업로드한 자료(이미지 시각 정보 및 텍스트 설명)를 정밀 분석하여 도시 건축 계획을 수립하세요.
+
+[현재 도시에 이미 건축된 타워 목록]:
+${JSON.stringify(existingBuildingsList, null, 2)}
+
+[건축 분류 및 동적 생성 규칙]:
+1. **아이 그림 캐릭터(isCharacter=true)**: 스케치북이나 종이에 아이가 그린 그림/마스코트라면 캐릭터로 소환합니다.
+2. **동적 카테고리 자율 창작**: 고정된 카테고리에 억지로 맞추지 마십시오. 자료의 실제 내용(예: 찍어먹는 소스/음식, K-POP/아이돌, IT/코딩, 패션, 반려동물 등)에 맞게 창의적으로 판단합니다.
+3. **신규 독립 타워 vs 기존 타워 증축(적층)**:
+   - 만약 요청타입(forceType)이 "building"이거나, 기존 도시 타워 목록에 해당 주제와 자연스럽게 어울리는 타워가 없다면:
+     * forceNewBuilding: true
+     * category: 해당 분야를 대표하는 영문 소문자 슬러그 (예: "food", "sauce", "kpop", "pet", "tech" 등)
+     * buildingName: 자료의 특성을 살린 매력적인 신규 타워 명칭 (예: "달콤매콤 소스 미식 연구 타워", "바삭 치킨 앤 소스 타워", "K-POP 스타 돔 타워")
+     * buildingType: "cozy_house" | "lighthouse" | "observatory" | "bank_tower" | "cyber_tower" | "food_bistro" 중 어울리는 것
+     * color: 테마에 맞는 세련된 16진수 색상코드 (#HEX)
+   - 만약 요청타입이 "stack"이거나, 기존 타워 중 아주 잘 어울리는 동일 분야 타워가 있다면:
+     * forceNewBuilding: false
+     * category: 기존 타워의 category 그대로 사용
+     * buildingName: 기존 타워의 name 그대로 사용
+
 반드시 아래 JSON 규격 하나만 정확히 출력하세요:
 {
   "isCharacter": false,
-  "category": "family" | "travel" | "study" | "finance" | "tech" | "nature",
-  "buildingName": "타워 이름 (예: 꿈꾸는 패밀리 타워, 푸른 오션 아쿠아 타워, 별빛 아카데미, 황금빛 금융 센터)",
+  "forceNewBuilding": true,
+  "category": "분야 영문 슬러그 (예: food, kpop, tech, travel 등)",
+  "buildingName": "타워 이름",
+  "buildingType": "cozy_house" | "lighthouse" | "observatory" | "bank_tower" | "cyber_tower" | "food_bistro",
+  "color": "#HEX색상코드",
   "floorTitle": "이번 층수의 제목 (15자 이내)",
   "floorDesc": "이번 층에 보관될 내용의 매력적인 한 줄 요약",
-  "tags": ["태그1", "태그2"],
+  "tags": ["태그1", "태그2", "태그3"],
   "natureBonus": "forest" | "lake" | "beach" | "none",
   "cityNews": "📢 [도시 개발 보고] 시장님, 새로운 자료가 등록되어 ... (흥미진진한 심시티 시장 보고 톤으로 1~2문장)"
 }`;
 
+    // 멀티모달 이미지 파트 구성
+    const contentsParts = [];
+    if (imageBase64 && imageBase64.includes('base64,')) {
+      const match = imageBase64.match(/^data:(image\/[a-zA-Z0-9.+]+);base64,(.+)$/);
+      if (match) {
+        contentsParts.push({
+          inlineData: {
+            mimeType: match[1],
+            data: match[2]
+          }
+        });
+      }
+    }
+
+    contentsParts.push({
+      text: `${systemInstruction}\n\n[사용자 입력 정보]\n- 자료명: "${suggestedName}"\n- 상세설명: "${note}"\n- 요청타입: "${forceType}"`
+    });
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
     const payload = {
-      contents: [{ parts: [{ text: `${systemInstruction}\n\n사용자 입력 내용: "${note}", 요청타입: "${forceType}", 파일/자료명: "${suggestedName}"` }] }]
+      contents: [{ parts: contentsParts }]
     };
 
     const response = await fetch(url, {
@@ -647,6 +735,7 @@ app.post('/api/planet/analyze', async (req, res) => {
     });
 
     if (!response.ok) {
+      console.warn('[Planet Director API Error]: HTTP', response.status);
       return res.json({ success: true, data: getSmartFallbackAnalysis(), isFallback: true });
     }
 
@@ -654,8 +743,15 @@ app.post('/api/planet/analyze', async (req, res) => {
     const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
+
+    // forceType이 building이면 강제로 forceNewBuilding=true 보장
+    if (forceType === 'building') {
+      parsed.forceNewBuilding = true;
+    }
+
     return res.json({ success: true, data: parsed });
   } catch (err) {
+    console.warn('[Planet Director Fallback]:', err.message);
     return res.json({ success: true, data: getSmartFallbackAnalysis(), isFallback: true });
   }
 });
@@ -691,25 +787,54 @@ app.post('/api/planet/upload', async (req, res) => {
     if (!Array.isArray(data.landmarks)) data.landmarks = [];
 
     const nowStr = new Date().toISOString().substring(0, 10);
-    let imgUrl = payload.imageUrl || '';
 
-    // Handle base64 image save (Local Cache + GCS Permanent Storage)
-    if (payload.imageBase64 && payload.imageBase64.includes(',')) {
-      const parts = payload.imageBase64.split(',');
-      const mimeMatch = payload.imageBase64.match(/data:([^;]+);base64,/);
-      const contentType = mimeMatch ? mimeMatch[1] : 'image/png';
-      const ext = payload.imageBase64.includes('image/jpeg') ? '.jpg' :
-                  payload.imageBase64.includes('image/webp') ? '.webp' : '.png';
-      const fileName = `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}${ext}`;
-      const filePath = path.join(planetUploadDir, fileName);
-      const imgBuffer = Buffer.from(parts[1], 'base64');
-      fs.writeFileSync(filePath, imgBuffer);
-      imgUrl = `/uploads/planet/${fileName}`;
+    // 헬퍼: 단일 base64 이미지 저장 (Local Cache + GCS)
+    const saveSingleBase64Image = async (b64) => {
+      if (!b64 || !b64.includes(',')) return b64 || '';
+      try {
+        const parts = b64.split(',');
+        const mimeMatch = b64.match(/data:([^;]+);base64,/);
+        const contentType = mimeMatch ? mimeMatch[1] : 'image/png';
+        const ext = b64.includes('image/jpeg') ? '.jpg' :
+                    b64.includes('image/webp') ? '.webp' : '.png';
+        const fileName = `item_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`;
+        const filePath = path.join(planetUploadDir, fileName);
+        const imgBuffer = Buffer.from(parts[1], 'base64');
+        fs.writeFileSync(filePath, imgBuffer);
+        const savedUrl = `/uploads/planet/${fileName}`;
 
-      // GCS 버킷에 영구 저장 (컨테이너 재시작/스케일아웃에도 소실 방지)
-      await gcsStorage.saveImageToGcs(fileName, imgBuffer, contentType).catch(e => {
-        console.warn('[GCS] saveImageToGcs error:', e.message);
-      });
+        // GCS 버킷 영구 저장
+        await gcsStorage.saveImageToGcs(fileName, imgBuffer, contentType).catch(e => {
+          console.warn('[GCS] saveImageToGcs error:', e.message);
+        });
+        return savedUrl;
+      } catch (err) {
+        console.warn('[Planet Upload] Image save error:', err.message);
+        return '';
+      }
+    };
+
+    let mainImgUrl = payload.imageUrl || '';
+    if (payload.imageBase64) {
+      mainImgUrl = await saveSingleBase64Image(payload.imageBase64);
+    }
+
+    // 다중 이미지 배열 처리
+    let processedMultiFloors = [];
+    if (Array.isArray(payload.multiFloors) && payload.multiFloors.length > 0) {
+      for (let i = 0; i < payload.multiFloors.length; i++) {
+        const item = payload.multiFloors[i];
+        let itemUrl = item.imageUrl || '';
+        if (item.imageBase64) {
+          itemUrl = await saveSingleBase64Image(item.imageBase64);
+        }
+        processedMultiFloors.push({
+          title: item.title || `${payload.name || payload.title || '자료'} ${i + 1}층`,
+          desc: item.desc || payload.desc || '보관소에 안전하게 기록된 자료입니다.',
+          imageUrl: itemUrl || mainImgUrl,
+          tags: Array.isArray(item.tags) ? item.tags : (Array.isArray(payload.tags) ? payload.tags : [payload.category || '기록'])
+        });
+      }
     }
 
     if (payload.isCharacter) {
@@ -724,7 +849,7 @@ app.post('/api/planet/upload', async (req, res) => {
         bounceSpeed: 0.08,
         scale: 1.4,
         speech: payload.speech || '우와! 내가 새로운 별에 태어났어!',
-        imageUrl: imgUrl,
+        imageUrl: mainImgUrl,
         createdAt: nowStr
       };
       data.characters.push(newChar);
@@ -733,50 +858,92 @@ app.post('/api/planet/upload', async (req, res) => {
       return res.json(newChar);
     } else {
       // 🌟 심시티 스마트 타워 적층: 동일 분야 타워 검색
-      const cat = payload.category || 'family';
-      let targetBuilding = !payload.forceNewBuilding ? data.buildings.find(b => b.category === cat) : null;
+      const cat = payload.category || 'general';
+      const isForceNew = (payload.forceNewBuilding === true) || (payload.type === 'building');
+      let targetBuilding = !isForceNew ? data.buildings.find(b => b.category === cat) : null;
+
+      let addedFloorCount = 0;
 
       if (targetBuilding) {
         // 기존 타워에 새 층 증축
         if (!Array.isArray(targetBuilding.floors)) targetBuilding.floors = [];
-        const newFloorNum = targetBuilding.floors.length + 1;
-        const newFloor = {
-          floor: newFloorNum,
-          id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-          title: payload.title || payload.name || `${targetBuilding.name} ${newFloorNum}층`,
-          desc: payload.desc || '새롭게 증축된 층의 자료입니다.',
-          tags: Array.isArray(payload.tags) ? payload.tags : [cat, '기록'],
-          createdAt: nowStr,
-          imageUrl: imgUrl
-        };
-        targetBuilding.floors.unshift(newFloor);
+
+        if (processedMultiFloors.length > 0) {
+          processedMultiFloors.forEach((flData) => {
+            const newFloorNum = targetBuilding.floors.length + 1;
+            const newFloor = {
+              floor: newFloorNum,
+              id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              title: flData.title || `${targetBuilding.name} ${newFloorNum}층`,
+              desc: flData.desc || '새롭게 증축된 층의 자료입니다.',
+              tags: flData.tags,
+              createdAt: nowStr,
+              imageUrl: flData.imageUrl
+            };
+            targetBuilding.floors.unshift(newFloor);
+            addedFloorCount++;
+          });
+        } else {
+          const newFloorNum = targetBuilding.floors.length + 1;
+          const newFloor = {
+            floor: newFloorNum,
+            id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+            title: payload.title || payload.name || `${targetBuilding.name} ${newFloorNum}층`,
+            desc: payload.desc || '새롭게 증축된 층의 자료입니다.',
+            tags: Array.isArray(payload.tags) ? payload.tags : [cat, '기록'],
+            createdAt: nowStr,
+            imageUrl: mainImgUrl
+          };
+          targetBuilding.floors.unshift(newFloor);
+          addedFloorCount++;
+        }
+
         targetBuilding.height = Math.min(6.5, 2.2 + targetBuilding.floors.length * 0.7);
         targetBuilding.tier = targetBuilding.floors.length >= 5 ? 3 : (targetBuilding.floors.length >= 3 ? 2 : 1);
         if (targetBuilding.tier === 3 && !targetBuilding.name.includes('아콜로지')) {
           targetBuilding.name = targetBuilding.name.replace(/(타운하우스|센터|연구실|타워)/, '아콜로지 타워');
         }
       } else {
-        // 신규 타워 기초 공사
-        const newFloor = {
-          floor: 1,
-          id: `rec-${Date.now()}-1`,
-          title: payload.title || payload.name || '새로운 기록',
-          desc: payload.desc || '행성 위에 새롭게 건축된 기록 보관소입니다.',
-          tags: Array.isArray(payload.tags) ? payload.tags : [cat, '기록'],
-          createdAt: nowStr,
-          imageUrl: imgUrl
-        };
+        // 신규 독립 타워 기초 공사
+        let initialFloors = [];
+        if (processedMultiFloors.length > 0) {
+          initialFloors = processedMultiFloors.map((flData, idx) => ({
+            floor: idx + 1,
+            id: `rec-${Date.now()}-${idx + 1}-${Math.random().toString(36).substring(2, 5)}`,
+            title: flData.title,
+            desc: flData.desc,
+            tags: flData.tags,
+            createdAt: nowStr,
+            imageUrl: flData.imageUrl
+          }));
+          addedFloorCount = initialFloors.length;
+        } else {
+          initialFloors = [{
+            floor: 1,
+            id: `rec-${Date.now()}-1`,
+            title: payload.title || payload.name || '새로운 기록실',
+            desc: payload.desc || '행성 위에 새롭게 건축된 독립 기록 보관소입니다.',
+            tags: Array.isArray(payload.tags) ? payload.tags : [cat, '기록'],
+            createdAt: nowStr,
+            imageUrl: mainImgUrl
+          }];
+          addedFloorCount = 1;
+        }
+
+        const tier = initialFloors.length >= 5 ? 3 : (initialFloors.length >= 3 ? 2 : 1);
+        const height = Math.min(6.5, 2.2 + initialFloors.length * 0.7);
+
         const newBuilding = {
           id: `b-${Date.now()}`,
-          name: payload.name || `${cat.toUpperCase()} 타워`,
+          name: payload.name || payload.buildingName || `${cat.toUpperCase()} 타워`,
           category: cat,
-          type: payload.type || 'cozy_house',
-          tier: 1,
-          color: payload.color || '#f97316',
+          type: payload.buildingType || payload.type || 'cozy_house',
+          tier: tier,
+          color: payload.color || '#0284c7',
           lat: typeof payload.lat === 'number' ? payload.lat : (Math.random() * 80 - 40),
           lon: typeof payload.lon === 'number' ? payload.lon : (Math.random() * 320 - 160),
-          height: 2.8,
-          floors: [newFloor]
+          height: height,
+          floors: initialFloors
         };
         data.buildings.push(newBuilding);
       }
@@ -785,8 +952,8 @@ app.post('/api/planet/upload', async (req, res) => {
       if (!data.cityStats) {
         data.cityStats = { cityName: "메트로폴리스 노바", population: 12850, totalFloors: 8, cityLevel: "Level 2: 첨단 복합 도시" };
       }
-      data.cityStats.totalFloors = (data.cityStats.totalFloors || 0) + 1;
-      data.cityStats.population = (data.cityStats.population || 12850) + Math.floor(Math.random() * 350 + 150);
+      data.cityStats.totalFloors = (data.cityStats.totalFloors || 0) + addedFloorCount;
+      data.cityStats.population = (data.cityStats.population || 12850) + (addedFloorCount * Math.floor(Math.random() * 250 + 150));
 
       // 자연 환경 보너스 (LLM 디렉터 추천 시)
       if (payload.natureBonus && payload.natureBonus !== 'none') {

@@ -247,10 +247,10 @@ window.PlanetWorldModel = {
    * Gemini 멀티모달 분석을 모사/연동하여 업로드된 자료를 분석
    * '아이 그림 캐릭터' vs '일반 심시티 건물' 자동 판별 및 메타데이터 도출
    */
-  async analyzeMaterialWithLLM(fileOrBase64, userNote = '', forceType = 'auto') {
+  async analyzeMaterialWithLLM(fileOrBase64, userNote = '', forceType = 'auto', suggestedName = '') {
     this.isAnalyzing = true;
     try {
-      // 1. 백엔드 Gemini AI 스마트 시티 디렉터 API 우선 시도
+      // 1. 백엔드 Gemini AI 스마트 시티 디렉터 API 우선 시도 (멀티모달 비전 지원)
       try {
         const res = await fetch('/api/planet/analyze', {
           method: 'POST',
@@ -258,7 +258,8 @@ window.PlanetWorldModel = {
           body: JSON.stringify({
             note: userNote,
             forceType: forceType,
-            hasImage: !!fileOrBase64
+            suggestedName: suggestedName || '자료',
+            imageBase64: (typeof fileOrBase64 === 'string' && fileOrBase64.startsWith('data:image')) ? fileOrBase64 : ''
           })
         });
         if (res.ok) {
@@ -273,7 +274,7 @@ window.PlanetWorldModel = {
       }
 
       // 2. 스마트 시티 디렉터 로컬 규칙 엔진 (오프라인 / 빠른 응답 폴백)
-      const noteLower = (userNote || '').toLowerCase();
+      const noteLower = `${suggestedName} ${userNote || ''}`.toLowerCase();
       const isDrawingHint = noteLower.includes('그림') || noteLower.includes('아이') ||
                             noteLower.includes('캐릭터') || noteLower.includes('괴물') ||
                             noteLower.includes('토끼') || noteLower.includes('공룡') ||
@@ -289,62 +290,86 @@ window.PlanetWorldModel = {
         ];
         return {
           isCharacter: true,
-          name: userNote ? `${userNote.substring(0, 15)}` : names[Math.floor(Math.random() * names.length)],
+          name: suggestedName || (userNote ? `${userNote.substring(0, 15)}` : names[Math.floor(Math.random() * names.length)]),
           creator: '우리아이',
           speech: speeches[Math.floor(Math.random() * speeches.length)],
           scale: 1.5,
           tags: ['아이그림', '캐릭터', '친구'],
+          forceNewBuilding: false,
           cityNews: `📢 [도시 축제 보고] 시장님! 아이의 그림에서 새로운 마스코트가 태어나 행성을 뛰놀기 시작했습니다!`
         };
       }
 
       // 일반 자료 분석 -> 카테고리 매핑 & 층 증축 여부 판단
-      let category = 'family';
+      let category = 'general';
       let type = 'cozy_house';
-      let color = '#f97316';
+      let color = '#0284c7';
       let natureBonus = 'forest';
+      let fallbackBuildingName = suggestedName ? `${suggestedName} 타워` : '새로운 미래 랜드마크';
 
-      if (noteLower.includes('바다') || noteLower.includes('여행') || noteLower.includes('제주') || noteLower.includes('캠핑') || noteLower.includes('비행기')) {
+      if (noteLower.includes('소스') || noteLower.includes('양념') || noteLower.includes('음식') || noteLower.includes('요리') || noteLower.includes('맛') || noteLower.includes('푸드') || noteLower.includes('식당')) {
+        category = 'food';
+        type = 'food_bistro';
+        color = '#f97316';
+        natureBonus = 'forest';
+        fallbackBuildingName = noteLower.includes('소스') ? '달콤매콤 소스 미식 연구 타워' : '맛있는 구르메 푸드 타워';
+      } else if (noteLower.includes('아이돌') || noteLower.includes('가수') || noteLower.includes('kpop') || noteLower.includes('음악')) {
+        category = 'entertainment';
+        type = 'observatory';
+        color = '#ec4899';
+        natureBonus = 'lake';
+        fallbackBuildingName = 'K-POP 스타 아레나 타워';
+      } else if (noteLower.includes('바다') || noteLower.includes('여행') || noteLower.includes('제주') || noteLower.includes('캠핑') || noteLower.includes('비행기')) {
         category = 'travel';
         type = 'lighthouse';
         color = '#0ea5e9';
         natureBonus = 'beach';
+        fallbackBuildingName = '푸른 오션 아쿠아 타워';
       } else if (noteLower.includes('공부') || noteLower.includes('책') || noteLower.includes('연구') || noteLower.includes('과학') || noteLower.includes('학교') || noteLower.includes('우주')) {
         category = 'study';
         type = 'observatory';
         color = '#8b5cf6';
         natureBonus = 'forest';
-      } else if (noteLower.includes('돈') || noteLower.includes('은행') || noteLower.includes('통장') || noteLower.includes('영수증') || noteLower.includes('쇼핑') || noteLower.includes('재정')) {
+        fallbackBuildingName = '별빛 아카데미 & 지혜의 도서관';
+      } else if (noteLower.includes('돈') || noteLower.includes('은행') || noteLower.includes('통장') || noteLower.includes('영수증') || noteLower.includes('쇼핑') || noteLower.includes('재정') || noteLower.includes('투자')) {
         category = 'finance';
         type = 'bank_tower';
         color = '#eab308';
         natureBonus = 'lake';
+        fallbackBuildingName = '황금빛 미래 금융 센터';
+      } else if (noteLower.includes('가족') || noteLower.includes('집') || noteLower.includes('일상')) {
+        category = 'family';
+        type = 'cozy_house';
+        color = '#f97316';
+        natureBonus = 'lake';
+        fallbackBuildingName = '꿈꾸는 패밀리 타워';
       }
 
       const existingBuilding = this.data?.buildings?.find(b => b.category === category);
-      const isStacking = !!existingBuilding;
-      const targetBuildingName = existingBuilding ? existingBuilding.name : (
-        category === 'travel' ? '푸른 오션 아쿠아 타워' :
-        category === 'study' ? '별빛 아카데미 도서관' :
-        category === 'finance' ? '황금빛 미래 금융 센터' : '꿈꾸는 패밀리 타워'
-      );
-      const nextFloor = existingBuilding ? ((existingBuilding.floors?.length || 0) + 1) : 1;
+      const isForceNew = (forceType === 'building') || !existingBuilding;
+      const targetBuildingName = isForceNew ? fallbackBuildingName : (existingBuilding ? existingBuilding.name : fallbackBuildingName);
+      const nextFloor = (!isForceNew && existingBuilding) ? ((existingBuilding.floors?.length || 0) + 1) : 1;
 
-      const title = userNote ? `${userNote.substring(0, 22)}` : `${targetBuildingName} ${nextFloor}층 보관소`;
-      const cityNews = isStacking
-        ? `📢 [도시 개발 보고] 시장님, 새로운 기록이 도착하여 '${targetBuildingName}'가 ${nextFloor}층으로 높게 증축되었습니다!`
-        : `📢 [도시 개발 보고] 시장님, 새로운 분야의 '${targetBuildingName}' 기초 공사가 성공적으로 착공되었습니다!`;
+      const title = suggestedName || (userNote ? `${userNote.substring(0, 22)}` : `${targetBuildingName} ${nextFloor}층 보관소`);
+      const cityNews = isForceNew
+        ? `📢 [도시 개발 보고] 시장님, 새로운 분야의 '${targetBuildingName}' 기초 공사가 성공적으로 착공되었습니다!`
+        : `📢 [도시 개발 보고] 시장님, 새로운 기록이 도착하여 '${targetBuildingName}'가 ${nextFloor}층으로 높게 증축되었습니다!`;
 
       return {
         isCharacter: false,
         name: targetBuildingName,
+        buildingName: targetBuildingName,
         title: title,
+        floorTitle: title,
         category: category,
         type: type,
+        buildingType: type,
         color: color,
-        isStacking: isStacking,
+        forceNewBuilding: isForceNew,
+        isStacking: !isForceNew,
         nextFloor: nextFloor,
         desc: userNote ? `${userNote}` : '행성 위에 새롭게 보관된 소중한 기록입니다.',
+        floorDesc: userNote ? `${userNote}` : '행성 위에 새롭게 보관된 소중한 기록입니다.',
         tags: [category, '기록', `Floor${nextFloor}`],
         natureBonus: natureBonus,
         cityNews: cityNews
