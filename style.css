@@ -3728,13 +3728,21 @@ input:disabled + .slider {
   padding: 20px 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(10px);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.sap-header-left {
+  flex: 1;
+  min-width: 260px;
 }
 
 .sap-header-title-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .sap-badge-icon {
@@ -3743,6 +3751,10 @@ input:disabled + .slider {
   padding: 4px 8px;
   border-radius: 8px;
   border: 1px solid rgba(56, 189, 248, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .sap-suite-header h2 {
@@ -3750,19 +3762,23 @@ input:disabled + .slider {
   font-weight: 700;
   color: #fff;
   margin: 0;
+  word-break: keep-all;
 }
 
 .sap-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
-  border-radius: 12px;
+  padding: 4px 10px;
+  border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 600;
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.3);
+  white-space: nowrap;
+  flex-shrink: 0;
+  writing-mode: horizontal-tb;
 }
 
 .pulse-dot {
@@ -3771,17 +3787,21 @@ input:disabled + .slider {
   background: #34d399;
   border-radius: 50%;
   animation: pulse-slow 1.5s infinite;
+  flex-shrink: 0;
 }
 
 .sap-header-desc {
   color: var(--text-muted);
   font-size: 0.88rem;
   margin: 0;
+  line-height: 1.55;
+  word-break: keep-all;
 }
 
 .sap-header-stats {
   display: flex;
-  gap: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .sap-stat-box {
@@ -3793,6 +3813,7 @@ input:disabled + .slider {
   padding: 8px 16px;
   border-radius: 8px;
   min-width: 90px;
+  flex: 1;
 }
 
 .sap-stat-box .stat-num {
@@ -3804,6 +3825,7 @@ input:disabled + .slider {
 .sap-stat-box .stat-label {
   font-size: 0.72rem;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 /* Sub-Tab Navigation */
@@ -3812,6 +3834,8 @@ input:disabled + .slider {
   gap: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sap-tab-btn {
@@ -4413,6 +4437,161 @@ input:disabled + .slider {
 
 .sap-empty-state .empty-icon {
   font-size: 2rem;
+}
+
+/* ========================================================= */
+/* 📱 SAP Integration Suite 모바일 반응형 최적화 레이아웃       */
+/* ========================================================= */
+@media screen and (max-width: 768px) {
+  .sap-suite-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .sap-header-left {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .sap-header-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .sap-suite-header h2 {
+    font-size: 1.25rem;
+    line-height: 1.3;
+  }
+
+  .sap-status-pill {
+    margin-left: 0;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+  }
+
+  .sap-header-desc {
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .sap-header-stats {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .sap-stat-box {
+    padding: 10px 12px;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .sap-stat-box .stat-num {
+    font-size: 1.25rem;
+  }
+
+  .sap-tab-nav {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 6px;
+    padding-bottom: 6px;
+    scrollbar-width: none;
+  }
+
+  .sap-tab-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sap-tab-btn {
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 0.84rem;
+    flex-shrink: 0;
+  }
+
+  .sap-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .sap-filter-pills {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .sap-filter-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-pill {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .sap-search-box {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .sap-news-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sap-chat-box {
+    max-height: 500px;
+  }
+
+  .chat-message {
+    max-width: 95%;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .sap-suite-header {
+    padding: 14px 12px;
+  }
+
+  .sap-badge-icon {
+    font-size: 1.2rem;
+    padding: 3px 6px;
+  }
+
+  .sap-suite-header h2 {
+    font-size: 1.15rem;
+  }
+
+  .sap-header-desc {
+    font-size: 0.8rem;
+  }
+
+  .sap-tab-btn {
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+
+  .sap-news-card {
+    padding: 12px;
+  }
+
+  .news-title {
+    font-size: 0.95rem;
+  }
+
+  .news-summary {
+    font-size: 0.8rem;
+  }
 }
 
 /* 에이전트 온디맨드 발주 상태 배너 공통 스타일 */

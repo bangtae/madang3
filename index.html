@@ -39,7 +39,7 @@
   </script>
   <!-- Three.js 3D WebGL 라이브러리 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3.9">
   <link rel="stylesheet" href="css/monster-defense.css">
   <style>
     /* 게스트 모드 시 주식 매매일지 및 행성 자료 업로드 관리자 전용 섹션 완전 숨김 */
@@ -1975,6 +1975,9 @@
             </div>
           </div>
 
+          <!-- [관리자 전용] 토스증권 AI 예약매수 대기 목록 패널 컨테이너 -->
+          <div id="debate-reservations-panel" style="display: none; margin-bottom: 20px;"></div>
+
           <!-- 필터 및 검색 바 -->
           <div class="debate-filter-toolbar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
             <div id="debate-stock-tabs" class="debate-stock-tabs-wrap">
@@ -2307,6 +2310,23 @@
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- [NEW] AI 끝장토론 예약 운용 포지션 (독립 멀티 감시) -->
+          <div id="section-debate-reservations" style="margin-bottom: 28px;">
+            <div class="trading-pos-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px;">
+                <span>⚔️ AI 끝장토론 예약 운용 포지션 (개별 감시·자동 익절/손절)</span>
+                <span id="debate-reservation-pos-badge" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.4);">0건 운용중</span>
+              </h3>
+              <span style="font-size: 0.8rem; color: #94a3b8;">* AI 끝장토론실에서 신청된 예약매수 종목별 독립 실시간 감시</span>
+            </div>
+
+            <div id="debate-res-pos-empty" style="display: none; padding: 24px 16px; background: rgba(30, 41, 59, 0.3); border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 10px; text-align: center; color: #94a3b8; font-size: 0.88rem;">
+              현재 체결 및 보유 중인 AI 끝장토론 예약 포지션이 없습니다. AI 끝장토론실에서 3대 전략 예약매수를 신청할 수 있습니다.
+            </div>
+
+            <div id="debate-res-pos-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px;"></div>
           </div>
 
           <!-- [NEW] 관리자 맞춤 전략 운용 (10만원 제한 해제 / 분할 익절 / 실시간 감시) -->
