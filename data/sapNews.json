@@ -1,38 +1,38 @@
 [
     {
         "id":  "sap_news_779c06db",
-        "title":  "Integration Cell activation fails at 51% with TTL001 on US10 BTP Trial",
+        "title":  "US10 BTP 평가판에서 TTL001을 사용하면 통합 셀 활성화가 51%에서 실패함",
         "source":  "SAP Community (Q\u0026A)",
         "source_url":  "https://community.sap.com/t5/technology-q-a/integration-cell-activation-fails-at-51-with-ttl001-on-us10-btp-trial/qaq-p/14492425",
         "category":  "Migration",
-        "summary":  "Hello SAP Community, I am using an SAP BTP Trial account in US10 with the SAP Integration Suite trial plan. Manage APIs, API Modelling, and Developer Hub are activated. My user has the Integration_...",
+        "summary":  "안녕하세요 SAP 커뮤니티입니다. 저는 SAP Integration Suite 평가판과 함께 US10에서 SAP BTP 평가판 계정을 사용하고 있습니다. API 관리, API 모델링, 개발자 허브가 활성화됩니다. 내 사용자는 Integration_...",
         "published_at":  "2026-09-25T18:04:46Z"
     },
     {
         "id":  "sap_news_476988c3",
-        "title":  "Automating Learning Enrollment Communication with External Training Providers from LMS Using CPI",
+        "title":  "CPI를 사용하여 LMS에서 외부 교육 제공자와의 학습 등록 커뮤니케이션 자동화",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/human-capital-management-blog-posts-by-members/automating-learning-enrollment-communication-with-external-training/ba-p/14480492",
         "category":  "Migration",
-        "summary":  "Introduction Recently, I worked on an interesting requirement in SAP SuccessFactors Learning, where the customer wanted to automate the communication between their Learning team and external trainin...",
+        "summary":  "소개 최근에 저는 고객이 학습 팀과 외부 교육 기관 간의 커뮤니케이션을 자동화하기를 원했던 SAP SuccessFactors Learning의 흥미로운 요구 사항에 대해 작업했습니다.",
         "published_at":  "2026-09-28T09:19:08Z"
     },
     {
         "id":  "sap_news_eb572841",
-        "title":  "Beyond LLMs, Are We Hallucinating About AI Concepts?",
+        "title":  "LLM을 넘어 우리는 AI 개념에 대해 환각을 느끼고 있습니까?",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/beyond-llms-are-we-hallucinating-about-ai-concepts/ba-p/14492742",
         "category":  "Migration",
-        "summary":  "We spend a lot of time worrying about AI hallucinations. The model confidently says something that is not true. We add guardrails, evaluation loops, grounding pipelines. We are very serious about thi...",
+        "summary":  "우리는 AI 환각에 대해 걱정하는 데 많은 시간을 보냅니다. 모델은 사실이 아닌 것을 자신있게 말합니다. 가드레일, 평가 루프, 접지 파이프라인을 추가합니다. 우리는 이것에 대해 매우 진지합니다 ...",
         "published_at":  "2026-09-26T16:06:32Z"
     },
     {
         "id":  "sap_news_c89b33e7",
-        "title":  "Why n8n Workflows Will Not Replace Solid SAP Integration Suite iFlow Development",
+        "title":  "n8n 워크플로우가 견고한 SAP Integration Suite iFlow 개발을 대체하지 못하는 이유",
         "source":  "SAP Community",
         "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/why-n8n-workflows-will-not-replace-solid-sap-integration-suite-iflow/ba-p/14493100",
         "category":  "Migration",
-        "summary":  "Disclaimer: The views expressed in this article are entirely my own and are based on my experience working extensively with SAP Integration Suite (formerly CPI) and more recently experimenting with ...",
+        "summary":  "면책 조항: 이 기사에 표현된 견해는 전적으로 내 의견이며 SAP Integration Suite(이전 CPI)를 광범위하게 사용하고 최근에 실험한 경험을 바탕으로 합니다.",
         "published_at":  "2026-09-28T06:29:39Z"
     },
     {

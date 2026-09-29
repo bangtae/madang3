@@ -200,6 +200,7 @@
         this.isConfigured = Boolean(data.configured);
         this.isAutoTrading = Boolean(data.isAutoTradingEnabled);
         this.currentPosition = data.currentPosition || null;
+        this.reservationPositions = data.reservationPositions || [];
         this.customStrategies = data.customStrategies || [];
         this.historyList = data.history || [];
         this.stats = data.stats || {};
@@ -210,6 +211,7 @@
         this.renderMonthSelector();
         this.renderActiveMonthView();
         this.renderPositionCard(this.currentPosition);
+        this.renderReservationPositions(this.reservationPositions);
         this.renderCustomStrategies(this.customStrategies);
 
         if (showToast && window.UiView && window.UiView.showToast) {
@@ -1258,6 +1260,107 @@
                   </button>
                 ` : ''}
               </div>
+            </div>
+          </div>
+        `;
+      });
+
+      boxList.innerHTML = html;
+    },
+
+    renderReservationPositions(positions) {
+      this.reservationPositions = positions || [];
+      const elBadge = document.getElementById('debate-reservation-pos-badge');
+      const boxEmpty = document.getElementById('debate-res-pos-empty');
+      const boxList = document.getElementById('debate-res-pos-list');
+      if (!boxList || !boxEmpty) return;
+
+      const activeList = (positions || []).filter(p => p.status === 'HOLDING');
+
+      if (elBadge) {
+        elBadge.textContent = `${activeList.length}건 운용중`;
+        elBadge.style.background = activeList.length > 0 ? 'rgba(99, 102, 241, 0.25)' : 'rgba(148, 163, 184, 0.15)';
+        elBadge.style.color = activeList.length > 0 ? '#a5b4fc' : '#94a3b8';
+      }
+
+      if (activeList.length === 0) {
+        boxEmpty.style.display = 'block';
+        boxList.innerHTML = '';
+        return;
+      }
+
+      boxEmpty.style.display = 'none';
+      let html = '';
+
+      activeList.forEach(pos => {
+        const isKr = pos.market === 'KR';
+        const returnPct = typeof pos.returnPct === 'number' ? pos.returnPct : 0;
+        const sign = returnPct > 0 ? '+' : '';
+        const pnlColor = returnPct > 0 ? '#f87171' : (returnPct < 0 ? '#60a5fa' : '#94a3b8');
+
+        // 목표가/손절가 게이지 계산
+        const targetPrice = pos.targetPrice || 0;
+        const stopPrice = pos.stopLossPrice || 0;
+        const curPrice = pos.currentPrice || pos.entryPrice;
+        const range = targetPrice - stopPrice;
+        let gaugePct = 50;
+        if (range > 0) {
+          gaugePct = Math.max(5, Math.min(95, ((curPrice - stopPrice) / range) * 100));
+        }
+
+        const rawOrderId = pos.orderId ? String(pos.orderId).trim() : '';
+        const displayOrderId = rawOrderId.length > 20 ? `${rawOrderId.slice(0, 8)}...${rawOrderId.slice(-6)}` : rawOrderId;
+
+        html += `
+          <div class="custom-strategy-card" style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 12px; padding: 16px; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-size: 0.72rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">${pos.market || 'KR'}</span>
+                  <strong style="color: #ffffff; font-size: 1.15rem;">${pos.stockName}</strong>
+                  <span style="color: #94a3b8; font-size: 0.8rem;">${pos.stockCode}</span>
+                </div>
+                <div style="margin-top: 4px; font-size: 0.76rem; color: #a5b4fc; background: rgba(99, 102, 241, 0.15); padding: 2px 8px; border-radius: 4px; display: inline-block;">
+                  ${pos.strategyTitle || 'AI 끝장토론 예약 (1주)'}
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 1.25rem; font-weight: 800; color: ${pnlColor};">
+                  ${sign}${returnPct}%
+                </div>
+                <div style="font-size: 0.76rem; color: #94a3b8;">
+                  ${(pos.unrealizedPnlKrw || 0) > 0 ? '+' : ''}${(pos.unrealizedPnlKrw || 0).toLocaleString()}원
+                </div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem; background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; margin-bottom: 12px;">
+              <div>
+                <span style="color: #94a3b8;">체결가:</span> <strong style="color: #f8fafc;">${(pos.entryPrice || 0).toLocaleString()}${isKr ? '원' : '$'}</strong>
+              </div>
+              <div>
+                <span style="color: #94a3b8;">현재가:</span> <strong style="color: #f8fafc;">${(pos.currentPrice || 0).toLocaleString()}${isKr ? '원' : '$'}</strong>
+              </div>
+              <div>
+                <span style="color: #94a3b8;">수량:</span> <strong style="color: #f8fafc;">${pos.quantity || 1}주 (보유)</strong>
+              </div>
+              <div>
+                <span style="color: #94a3b8;">감시:</span> <strong style="color: #38bdf8;">개별 자동 매도</strong>
+              </div>
+            </div>
+
+            <!-- 목표가 및 손절가 -->
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-bottom: 4px;">
+              <span style="color: #f87171;">⛔ 손절: ${(pos.stopLossPrice || 0).toLocaleString()}${isKr ? '원' : '$'} (${pos.stopLossPct || -2}%)</span>
+              <span style="color: #34d399;">🎯 익절: ${(pos.targetPrice || 0).toLocaleString()}${isKr ? '원' : '$'} (+${pos.targetProfitPct || 3}%)</span>
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(15, 23, 42, 0.8); border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
+              <div style="height: 100%; width: ${gaugePct}%; background: linear-gradient(90deg, #ef4444, #3b82f6, #10b981);"></div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: #cbd5e1; opacity: 0.8; margin-top: 6px;">
+              <span>주문번호: <code>${displayOrderId}</code></span>
+              <span style="color: #94a3b8;">${pos.exitStrategyTitle || '적응형 매도'}</span>
             </div>
           </div>
         `;

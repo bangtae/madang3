@@ -1,6 +1,5 @@
 // app/views/githubTrendingView.js - GitHub 트렌딩 & 오픈소스 레이더 뷰 컴포넌트
 window.GithubTrendingView = {
-  currentTab: 'ranking', // 'ranking' (인기 랭킹 및 쉬운 해설), 'proposals' (madang3/6 개선 제안서)
   activeCategory: 'All',
   searchTerm: '',
 
@@ -14,7 +13,8 @@ window.GithubTrendingView = {
     if (!container) return;
 
     const totalRepos = window.GithubTrendingModel ? window.GithubTrendingModel.repositories.length : 0;
-    const totalProps = window.GithubTrendingModel ? window.GithubTrendingModel.proposals.length : 0;
+    const categories = window.GithubTrendingModel ? window.GithubTrendingModel.getCategories() : ['All'];
+    const totalCategories = Math.max(0, categories.length - 1);
     const updatedAt = (window.GithubTrendingModel && window.GithubTrendingModel.data && window.GithubTrendingModel.data.updatedAt)
       ? new Date(window.GithubTrendingModel.data.updatedAt).toLocaleString('ko-KR')
       : '최신 동기화됨';
@@ -33,7 +33,7 @@ window.GithubTrendingView = {
             </div>
             <p class="trending-header-desc">
               전 세계 개발자들이 지금 가장 열광하는 <strong>인기 오픈소스 저장소</strong>를 초보자 눈높이에서 알기 쉽게 분석하고, 
-              <strong>madang3 포털 및 madang6 멀티에이전트</strong>에 즉시 벤치마킹할 수 있는 실전 시스템 개선 로드맵을 제공합니다.
+              각 저장소의 핵심 기능과 <strong>실전 활용 가이드</strong>를 제공합니다.
             </p>
             <div class="trending-meta-row">
               <span class="meta-item">🕒 최근 갱신: <strong>${updatedAt}</strong></span>
@@ -46,25 +46,15 @@ window.GithubTrendingView = {
               <span class="stat-lbl">인기 오픈소스</span>
             </div>
             <div class="stat-pill-box highlight">
-              <span class="stat-val">${totalProps}</span>
-              <span class="stat-lbl">madang 개선 제안</span>
+              <span class="stat-val">${totalCategories}개</span>
+              <span class="stat-lbl">전문 분야 테마</span>
             </div>
           </div>
         </div>
 
-        <!-- 서브 탭 내비게이션 -->
-        <div class="trending-tab-nav">
-          <button class="trending-tab-btn ${this.currentTab === 'ranking' ? 'active' : ''}" data-tab="ranking">
-            🏆 인기 저장소 랭킹 & 쉬운 해설 (${totalRepos})
-          </button>
-          <button class="trending-tab-btn ${this.currentTab === 'proposals' ? 'active' : ''}" data-tab="proposals">
-            🚀 madang3 / madang6 시스템 개선 제안서 (${totalProps})
-          </button>
-        </div>
-
-        <!-- 탭 본문 영역 -->
+        <!-- 본문 랭킹 영역 -->
         <div class="trending-tab-content">
-          ${this.currentTab === 'ranking' ? this.renderRankingTab() : this.renderProposalsTab()}
+          ${this.renderRankingTab()}
         </div>
       </div>
     `;
@@ -174,102 +164,11 @@ window.GithubTrendingView = {
     `;
   },
 
-  renderProposalsTab() {
-    const proposals = window.GithubTrendingModel ? window.GithubTrendingModel.getFilteredProposals(this.searchTerm) : [];
-
-    return `
-      <div class="proposals-tab-wrapper">
-        <div class="proposals-banner">
-          <div class="banner-icon">💡</div>
-          <div class="banner-text">
-            <h3>madang3 & madang6 시스템 연계 혁신 제안서</h3>
-            <p>최근 깃허브 트렌딩 상위권을 휩쓸고 있는 <strong>표준 Skill Registry 규격, 결정론적 하이브리드 검증, 초경량 로컬 MoE 런너, 옴니채널 메시징 아키텍처</strong>를 우리 madang 포털과 백그라운드 멀티에이전트에 적용하기 위한 구체적인 기술 명세와 실전 로드맵입니다.</p>
-          </div>
-        </div>
-
-        <div class="proposals-grid">
-          ${proposals.map((p, idx) => this.renderProposalCard(p, idx + 1)).join('')}
-        </div>
-      </div>
-    `;
-  },
-
-  renderProposalCard(p, num) {
-    const actionItems = Array.isArray(p.actionItems) ? p.actionItems : [];
-    const expectedEffectLines = (p.expectedEffect || '').split('\n').filter(Boolean);
-
-    return `
-      <div class="proposal-card">
-        <div class="proposal-card-header">
-          <div class="header-left">
-            <span class="proposal-num">제안 #${num}</span>
-            <span class="proposal-badge">${this.escapeHtml(p.badge)}</span>
-            <span class="proposal-priority">${this.escapeHtml(p.priority)}</span>
-          </div>
-          <span class="proposal-status">${this.escapeHtml(p.status)}</span>
-        </div>
-
-        <h3 class="proposal-title">${this.escapeHtml(p.title)}</h3>
-
-        <div class="proposal-meta-tags">
-          <div class="meta-tag">
-            <span class="lbl">적용 대상:</span>
-            <span class="val target-val">${this.escapeHtml(p.target)}</span>
-          </div>
-          <div class="meta-tag">
-            <span class="lbl">벤치마킹 소스:</span>
-            <span class="val bench-val">🐙 ${this.escapeHtml(p.benchmarking)}</span>
-          </div>
-        </div>
-
-        <div class="proposal-detail-section problem-box">
-          <h4>⚠️ 현재 시스템의 한계 및 문제점</h4>
-          <p>${this.escapeHtml(p.problem)}</p>
-        </div>
-
-        <div class="proposal-detail-section solution-box">
-          <h4>🛠️ 오픈소스 트렌딩 기반 해결책</h4>
-          <p>${this.escapeHtml(p.solution)}</p>
-        </div>
-
-        <div class="proposal-detail-section effect-box">
-          <h4>📈 기대 효과 및 도입 이점</h4>
-          <ul class="effect-list">
-            ${expectedEffectLines.map(line => `<li>${this.escapeHtml(line)}</li>`).join('')}
-          </ul>
-        </div>
-
-        <div class="proposal-detail-section roadmap-box">
-          <h4>📋 실전 구현 액션 아이템 (실행 로드맵)</h4>
-          <div class="action-steps">
-            ${actionItems.map((item, i) => `
-              <div class="action-step-item">
-                <span class="step-badge">Step ${i+1}</span>
-                <span class="step-desc">${this.escapeHtml(item)}</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>
-    `;
-  },
-
   bindEvents() {},
 
   bindDynamicEvents() {
-    // 1. 서브 탭 클릭 이벤트
-    document.querySelectorAll('.trending-tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const tab = e.currentTarget.getAttribute('data-tab');
-        if (tab && tab !== this.currentTab) {
-          this.currentTab = tab;
-          this.render();
-        }
-      });
-    });
-
-    // 2. 카테고리 필터 버튼 이벤트
-    document.querySelectorAll('.trending-cat-pill').forEach(btn => {
+    // 1. 카테고리 필터 버튼 이벤트
+    document.querySelectorAll('#view-github-trending .trending-cat-pill').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const cat = e.currentTarget.getAttribute('data-category');
         if (cat) {
@@ -279,14 +178,14 @@ window.GithubTrendingView = {
       });
     });
 
-    // 3. 검색 입력 이벤트
+    // 2. 검색 입력 이벤트
     const searchInput = document.getElementById('input-trending-search');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         this.searchTerm = e.target.value;
-        const container = document.querySelector('.trending-tab-content');
+        const container = document.querySelector('#view-github-trending .trending-tab-content');
         if (container) {
-          container.innerHTML = this.currentTab === 'ranking' ? this.renderRankingTab() : this.renderProposalsTab();
+          container.innerHTML = this.renderRankingTab();
           this.bindDynamicEvents();
           const newIn = document.getElementById('input-trending-search');
           if (newIn) {
@@ -297,7 +196,7 @@ window.GithubTrendingView = {
       });
     }
 
-    // 4. 검색어 초기화 버튼
+    // 3. 검색어 초기화 버튼
     const btnClear = document.getElementById('btn-clear-trending-search');
     if (btnClear) {
       btnClear.addEventListener('click', () => {

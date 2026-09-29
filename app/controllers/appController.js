@@ -463,6 +463,7 @@ window.AppController = {
             { id: "ai-terms", name: "AI 용어 & 마인드맵", icon: "🧠", category: "ai", statCardId: "card-stat-ai-terms", guest: true, admin: true, description: "AI 관련 기술 개념 및 마인드맵 학습" },
             { id: "sap-terms", name: "SAP 용어 & 마인드맵", icon: "🏢", category: "work", statCardId: "card-stat-sap-terms", guest: true, admin: true, description: "SAP ERP 코어 모듈 및 기술 용어 마인드맵" },
             { id: "sap-suite", name: "SAP Integration Suite", icon: "⚡", category: "work", statCardId: "card-stat-sap-suite", guest: true, admin: true, description: "SAP Cloud Integration 최신 소식 및 Groovy/iFlow 컨설팅·개발 도우미" },
+            { id: "github-trending", name: "GitHub 트렌딩 & 오픈소스 레이더", icon: "🐙", category: "work", statCardId: "card-stat-github-trending", guest: true, admin: true, description: "GitHub 최근 인기 급상승 오픈소스 랭킹 및 초보자용 실전 활용 가이드" },
             { id: "agent-builder", name: "AI 에이전트 Builder", icon: "🧩", category: "ai", guest: true, admin: true, description: "자원 조합 및 시스템 워크플로우 설계도 생성" },
 
             { id: "threads-live-dashboard", name: "Threads AI 대시보드", icon: "🚀", category: "admin", guest: false, admin: true, description: "Cloudflare 터널 기반 Threads AI 실시간 큐레이션 및 에이전트 모니터링 라이브 콘솔" },
@@ -470,6 +471,7 @@ window.AppController = {
             { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
             { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
             { id: "batch-register", name: "API정보 일괄등록", icon: "📥", category: "admin", guest: false, admin: true, description: "엑셀 파일 업로드를 통한 API bulk 등록" },
+            { id: "madang-proposals", name: "madang 시스템 개선 제안서", icon: "🚀", category: "admin", guest: false, admin: true, description: "madang3 포털 및 madang6 멀티에이전트 아키텍처 개선 제안서 및 실전 로드맵" },
             { id: "menu-config", name: "메뉴 권한 설정", icon: "⚙️", category: "admin", guest: false, admin: true, description: "게스트 및 관리자 모드 메뉴 노출 설정" }
           ];
           this.saveMenuConfig(defaultConfig);
@@ -1345,6 +1347,7 @@ window.AppController = {
       'batch-register': 'admin',
       'tech-stack': 'admin',
       'stock-trading-admin': 'admin',
+      'madang-proposals': 'admin',
       'menu-config': 'admin'
     };
     return map[sideView] || null;
@@ -1445,6 +1448,7 @@ window.AppController = {
     const viewSapTerms = document.getElementById('view-sap-terms');
     const viewSapSuite = document.getElementById('view-sap-suite');
     const viewGithubTrending = document.getElementById('view-github-trending');
+    const viewMadangProposals = document.getElementById('view-madang-proposals');
     const viewAgentBuilder = document.getElementById('view-agent-builder');
     const viewIpWhitelist = document.getElementById('view-ip-whitelist');
     const viewIpBlacklist = document.getElementById('view-ip-blacklist');
@@ -1469,6 +1473,7 @@ window.AppController = {
       if (viewSapTerms) viewSapTerms.classList.add('hidden');
       if (viewSapSuite) viewSapSuite.classList.add('hidden');
       if (viewGithubTrending) viewGithubTrending.classList.add('hidden');
+      if (viewMadangProposals) viewMadangProposals.classList.add('hidden');
       if (viewAgentBuilder) viewAgentBuilder.classList.add('hidden');
 
       if (viewIpWhitelist) viewIpWhitelist.classList.add('hidden');
@@ -1652,6 +1657,16 @@ window.AppController = {
         window.StockTradingAdminView.init();
         window.StockTradingAdminView.loadStatus();
       }
+    } else if (sideView === 'madang-proposals') {
+      if (viewMadangProposals) viewMadangProposals.classList.remove('hidden');
+      if (window.MadangProposalsView) {
+        window.MadangProposalsView.init();
+      }
+      if (window.GithubTrendingModel && window.MadangProposalsView) {
+        window.GithubTrendingModel.loadData().then(() => {
+          window.MadangProposalsView.render();
+        });
+      }
     } else if (sideView === 'ip-whitelist') {
       if (viewIpWhitelist) viewIpWhitelist.classList.remove('hidden');
       this.loadAndRenderIpWhitelist();
@@ -1829,7 +1844,7 @@ window.AppController = {
       { id: "ai-terms", name: "AI 용어 & 마인드맵", icon: "🧠", category: "ai", statCardId: "card-stat-ai-terms", guest: true, admin: true, description: "AI 관련 기술 개념 및 마인드맵 학습" },
       { id: "sap-terms", name: "SAP 용어 & 마인드맵", icon: "🏢", category: "work", statCardId: "card-stat-sap-terms", guest: true, admin: true, description: "SAP ERP 코어 모듈 및 기술 용어 마인드맵" },
       { id: "sap-suite", name: "SAP Integration Suite", icon: "⚡", category: "work", statCardId: "card-stat-sap-suite", guest: true, admin: true, description: "SAP Cloud Integration 최신 소식 및 Groovy/iFlow 컨설팅·개발 도우미" },
-      { id: "github-trending", name: "GitHub 트렌딩 & 오픈소스 레이더", icon: "🐙", category: "work", statCardId: "card-stat-github-trending", guest: true, admin: true, description: "GitHub 최근 인기 급상승 오픈소스 랭킹, 초보자용 활용 가이드 및 madang 시스템 연계 개선 제안" },
+      { id: "github-trending", name: "GitHub 트렌딩 & 오픈소스 레이더", icon: "🐙", category: "work", statCardId: "card-stat-github-trending", guest: true, admin: true, description: "GitHub 최근 인기 급상승 오픈소스 랭킹 및 초보자용 실전 활용 가이드" },
       { id: "agent-builder", name: "AI 에이전트 Builder", icon: "🧩", category: "ai", guest: true, admin: true, description: "자원 조합 및 시스템 워크플로우 설계도 생성" },
 
       { id: "threads-live-dashboard", name: "Threads AI 대시보드", icon: "🚀", category: "admin", guest: false, admin: true, description: "Cloudflare 터널 기반 Threads AI 실시간 큐레이션 및 에이전트 모니터링 라이브 콘솔" },
@@ -1838,6 +1853,7 @@ window.AppController = {
       { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
       { id: "batch-register", name: "API정보 일괄등록", icon: "📥", category: "admin", guest: false, admin: true, description: "엑셀 파일 업로드를 통한 API bulk 등록" },
       { id: "stock-trading-admin", name: "주식 자동매매 제어", icon: "🤖", category: "admin", guest: false, admin: true, description: "토스증권 Open API 기반 끝장토론 의결 종목 10만원 이하 1주 단일 예약매매 및 계좌/API 통합 제어" },
+      { id: "madang-proposals", name: "madang 시스템 개선 제안서", icon: "🚀", category: "admin", guest: false, admin: true, description: "madang3 포털 및 madang6 멀티에이전트 아키텍처 개선 제안서 및 실전 로드맵" },
       { id: "menu-config", name: "메뉴 권한 설정", icon: "⚙️", category: "admin", guest: false, admin: true, description: "게스트 및 관리자 모드 메뉴 노출 설정" }
     ];
 

@@ -25,6 +25,331 @@ window.StockDebateView = {
     return false;
   },
 
+  cachedReservations: [],
+  isLoadingReservations: false,
+
+  async loadReservations() {
+    if (!this.isAdmin()) {
+      this.cachedReservations = [];
+      return [];
+    }
+    try {
+      this.isLoadingReservations = true;
+      const res = await fetch('/api/debate/reservations');
+      if (res.ok) {
+        const data = await res.json();
+        this.cachedReservations = Array.isArray(data.reservations) ? data.reservations : [];
+      }
+    } catch (e) {
+      console.warn('[StockDebateView] Error loading reservations:', e.message);
+    } finally {
+      this.isLoadingReservations = false;
+    }
+    return this.cachedReservations;
+  },
+
+  renderReservationsPanel() {
+    const panel = document.getElementById('debate-reservations-panel');
+    if (!panel) return;
+    if (!this.isAdmin()) {
+      panel.style.display = 'none';
+      panel.innerHTML = '';
+      return;
+    }
+
+    const reservations = this.cachedReservations || [];
+    const activeList = reservations.filter(r => r.status === 'PENDING' || r.status === 'ORDER_SUBMITTED' || r.status === 'FILLED');
+
+    if (activeList.length === 0) {
+      panel.style.display = 'block';
+      panel.innerHTML = `
+        <div style="background: rgba(15, 23, 42, 0.65); border: 1px dashed rgba(59, 130, 246, 0.35); border-radius: 12px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.2rem;">📋</span>
+            <div>
+              <strong style="color: #93c5fd; font-size: 0.9rem;">[관리자 전용] 토스증권 AI 예약매수 대기 목록 (0건)</strong>
+              <div style="font-size: 0.78rem; color: #94a3b8;">아래 토론 카드에서 3대 전략 버튼을 눌러 개장 전 예약매수를 신청할 수 있습니다. (1, 2번 전략 무조건 1주 단일 매매)</div>
+            </div>
+          </div>
+          <button type="button" id="btn-refresh-reservations" class="btn btn-sm btn-outline-info" style="font-size: 0.78rem; padding: 4px 10px;">
+            🔄 예약 현황 갱신
+          </button>
+        </div>
+      `;
+      const btnRef = document.getElementById('btn-refresh-reservations');
+      if (btnRef) {
+        btnRef.addEventListener('click', () => {
+          this.loadReservations().then(() => this.renderReservationsPanel());
+        });
+      }
+      return;
+    }
+
+    panel.style.display = 'block';
+    let cardsHtml = activeList.map(r => {
+      const isKr = r.market === 'KR';
+      let statusBadge = '';
+      if (r.status === 'PENDING') {
+        statusBadge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">⏳ 개장 대기 중 (08:00/08:55 발주)</span>';
+      } else if (r.status === 'ORDER_SUBMITTED') {
+        statusBadge = '<span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">🚀 토스증권 발주 완료 (체결 대기)</span>';
+      } else if (r.status === 'FILLED') {
+        statusBadge = '<span style="background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">🎉 체결 완료 (실시간 감시중)</span>';
+      } else {
+        statusBadge = `<span style="color: #94a3b8; font-size: 0.72rem;">${r.status}</span>`;
+      }
+
+      const orderLines = (r.orders || []).map(o => `• ${o.title}: ${o.price.toLocaleString()}${isKr ? '원' : '$'} × ${o.quantity}주`).join('<br>');
+      const exitTitle = r.exitPlan?.exitStrategyTitle || '적응형 매도';
+
+      return `
+        <div style="background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <strong style="color: #f8fafc; font-size: 1rem;">${r.stockName}</strong>
+                <span style="color: #94a3b8; font-size: 0.8rem;">${r.itemCode}</span>
+                <span style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; padding: 1px 6px; border-radius: 4px; font-size: 0.74rem; font-weight: 600;">${r.strategyTitle}</span>
+              </div>
+              <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 2px;">
+                접수일시: ${r.createdAt ? r.createdAt.replace('T', ' ').substring(0, 19) : '-'} | 총 ${r.totalQuantity}주 (${(r.totalBudgetKrw || 0).toLocaleString()}원)
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              ${statusBadge}
+              <button type="button" class="btn-cancel-reservation" data-id="${r.id}" data-name="${r.stockName}" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 3px 8px; font-size: 0.74rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                🗑️ 취소
+              </button>
+            </div>
+          </div>
+          <div style="font-size: 0.78rem; color: #cbd5e1; background: rgba(15, 23, 42, 0.5); padding: 6px 10px; border-radius: 6px; line-height: 1.4;">
+            ${orderLines}
+          </div>
+          <div style="font-size: 0.74rem; color: #38bdf8;">
+            🎯 <strong>체결 후 매도 전략:</strong> ${exitTitle}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    panel.innerHTML = `
+      <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 14px; padding: 16px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.25rem;">📋</span>
+            <h3 style="color: #60a5fa; margin: 0; font-size: 1.05rem; font-weight: 700;">
+              [관리자 전용] 나의 AI 끝장토론 예약매수 대기 목록 (${activeList.length}건)
+            </h3>
+            <span style="background: rgba(34, 197, 94, 0.2); color: #4ade80; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 600;">개장 시점 자동 발주</span>
+          </div>
+          <button type="button" id="btn-refresh-reservations" class="btn btn-sm btn-outline-info" style="font-size: 0.78rem; padding: 4px 10px;">
+            🔄 실시간 갱신
+          </button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px;">
+          ${cardsHtml}
+        </div>
+      </div>
+    `;
+
+    const btnRef = document.getElementById('btn-refresh-reservations');
+    if (btnRef) {
+      btnRef.addEventListener('click', () => {
+        this.loadReservations().then(() => this.renderReservationsPanel());
+      });
+    }
+  },
+
+  renderDebateReservationButtons(d) {
+    if (!this.isAdmin()) return '';
+    const rawPrice = parseFloat(String(d.current_price || '0').replace(/[^0-9.]/g, '')) || 0;
+    const isKr = /^[0-9]{6}$/.test(d.item_code);
+    const dipPrice = Math.round(rawPrice * 0.985); // -1.5%
+    const split2Price = Math.round(rawPrice * 0.98); // -2.0%
+
+    // 10만원 이하 검증 (국장 기준 10만원 초과 종목은 비활성화 또는 안내)
+    const isOver100k = isKr && rawPrice > 100000;
+
+    // 이미 예약 대기 중인 종목인지 확인
+    const isReserved = (this.cachedReservations || []).some(r => r.itemCode === d.item_code && (r.status === 'PENDING' || r.status === 'ORDER_SUBMITTED'));
+
+    return `
+      <div class="debate-reservation-card-panel" style="margin-top: 12px; padding: 12px 14px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 1rem;">⚡</span>
+            <strong style="color: #60a5fa; font-size: 0.88rem;">[관리자 전용] 토스증권 AI 예약매수 3대 전략</strong>
+            <span style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 600;">개장 시점 자동 발주</span>
+            ${isReserved ? '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">✅ 예약 대기 중</span>' : ''}
+          </div>
+          <div style="font-size: 0.76rem; color: #94a3b8;">
+            현재가: <strong style="color: #f8fafc;">${rawPrice.toLocaleString()}${isKr ? '원' : '$'}</strong>
+            ${isOver100k ? '<span style="color: #f87171; margin-left: 6px; font-weight: 600;">⚠️ 10만원 초과 (매매 불가)</span>' : '<span style="color: #10b981; margin-left: 6px; font-weight: 600;">✅ 10만원 이하 매매 적합</span>'}
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px;">
+          <!-- 1번 버튼: 스마트 눌림목 (1주) -->
+          <button type="button" class="btn-debate-reserve" data-id="${d.id}" data-code="${d.item_code}" data-name="${d.stock_name}" data-strategy="SMART_DIP" ${isOver100k ? 'disabled style="opacity: 0.45; cursor: not-allowed; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; padding: 8px 12px; border-radius: 8px; text-align: left;"' : 'style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.25), rgba(30, 58, 138, 0.4)); border: 1px solid rgba(96, 165, 250, 0.5); color: #e0f2fe; padding: 8px 12px; border-radius: 8px; text-align: left; cursor: pointer; transition: all 0.2s;"'}>
+            <div style="font-weight: 700; font-size: 0.84rem; color: #38bdf8; display: flex; justify-content: space-between;">
+              <span>📉 스마트 눌림목</span>
+              <span style="color: #fbbf24; font-size: 0.75rem;">1주 단일</span>
+            </div>
+            <div style="font-size: 0.78rem; margin-top: 3px; color: #cbd5e1;">
+              예약가: <strong>${dipPrice.toLocaleString()}${isKr ? '원' : '$'}</strong> (-1.5%)
+            </div>
+            <div style="font-size: 0.70rem; color: #94a3b8; margin-top: 2px;">
+              기술분석/단가 지지선 안전 매수
+            </div>
+          </button>
+
+          <!-- 2번 버튼: 시초가 우선 체결 (1주) -->
+          <button type="button" class="btn-debate-reserve" data-id="${d.id}" data-code="${d.item_code}" data-name="${d.stock_name}" data-strategy="MARKET_OPEN" ${isOver100k ? 'disabled style="opacity: 0.45; cursor: not-allowed; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; padding: 8px 12px; border-radius: 8px; text-align: left;"' : 'style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 78, 59, 0.4)); border: 1px solid rgba(52, 211, 153, 0.5); color: #ecfdf5; padding: 8px 12px; border-radius: 8px; text-align: left; cursor: pointer; transition: all 0.2s;"'}>
+            <div style="font-weight: 700; font-size: 0.84rem; color: #34d399; display: flex; justify-content: space-between;">
+              <span>⚡ 시초가 우선 체결</span>
+              <span style="color: #fbbf24; font-size: 0.75rem;">1주 단일</span>
+            </div>
+            <div style="font-size: 0.78rem; margin-top: 3px; color: #cbd5e1;">
+              예약가: <strong>${rawPrice.toLocaleString()}${isKr ? '원' : '$'}</strong> (시초가 우선)
+            </div>
+            <div style="font-size: 0.70rem; color: #94a3b8; margin-top: 2px;">
+              09:00 개장 즉시 최우선 체결 노림
+            </div>
+          </button>
+
+          <!-- 3번 버튼: 2회 분할 예약 (각 1주) -->
+          <button type="button" class="btn-debate-reserve" data-id="${d.id}" data-code="${d.item_code}" data-name="${d.stock_name}" data-strategy="SPLIT_BUY" ${isOver100k ? 'disabled style="opacity: 0.45; cursor: not-allowed; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; padding: 8px 12px; border-radius: 8px; text-align: left;"' : 'style="background: linear-gradient(135deg, rgba(147, 51, 234, 0.25), rgba(88, 28, 135, 0.4)); border: 1px solid rgba(192, 132, 252, 0.5); color: #faf5ff; padding: 8px 12px; border-radius: 8px; text-align: left; cursor: pointer; transition: all 0.2s;"'}>
+            <div style="font-weight: 700; font-size: 0.84rem; color: #c084fc; display: flex; justify-content: space-between;">
+              <span>🪜 2회 분할 예약</span>
+              <span style="color: #fbbf24; font-size: 0.75rem;">총 2주 분할</span>
+            </div>
+            <div style="font-size: 0.78rem; margin-top: 3px; color: #cbd5e1;">
+              1차 ${rawPrice.toLocaleString()}원 / 2차 ${split2Price.toLocaleString()}원
+            </div>
+            <div style="font-size: 0.70rem; color: #94a3b8; margin-top: 2px;">
+              토론 의결(분할매수) 원칙 준수
+            </div>
+          </button>
+        </div>
+      </div>
+    `;
+  },
+
+  async handleDebateReserveClick(debateId, itemCode, stockName, strategyType, btnEl) {
+    if (!this.isAdmin()) {
+      alert('⚠️ 예약매수 신청은 최고 관리자만 수행할 수 있습니다.');
+      return;
+    }
+
+    const stratNames = {
+      'SMART_DIP': '📉 스마트 눌림목 예약매수 (1주 단일)',
+      'MARKET_OPEN': '⚡ 시초가 우선 체결 예약매수 (1주 단일)',
+      'SPLIT_BUY': '🪜 2회 분할 예약매수 (1차 현재가 1주 + 2차 지지선 1주)'
+    };
+    const stratName = stratNames[strategyType] || strategyType;
+
+    const confirmMsg =
+      `🎯 [토스증권 AI 예약매수 신청]\n\n` +
+      `• 종목명: ${stockName} (${itemCode})\n` +
+      `• 전략 유형: ${stratName}\n` +
+      `• 발주 시점: 개장 골든타임(08:00 프리마켓 / 08:55 동시호가) 자동 발주\n` +
+      `• 체결 후: 테마 및 수급 분석 기반 자동 익절/손절 감시\n\n` +
+      `해당 전략으로 토스증권 예약매수를 접수하시겠습니까?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.style.opacity = '0.6';
+      }
+
+      const res = await fetch('/api/debate/reserve-buy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-user': 'admin'
+        },
+        body: JSON.stringify({
+          debateId,
+          itemCode,
+          strategyType
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        if (window.UiView && window.UiView.showToast) {
+          window.UiView.showToast(`🎯 [${stockName}] ${stratName} 예약매수가 접수되었습니다!`);
+        } else {
+          alert(`🎯 [${stockName}] ${stratName} 예약매수가 성공적으로 접수되었습니다!`);
+        }
+        await this.loadReservations();
+        this.renderReservationsPanel();
+        this.render();
+      } else {
+        alert(`❌ 예약매수 접수 실패: ${data.error || '오류가 발생했습니다.'}`);
+        if (btnEl) {
+          btnEl.disabled = false;
+          btnEl.style.opacity = '1';
+        }
+      }
+    } catch (err) {
+      alert(`❌ 서버 통신 오류: ${err.message}`);
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.style.opacity = '1';
+      }
+    }
+  },
+
+  async handleCancelReservation(reservationId, stockName, btnEl) {
+    if (!this.isAdmin()) {
+      alert('⚠️ 예약매수 취소는 최고 관리자만 수행할 수 있습니다.');
+      return;
+    }
+
+    if (!confirm(`🗑️ [${stockName}] 예약매수를 취소하시겠습니까?`)) return;
+
+    try {
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.textContent = '⏳';
+      }
+
+      const res = await fetch(`/api/debate/reservations/${encodeURIComponent(reservationId)}`, {
+        method: 'DELETE',
+        headers: {
+          'x-admin-user': 'admin'
+        }
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        if (window.UiView && window.UiView.showToast) {
+          window.UiView.showToast(`🗑️ [${stockName}] 예약매수가 취소되었습니다.`);
+        } else {
+          alert(`🗑️ [${stockName}] 예약매수가 취소되었습니다.`);
+        }
+        await this.loadReservations();
+        this.renderReservationsPanel();
+        this.render();
+      } else {
+        alert(`❌ 예약 취소 실패: ${data.error || '오류가 발생했습니다.'}`);
+        if (btnEl) {
+          btnEl.disabled = false;
+          btnEl.textContent = '🗑️ 취소';
+        }
+      }
+    } catch (err) {
+      alert(`❌ 통신 오류: ${err.message}`);
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.textContent = '🗑️ 취소';
+      }
+    }
+  },
+
   isDebateExpanded(id, idx) {
     if (this.expandedMap && typeof this.expandedMap[id] === 'boolean') {
       return this.expandedMap[id];
@@ -439,6 +764,31 @@ window.StockDebateView = {
           if (debateId) this.toggleDebate(debateId);
           return;
         }
+        const reserveBtn = e.target.closest('.btn-debate-reserve');
+        if (reserveBtn) {
+          e.stopPropagation();
+          const debateId = reserveBtn.getAttribute('data-id');
+          const itemCode = reserveBtn.getAttribute('data-code');
+          const stockName = reserveBtn.getAttribute('data-name');
+          const strategyType = reserveBtn.getAttribute('data-strategy');
+          this.handleDebateReserveClick(debateId, itemCode, stockName, strategyType, reserveBtn);
+          return;
+        }
+      });
+    }
+
+    // 예약 목록 패널 이벤트 위임 (취소 버튼)
+    const resPanel = document.getElementById('debate-reservations-panel');
+    if (resPanel && !resPanel._hasBound) {
+      resPanel._hasBound = true;
+      resPanel.addEventListener('click', (e) => {
+        const cancelBtn = e.target.closest('.btn-cancel-reservation');
+        if (cancelBtn) {
+          e.stopPropagation();
+          const resId = cancelBtn.getAttribute('data-id');
+          const stockName = cancelBtn.getAttribute('data-name');
+          this.handleCancelReservation(resId, stockName, cancelBtn);
+        }
       });
     }
   },
@@ -532,6 +882,19 @@ window.StockDebateView = {
     const btnClearAll = document.getElementById('btn-clear-all-debates');
     if (btnClearAll) {
       btnClearAll.style.display = this.isAdmin() ? 'inline-flex' : 'none';
+    }
+
+    // 상단 관리자 전용 예약매수 목록 패널 렌더링
+    if (this.isAdmin()) {
+      if (!this._hasInitialLoadedReservations) {
+        this._hasInitialLoadedReservations = true;
+        this.loadReservations().then(() => this.renderReservationsPanel());
+      } else {
+        this.renderReservationsPanel();
+      }
+    } else {
+      const panel = document.getElementById('debate-reservations-panel');
+      if (panel) panel.style.display = 'none';
     }
 
     const debates = window.StockDebateModel.getFilteredDebates();
@@ -897,6 +1260,9 @@ window.StockDebateView = {
             <strong>[5인 심의 종합 결론]</strong> ${d.verdict_summary || ''}
           </div>
         </div>
+
+        <!-- [관리자 전용] 토스증권 AI 예약매수 3대 전략 버튼 패널 -->
+        ${this.isAdmin() ? this.renderDebateReservationButtons(d) : ''}
       </article>
     `;
   }

@@ -479,6 +479,9 @@
               <button class="nav-side-btn" data-side="stock-trading-admin">
                 <span class="icon">🤖</span> 주식 자동매매 제어
               </button>
+              <button class="nav-side-btn" data-side="madang-proposals">
+                <span class="icon">🚀</span> madang 시스템 개선 제안서
+              </button>
               <button class="nav-side-btn" data-side="menu-config">
                 <span class="icon">⚙️</span> 메뉴 권한 설정
               </button>
@@ -1034,9 +1037,14 @@
           <!-- JS(SapSuiteView)로 동적 렌더링 됩니다 -->
         </section>
 
-        <!-- 뷰: GitHub 트렌딩 & 오픈소스 레이더 (초보자 쉬운 해설 & 시스템 개선 제안) -->
+        <!-- 뷰: GitHub 트렌딩 & 오픈소스 레이더 (초보자 쉬운 해설 & 오픈소스 랭킹) -->
         <section id="view-github-trending" class="content-view hidden">
           <!-- JS(GithubTrendingView)로 동적 렌더링 됩니다 -->
+        </section>
+
+        <!-- 뷰: madang 시스템 개선 제안서 (관리자 전용) -->
+        <section id="view-madang-proposals" class="content-view hidden">
+          <!-- JS(MadangProposalsView)로 동적 렌더링 됩니다 -->
         </section>
 
         <!-- 뷰 7: Threads AI 에이전트 통합 대시보드 -->
@@ -3449,6 +3457,7 @@
   <script src="app/views/threadsAgentView.js?v=2.6"></script>
   <script src="app/views/sapSuiteView.js?v=2.4"></script>
   <script src="app/views/githubTrendingView.js?v=2.4"></script>
+  <script src="app/views/madangProposalsView.js?v=1.0"></script>
   <script src="app/views/monsterDefenseView.js?v=2.4"></script>
   <script src="app/views/uiView.js?v=2.4"></script>
   <script src="app/models/churchNewsModel.js"></script>

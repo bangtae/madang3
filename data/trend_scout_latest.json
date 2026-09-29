@@ -1,62 +1,72 @@
 {
-  "lastUpdated": "2026-09-29T05:56:06.976843",
+  "lastUpdated": "2026-09-29T16:01:32.723033",
   "totalSources": 17,
   "recentChanges": [
-    {
-      "id": "google_kr",
-      "source": "구글 트렌드 (KR)",
-      "region": "KR",
-      "prev_title": "미스터 트롯",
-      "new_title": "벨기에 대 프랑스",
-      "link": "https://trends.google.com/trending/rss?geo=KR",
-      "raw_item": {
-        "id": "google_kr",
-        "source": "구글 트렌드 (KR)",
-        "region": "KR",
-        "title": "벨기에 대 프랑스",
-        "link": "https://trends.google.com/trending/rss?geo=KR",
-        "image_url": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSFigJmvSPN5UQKjOWFK8moJYbjUMzHfpU1sW5mWuv07Uwq0Nlp-AxjjraPTjU",
-        "image_source": "Laodong.vn",
-        "traffic": "2000+",
-        "news_title": "네이션스 리그 벨기에 대 프랑스 생중계 링크",
-        "news_snippet": ""
-      }
-    },
     {
       "id": "signal_bz",
       "source": "시그널 실시간 검색어",
       "region": "KR",
-      "prev_title": "로베르토 모레노 감독, 우루과이전 준비",
-      "new_title": "남자 계주 동메달!",
+      "prev_title": "아시안게임 관련 소식",
+      "new_title": "이소희-백하나 금메달",
       "link": "https://signal.bz/",
       "raw_item": {
         "id": "signal_bz",
         "source": "시그널 실시간 검색어",
         "region": "KR",
-        "title": "남자 계주 동메달!",
+        "title": "이소희-백하나 금메달",
         "link": "https://signal.bz/"
       }
     },
     {
-      "id": "daum_cafe",
-      "source": "다음 카페 인기글",
+      "id": "naver_webtoon",
+      "source": "네이버 웹툰 (MONDAY) 1위",
       "region": "KR",
-      "prev_title": "해외살때 진짜진짜 많이 들었던 코리안컬러",
-      "new_title": "뉴욕 공연 취소된 투바투 레전드 대처ㄷㄷ",
-      "link": "https://m.cafe.daum.net/",
+      "prev_title": "절대군림",
+      "new_title": "신체",
+      "link": "https://comic.naver.com/webtoon/list?titleId=844058",
       "raw_item": {
-        "id": "daum_cafe",
-        "source": "다음 카페 인기글",
+        "id": "naver_webtoon",
+        "source": "네이버 웹툰 (MONDAY) 1위",
         "region": "KR",
-        "title": "뉴욕 공연 취소된 투바투 레전드 대처ㄷㄷ",
-        "link": "https://m.cafe.daum.net/"
+        "title": "신체",
+        "link": "https://comic.naver.com/webtoon/list?titleId=844058"
+      }
+    },
+    {
+      "id": "google_us",
+      "source": "구글 트렌드 (US)",
+      "region": "US",
+      "prev_title": "hurricane nolo",
+      "new_title": "delta",
+      "link": "https://trends.google.com/trending/rss?geo=US",
+      "raw_item": {
+        "id": "google_us",
+        "source": "구글 트렌드 (US)",
+        "region": "US",
+        "title": "delta",
+        "link": "https://trends.google.com/trending/rss?geo=US"
+      }
+    },
+    {
+      "id": "product_hunt",
+      "source": "Product Hunt (일간 1위)",
+      "region": "GLOBAL",
+      "prev_title": "VibeDefend by CybeDefend",
+      "new_title": "Harness Router",
+      "link": "https://www.producthunt.com",
+      "raw_item": {
+        "id": "product_hunt",
+        "source": "Product Hunt (일간 1위)",
+        "region": "GLOBAL",
+        "title": "Harness Router",
+        "link": "https://www.producthunt.com"
       }
     },
     {
       "id": "coingecko_trending",
       "source": "CoinGecko 트렌딩 코인 1위",
       "region": "GLOBAL",
-      "prev_title": "Baby Cali (BABYCALI)",
+      "prev_title": "Firo (FIRO)",
       "new_title": "Quant (QNT)",
       "link": "https://www.coingecko.com/en/coins/quant-network",
       "raw_item": {
@@ -73,43 +83,43 @@
       "id": "google_kr",
       "source": "구글 트렌드 (KR)",
       "region": "KR",
-      "title": "벨기에 대 프랑스",
+      "title": "부부",
       "link": "https://trends.google.com/trending/rss?geo=KR",
-      "image_url": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSFigJmvSPN5UQKjOWFK8moJYbjUMzHfpU1sW5mWuv07Uwq0Nlp-AxjjraPTjU",
-      "image_source": "Laodong.vn",
-      "traffic": "2000+",
-      "news_title": "네이션스 리그 벨기에 대 프랑스 생중계 링크",
+      "image_url": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcRLnmgpCostvAk0beh9LebcuOaOZyZ3KgDwByt7htaqSHCy4Y9mPu6mwSy-TRQ",
+      "image_source": "경기일보",
+      "traffic": "20000+",
+      "news_title": "가평군, 신혼부부 주거비 부담 던다…대출이자 최대 150만원 지원",
       "news_snippet": ""
     },
     {
       "id": "signal_bz",
       "source": "시그널 실시간 검색어",
       "region": "KR",
-      "title": "남자 계주 동메달!",
+      "title": "이소희-백하나 금메달",
       "link": "https://signal.bz/"
     },
     {
       "id": "blackkiwi",
       "source": "블랙키위 (네이버 급상승)",
       "region": "KR",
-      "title": "곽빈",
+      "title": "암살자들",
       "link": "https://blackkiwi.net/service/trend"
     },
     {
       "id": "namu_wiki",
       "source": "나무위키 실시간 검색어",
       "region": "KR",
-      "title": "망내",
-      "link": "https://namu.wiki/w/%EB%A7%9D%EB%82%B4",
-      "image_url": "https://i.namu.wiki/i/DD61OJc2PZv_y68pIldQ6nhhQIRHNDbrFBJBMiTxRpXm-fc6LymUB2Ysemth-bq2OC-jxPaQIVPXsD21Y9jPdeKT2t-fOmzCXhTm1WGlzkMFrbLr_JGAyqEgRgEyEhs6Aque2un-lGYG19uAay8mId-dp6PFZHj4BaE3xuk4c-k.webp",
+      "title": "닛몰캐쉬",
+      "link": "https://namu.wiki/w/%EB%8B%9B%EB%AA%B0%EC%BA%90%EC%89%AC",
+      "image_url": "https://i.namu.wiki/i/DD61OJc2PZv_y68pIldQ6k84Io4mnWhsyLkxDADTbLovJkWUNFYF_VIVuiLc7uE1Ba_ujLHZivYpmQHyGB5K8flj1Z4SvQisQyj0fAZol7kPL6vs6QlYufXGLqwTWlZyLbYPDOgOPeroMFC4SL4JgTE1UOuDTNnM6QzNm_dwe6g.webp",
       "image_source": "나무위키 (namu.wiki)",
-      "doc_desc": "대한민국 의 前  인터넷 방송인 . 2024년 1월 21일 허니즈 멤버로 데뷔했지만 2026년 9월 22일  소속사"
+      "doc_desc": "대한민국 의  인플루언서 . 실용무용을 전공한 전직  백업댄서 로, 과거  방탄소년단  무대에 올라가본 경험이 있다"
     },
     {
       "id": "daum_cafe",
       "source": "다음 카페 인기글",
       "region": "KR",
-      "title": "뉴욕 공연 취소된 투바투 레전드 대처ㄷㄷ",
+      "title": "공개 후 업계 뒤집어지고 난리났던 영화...jpg",
       "link": "https://m.cafe.daum.net/"
     },
     {
@@ -121,10 +131,10 @@
     },
     {
       "id": "naver_webtoon",
-      "source": "네이버 웹툰 (THURSDAY) 1위",
+      "source": "네이버 웹툰 (MONDAY) 1위",
       "region": "KR",
-      "title": "나노마신",
-      "link": "https://comic.naver.com/webtoon/list?titleId=747271"
+      "title": "신체",
+      "link": "https://comic.naver.com/webtoon/list?titleId=844058"
     },
     {
       "id": "kyobo_book",
@@ -144,14 +154,14 @@
       "id": "playboard_v-tuber",
       "source": "유튜브 V-Tuber/테크 1위 채널",
       "region": "KR",
-      "title": "아카네 리제 AKANE LIZE",
-      "link": "https://www.youtube.com/channel/UC7-m6jQLinZQWIbwm9W-1iw"
+      "title": "통깡이",
+      "link": "https://www.youtube.com/channel/UCQcxskNI68kTk_LKi3IGVCw"
     },
     {
       "id": "google_us",
       "source": "구글 트렌드 (US)",
       "region": "US",
-      "title": "warren county ky",
+      "title": "delta",
       "link": "https://trends.google.com/trending/rss?geo=US"
     },
     {
@@ -165,14 +175,14 @@
       "id": "hacker_news",
       "source": "Hacker News (글로벌 1위)",
       "region": "GLOBAL",
-      "title": "Pirating the Pirates",
-      "link": "https://mubi.com/en/notebook/posts/pirating-the-pirates"
+      "title": "Phyllotaxis: An audio-reactive LED display",
+      "link": "https://jagi.studio/posts/phyllotaxis/"
     },
     {
       "id": "product_hunt",
       "source": "Product Hunt (일간 1위)",
       "region": "GLOBAL",
-      "title": "PIP",
+      "title": "Harness Router",
       "link": "https://www.producthunt.com"
     },
     {

@@ -16,6 +16,7 @@ class StockAutoTrader {
     this.debateLogsFile = path.join(this.dataDir, 'stockDebateLogs.json');
     this.councilReportsFile = path.join(this.dataDir, 'stockCouncilReports.json');
     this.scalpingStatusFile = path.join(this.dataDir, 'scalpingStatus.json');
+    this.debateReservationsFile = path.join(this.dataDir, 'debateReservations.json');
 
     // [초단타 스캘핑 엔진] 국장 개장 실시간 거래대금 1위(10만원 이하) 상태 관리
     this.scalpingTimer = null;
@@ -39,10 +40,11 @@ class StockAutoTrader {
   }
 
   async init() {
-    // 🌟 GCS 영구 클라우드 스토리지에서 최신 매매일지 및 스캘핑 상태 동기화
+    // 🌟 GCS 영구 클라우드 스토리지에서 최신 매매일지, 스캘핑 상태, AI 끝장토론 예약매수 큐 동기화
     try {
       await gcsStorage.syncTradingJournalFromGcs(this.journalFile);
       await gcsStorage.syncScalpingStatusFromGcs(this.scalpingStatusFile);
+      await gcsStorage.syncDebateReservationsFromGcs(this.debateReservationsFile);
     } catch (e) {
       console.warn('[StockAutoTrader] GCS startup sync warning:', e.message);
     }
@@ -51,13 +53,17 @@ class StockAutoTrader {
     if (cfg.isAutoTradingEnabled) {
       this.startDaemon();
     }
-    // 저널에서 scalpingConfig 복원
+    // 저널에서 scalpingConfig 복원 및 AI 끝장토론 예약 포지션 독립 분리 마이그레이션
     try {
       const journal = this.getJournalData();
       if (journal.scalpingConfig) {
         this.scalpingConfig = { ...this.scalpingConfig, ...journal.scalpingConfig };
       }
-    } catch (e) {}
+      this.ensureFilledDebatePositions(journal);
+      this.saveJournalData(journal);
+    } catch (e) {
+      console.warn('[StockAutoTrader] Migration warning:', e.message);
+    }
 
     // 초단타 상태 및 이력 영구 파일 복원
     this.loadScalpingStatus();
@@ -155,6 +161,135 @@ class StockAutoTrader {
     };
   }
 
+  /**
+   * 🌟 AI 끝장토론 예약 체결 포지션(멀티 종목) 동기화 및 잘못 들어간 currentPosition 복원
+   */
+  ensureFilledDebatePositions(journal) {
+    if (!journal) return;
+    if (!Array.isArray(journal.reservationPositions)) journal.reservationPositions = [];
+
+    // 1. 기존 currentPosition에 남아있는 AI끝장토론 포지션 자동 마이그레이션
+    if (journal.currentPosition && journal.currentPosition.strategyNote && journal.currentPosition.strategyNote.includes('AI끝장토론')) {
+      const oldPos = journal.currentPosition;
+      if (!journal.reservationPositions.some(p => p.stockCode === oldPos.stockCode)) {
+        journal.reservationPositions.push({
+          id: `RESPOS-${Date.now()}-${oldPos.stockCode}`,
+          reservationId: oldPos.reservationId || null,
+          stockCode: oldPos.stockCode,
+          stockName: oldPos.stockName,
+          market: oldPos.market,
+          currency: oldPos.currency,
+          quantity: oldPos.quantity || 1,
+          entryPrice: oldPos.entryPrice,
+          entryPriceKrw: oldPos.entryPriceKrw,
+          currentPrice: oldPos.currentPrice || oldPos.entryPrice,
+          currentPriceKrw: oldPos.currentPriceKrw || oldPos.entryPriceKrw,
+          targetPrice: oldPos.targetPrice,
+          stopLossPrice: oldPos.stopLossPrice,
+          unrealizedPnl: oldPos.unrealizedPnl || 0,
+          unrealizedPnlKrw: oldPos.unrealizedPnlKrw || 0,
+          returnPct: oldPos.returnPct || 0,
+          status: 'HOLDING',
+          orderId: oldPos.orderId,
+          enteredAt: oldPos.enteredAt || new Date().toISOString(),
+          targetProfitPct: oldPos.targetProfitPct || 3.0,
+          stopLossPct: oldPos.stopLossPct || -2.0,
+          strategyTitle: '⚡ 시초가 우선 체결 (1주)',
+          exitStrategyTitle: oldPos.strategyNote || '적응형 매도',
+          strategyNote: oldPos.strategyNote || 'AI끝장토론 체결 포지션'
+        });
+      }
+      journal.currentPosition = null;
+    }
+
+    // 2. debateReservations.json의 FILLED 종목들을 reservationPositions에 자동 복원
+    try {
+      const reservations = this.getDebateReservations();
+      const filledDebates = reservations.filter(r => r.status === 'FILLED');
+      const history = Array.isArray(journal.history) ? journal.history : [];
+      let reservationsChanged = false;
+
+      for (const res of filledDebates) {
+        const inReservation = journal.reservationPositions.some(p => p.stockCode === res.itemCode || p.reservationId === res.id);
+        const inHistory = history.some(h => h.itemCode === res.itemCode && h.strategyType === 'DEBATE_RESERVATION');
+
+        if (inHistory) {
+          // 이미 history에 청산 이력이 있는 경우, debateReservations.json 상태도 CLOSED로 자동 동기화하여 중복 체결 방지
+          res.status = 'CLOSED';
+          res.closedAt = res.closedAt || new Date().toISOString();
+          reservationsChanged = true;
+          continue;
+        }
+
+        if (!inReservation && !inHistory) {
+          const filledPrice = res.finalFilledPrice || res.orders?.[0]?.price || res.currentPriceKrw || 0;
+          const exitPlan = res.exitPlan || {};
+          const isKr = res.market === 'KR';
+          const targetPrice = isKr
+            ? Math.round(filledPrice * (1 + (exitPlan.targetProfitPct || 3.0) / 100))
+            : parseFloat((filledPrice * (1 + (exitPlan.targetProfitPct || 3.0) / 100)).toFixed(2));
+          const stopLossPrice = isKr
+            ? Math.round(filledPrice * (1 + (exitPlan.stopLossPct || -2.0) / 100))
+            : parseFloat((filledPrice * (1 + (exitPlan.stopLossPct || -2.0) / 100)).toFixed(2));
+
+          journal.reservationPositions.push({
+            id: `RESPOS-${Date.now()}-${res.itemCode}`,
+            reservationId: res.id,
+            stockCode: res.itemCode,
+            stockName: res.stockName,
+            market: res.market,
+            currency: res.currency || 'KRW',
+            quantity: res.finalFilledQty || res.totalQuantity || 1,
+            entryPrice: filledPrice,
+            entryPriceKrw: filledPrice,
+            currentPrice: filledPrice,
+            currentPriceKrw: filledPrice,
+            targetPrice: targetPrice,
+            stopLossPrice: stopLossPrice,
+            unrealizedPnl: 0,
+            unrealizedPnlKrw: 0,
+            returnPct: 0,
+            status: 'HOLDING',
+            orderId: res.orderResults?.[0]?.orderId || `ORD-${res.id}`,
+            enteredAt: res.filledAt || res.submittedAt || new Date().toISOString(),
+            targetProfitPct: exitPlan.targetProfitPct || 3.0,
+            stopLossPct: exitPlan.stopLossPct || -2.0,
+            strategyTitle: res.strategyTitle || '⚡ 시초가 우선 체결 (1주)',
+            exitStrategyTitle: exitPlan.exitStrategyTitle || '적응형 매도',
+            strategyNote: `AI끝장토론 [${res.strategyTitle || '예약매수'}] 체결 포지션`
+          });
+        }
+      }
+
+      if (reservationsChanged) {
+        this.saveDebateReservations(reservations);
+      }
+    } catch (e) {
+      console.warn('[StockAutoTrader] ensureFilledDebatePositions error:', e.message);
+    }
+  }
+
+  /**
+   * 🌟 중복 적재된 AI 끝장토론 청산 이력 클린업 및 통계 정상화
+   */
+  cleanupDebateHistory(journal) {
+    if (!journal || !Array.isArray(journal.history)) return;
+    const seen = new Set();
+    const cleanHistory = [];
+    for (const h of journal.history) {
+      if (h.strategyType === 'DEBATE_RESERVATION') {
+        const key = `${h.itemCode}-${(h.startedAt || '').slice(0, 10)}`;
+        if (seen.has(key)) continue; // 중복 건너뜀
+        seen.add(key);
+      }
+      cleanHistory.push(h);
+    }
+    if (cleanHistory.length !== journal.history.length) {
+      journal.history = cleanHistory;
+      this.recalculateStats(journal);
+    }
+  }
+
   getJournalData() {
     try {
       if (fs.existsSync(this.journalFile)) {
@@ -164,6 +299,7 @@ class StockAutoTrader {
           currentMonth: parsed.currentMonth || this.getCurrentMonthKey(),
           monthlyArchives: parsed.monthlyArchives || {},
           currentPosition: parsed.currentPosition || null,
+          reservationPositions: Array.isArray(parsed.reservationPositions) ? parsed.reservationPositions : [],
           customStrategies: Array.isArray(parsed.customStrategies) ? parsed.customStrategies : [],
           history: Array.isArray(parsed.history) ? parsed.history : [],
           stats: parsed.stats || { totalTrades: 0, winTrades: 0, lossTrades: 0, winRate: 0, totalProfitKrw: 0 },
@@ -171,6 +307,8 @@ class StockAutoTrader {
           lastCheckAt: parsed.lastCheckAt || null
         };
         this.checkMonthlyRollover(journal);
+        this.cleanupDebateHistory(journal);
+        this.ensureFilledDebatePositions(journal);
         return journal;
       }
     } catch (e) {
@@ -180,12 +318,14 @@ class StockAutoTrader {
       currentMonth: this.getCurrentMonthKey(),
       monthlyArchives: {},
       currentPosition: null,
+      reservationPositions: [],
       customStrategies: [],
       history: [],
       stats: { totalTrades: 0, winTrades: 0, lossTrades: 0, winRate: 0, totalProfitKrw: 0 },
       scalpingConfig: { autoScheduleEnabled: false },
       lastCheckAt: null
     };
+    this.ensureFilledDebatePositions(defaultJournal);
     return defaultJournal;
   }
 
@@ -193,6 +333,7 @@ class StockAutoTrader {
     try {
       if (!data.currentMonth) data.currentMonth = this.getCurrentMonthKey();
       if (!data.monthlyArchives) data.monthlyArchives = {};
+      if (!Array.isArray(data.reservationPositions)) data.reservationPositions = [];
       if (!data.scalpingConfig && this.scalpingConfig) {
         data.scalpingConfig = this.scalpingConfig;
       }
@@ -2099,6 +2240,15 @@ class StockAutoTrader {
     const totalMinutes = h * 60 + m;
     const isDst = tossClient.isUsDstActive(now);
 
+    // 🌟 [AI 끝장토론 예약매수 엔진] 개장 시점 자동 발주, 체결 감시, 실시간 익절/손절 감시
+    try {
+      await this.processScheduledReservations();
+      await this.checkReservationExecutions();
+      await this.monitorReservationPositions();
+    } catch (rErr) {
+      console.warn('[StockAutoTrader] Reservation scheduler check error:', rErr.message);
+    }
+
     // 1. 07:55 KST (475분) - 🌅 [NXT 프리마켓 개장 5분 전]
     const key0755 = `${ymd}-NXT_0755`;
     if (totalMinutes === 475 && !this.alertLog[key0755]) {
@@ -2803,6 +2953,684 @@ class StockAutoTrader {
     } catch (err) {
       console.warn('[ScalpingEngine] Failed to record to stock journal:', err.message);
     }
+  }
+
+  // =========================================================================
+  // ⚔️ AI 끝장토론 토스증권 예약매수 3대 전략 관리 엔진 (관리자 전용)
+  // =========================================================================
+
+  /**
+   * 예약매수 큐 데이터 로드
+   */
+  getDebateReservations() {
+    try {
+      if (fs.existsSync(this.debateReservationsFile)) {
+        const raw = fs.readFileSync(this.debateReservationsFile, 'utf8');
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+    } catch (e) {
+      console.warn('[DebateReservation] Error reading reservations file:', e.message);
+    }
+    return [];
+  }
+
+  /**
+   * 예약매수 큐 데이터 저장 및 GCS 백업
+   */
+  saveDebateReservations(reservations) {
+    try {
+      if (!fs.existsSync(this.dataDir)) fs.mkdirSync(this.dataDir, { recursive: true });
+      fs.writeFileSync(this.debateReservationsFile, JSON.stringify(reservations, null, 2), 'utf8');
+      gcsStorage.saveDebateReservationsToGcs(reservations).catch(e => {
+        console.warn('[DebateReservation] GCS background save warning:', e.message);
+      });
+      return true;
+    } catch (e) {
+      console.error('[DebateReservation] Error saving reservations file:', e.message);
+      return false;
+    }
+  }
+
+  /**
+   * 토론 내용(지지선, DART 수급, 테마 등) 분석 기반 3대 전략 가격 및 매도 계획 도출
+   */
+  calculateDebateReservationStrategy(debateItem, strategyType, liveQuote, fxRate = 1350) {
+    const isKrStock = /^[0-9]{6}$/.test(debateItem.item_code);
+    const currency = isKrStock ? 'KRW' : 'USD';
+    const rawPrice = liveQuote && liveQuote.lastPrice > 0 ? liveQuote.lastPrice : parseFloat(String(debateItem.current_price || '0').replace(/[^0-9.]/g, ''));
+
+    let krwPrice = 0;
+    let usdPrice = 0;
+    if (currency === 'USD') {
+      usdPrice = rawPrice;
+      krwPrice = Math.round(usdPrice * fxRate);
+    } else {
+      krwPrice = Math.round(rawPrice);
+      usdPrice = parseFloat((krwPrice / fxRate).toFixed(2));
+    }
+
+    // 10만원 이하 검증 (규칙 엄수)
+    if (krwPrice > 100000) {
+      throw new Error(`원화 환산가(${krwPrice.toLocaleString()}원)가 10만원 이하 매매 제한을 초과합니다.`);
+    }
+
+    // 토론 내 지지선 분석 (기술분석가, 단가 에이전트 발언 파싱)
+    let dipPct = 1.5; // 기본 -1.5% 눌림목
+    let supportPrice = 0;
+    if (Array.isArray(debateItem.turns)) {
+      for (const turn of debateItem.turns) {
+        const msg = turn.message || '';
+        const mSupport = msg.match(/(?:지지선|눌림목|분할단가|하단)\s*[:：]?\s*([0-9,]+)\s*원/);
+        if (mSupport && mSupport[1]) {
+          const parsedSup = parseInt(mSupport[1].replace(/,/g, ''), 10);
+          if (parsedSup > 0 && parsedSup < krwPrice && parsedSup >= krwPrice * 0.90) {
+            supportPrice = parsedSup;
+            break;
+          }
+        }
+      }
+    }
+
+    // 체결 후 적응형 매도(익절/손절) 전략 계산 (주도 테마 & 거래대금 연동)
+    const judge = debateItem.judge_decision || {};
+    const themes = Array.isArray(judge.daily_themes) ? judge.daily_themes : [];
+    const winnerScore = parseFloat(judge.winner_total_score || 0);
+
+    // AI, 반도체, 전력, 원전 등 강력 테마나 점수 120점 이상 고득점 종목 판정
+    const hasCoreTheme = themes.some(t => ['AI', '반도체', '원전', '전력', '로봇', '바이오'].includes(t));
+    const isStrongThemeStock = hasCoreTheme || winnerScore >= 120;
+
+    let targetProfitPct = 3.0; // 기본 빠른 회전 모드 (+3.0%)
+    let stopLossPct = -2.0;    // 기본 단기 손절선 (-2.0%)
+    let exitStrategyTitle = '⚡ 단기 빠른 회전 모드 (익절 +3.0% / 손절 -2.0%)';
+
+    if (isStrongThemeStock) {
+      targetProfitPct = 12.0; // 강력 주도 테마 추세 스윙 모드 (+12.0%)
+      stopLossPct = -5.0;     // 손절 여유 (-5.0%)
+      exitStrategyTitle = '🚀 강력 주도 테마 추세 스윙 모드 (목표가 +12.0% / 손절선 -5.0%)';
+    }
+
+    let orders = [];
+
+    if (strategyType === 'SMART_DIP') {
+      // 1️⃣ 스마트 눌림목 예약매수 (무조건 1주)
+      let buyPriceKrw = supportPrice > 0 ? supportPrice : Math.round(krwPrice * (1 - dipPct / 100));
+      let buyPriceUsd = isKrStock ? 0 : parseFloat((usdPrice * (1 - dipPct / 100)).toFixed(2));
+      const finalPrice = isKrStock ? buyPriceKrw : buyPriceUsd;
+
+      orders.push({
+        subIndex: 1,
+        title: '📉 스마트 눌림목 지정가 (1주)',
+        price: finalPrice,
+        priceKrw: buyPriceKrw,
+        quantity: 1,
+        orderType: 'LIMIT',
+        desc: supportPrice > 0
+          ? `기술분석가 지지선(${supportPrice.toLocaleString()}원) 체결 예약 (1주)`
+          : `현재가 대비 -${dipPct}% 눌림목(${buyPriceKrw.toLocaleString()}원) 체결 예약 (1주)`
+      });
+    } else if (strategyType === 'MARKET_OPEN') {
+      // 2️⃣ 시초가 우선 체결 예약매수 (무조건 1주)
+      orders.push({
+        subIndex: 1,
+        title: '⚡ 시초가 우선 체결 (1주)',
+        price: rawPrice,
+        priceKrw: krwPrice,
+        quantity: 1,
+        orderType: 'LIMIT',
+        desc: `개장(09:00) 시초가/동시호가 우선 체결 지정가(${krwPrice.toLocaleString()}원) 예약 (1주)`
+      });
+    } else if (strategyType === 'SPLIT_BUY') {
+      // 3️⃣ 2회 분할 예약매수 (각 1주)
+      // 1차: 현재가 수준 1주
+      orders.push({
+        subIndex: 1,
+        title: '🪜 1차 진입 (현재가 1주)',
+        price: rawPrice,
+        priceKrw: krwPrice,
+        quantity: 1,
+        orderType: 'LIMIT',
+        desc: `1차: 현재가 수준(${krwPrice.toLocaleString()}원) 즉시 진입 1주`
+      });
+
+      // 2차: 지지선 또는 -2% 눌림목 1주
+      const split2Krw = supportPrice > 0 ? supportPrice : Math.round(krwPrice * 0.98);
+      const split2Usd = isKrStock ? 0 : parseFloat((usdPrice * 0.98).toFixed(2));
+      orders.push({
+        subIndex: 2,
+        title: '🪜 2차 지지선 눌림목 (1주)',
+        price: isKrStock ? split2Krw : split2Usd,
+        priceKrw: split2Krw,
+        quantity: 1,
+        orderType: 'LIMIT',
+        desc: `2차: 지지선/눌림목 -2%(${split2Krw.toLocaleString()}원) 안전 분할 1주`
+      });
+    } else {
+      throw new Error(`지원하지 않는 예약 전략 유형입니다: ${strategyType}`);
+    }
+
+    return {
+      strategyType,
+      strategyTitle: strategyType === 'SMART_DIP' ? '📉 스마트 눌림목 예약매수 (1주)' : (strategyType === 'MARKET_OPEN' ? '⚡ 시초가 우선 체결 (1주)' : '🪜 2회 분할 예약매수 (각 1주)'),
+      itemCode: debateItem.item_code,
+      stockName: debateItem.stock_name,
+      currency,
+      currentPrice: rawPrice,
+      currentPriceKrw: krwPrice,
+      orders,
+      totalQuantity: orders.reduce((sum, o) => sum + o.quantity, 0),
+      totalBudgetKrw: orders.reduce((sum, o) => sum + (o.priceKrw * o.quantity), 0),
+      exitPlan: {
+        targetProfitPct,
+        stopLossPct,
+        exitStrategyTitle,
+        isStrongThemeStock,
+        matchedThemes: themes.slice(0, 3)
+      }
+    };
+  }
+
+  /**
+   * AI 끝장토론 예약매수 신청 접수 (관리자 전용)
+   */
+  async createDebateReservation({ debateId, itemCode, strategyType, adminUser = 'admin' }) {
+    let debateList = [];
+    if (fs.existsSync(this.debateLogsFile)) {
+      debateList = JSON.parse(fs.readFileSync(this.debateLogsFile, 'utf8'));
+    }
+
+    const debateItem = debateList.find(d => (debateId && d.id === debateId) || (itemCode && d.item_code === itemCode));
+    if (!debateItem) {
+      throw new Error(`해당 종목의 AI 끝장토론 기록을 찾을 수 없습니다. (코드: ${itemCode || debateId})`);
+    }
+
+    const cleanCode = String(debateItem.item_code || '').trim();
+    const liveQuote = await tossClient.getQuote(cleanCode);
+    const fxRate = await tossClient.fetchUsdkrwRate();
+
+    const plan = this.calculateDebateReservationStrategy(debateItem, strategyType, liveQuote, fxRate);
+
+    const reservations = this.getDebateReservations();
+
+    // 중복 대기 확인 (동일 종목 동일 전략 이미 PENDING 상태인지 확인)
+    const existing = reservations.find(r => r.itemCode === cleanCode && r.strategyType === strategyType && r.status === 'PENDING');
+    if (existing) {
+      throw new Error(`이미 동일 종목에 [${plan.strategyTitle}] 예약매수가 대기 중입니다. (예약 ID: ${existing.id})`);
+    }
+
+    const newReservation = {
+      id: `RES-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+      debateId: debateItem.id || `debate-${cleanCode}`,
+      itemCode: cleanCode,
+      stockName: debateItem.stock_name,
+      market: /^[0-9]{6}$/.test(cleanCode) ? 'KR' : 'US',
+      strategyType: plan.strategyType,
+      strategyTitle: plan.strategyTitle,
+      currency: plan.currency,
+      currentPrice: plan.currentPrice,
+      currentPriceKrw: plan.currentPriceKrw,
+      orders: plan.orders,
+      totalQuantity: plan.totalQuantity,
+      totalBudgetKrw: plan.totalBudgetKrw,
+      exitPlan: plan.exitPlan,
+      status: 'PENDING', // PENDING -> ORDER_SUBMITTED -> FILLED / CANCELLED / EXPIRED
+      orderResults: [],
+      createdBy: adminUser,
+      createdAt: new Date().toISOString(),
+      scheduledTargetSession: /^[0-9]{6}$/.test(cleanCode) ? 'KRX_REGULAR_OPEN' : 'US_REGULAR_OPEN',
+      note: `AI끝장토론 의결 기반 예약매수 (5대 에이전트 공방 분석)`
+    };
+
+    reservations.unshift(newReservation);
+    this.saveDebateReservations(reservations);
+
+    // 텔레그램 알림 전송
+    const orderDescLines = plan.orders.map(o => `• <b>${o.title}:</b> ${o.price.toLocaleString()}원 × ${o.quantity}주 (${o.desc})`).join('\n');
+    telegramBot.sendGeneralMessage(
+      `🎯 <b>[토스증권 AI 끝장토론 예약매수 접수 완료]</b>\n\n` +
+      `• <b>종목명:</b> ${newReservation.stockName} (${newReservation.itemCode})\n` +
+      `• <b>전략 유형:</b> ${newReservation.strategyTitle}\n` +
+      `• <b>현재가:</b> ${newReservation.currentPriceKrw.toLocaleString()}원\n` +
+      `• <b>예약 발주 계획:</b>\n${orderDescLines}\n` +
+      `• <b>총 예약 수량:</b> ${newReservation.totalQuantity}주 (총 ${newReservation.totalBudgetKrw.toLocaleString()}원)\n` +
+      `• <b>체결 후 매도 전략:</b> ${plan.exitPlan.exitStrategyTitle}\n\n` +
+      `⏰ 개장 골든타임(08:00 프리마켓 또는 08:55 동시호가)에 토스증권 API로 자동 발주됩니다.`
+    );
+
+    return {
+      success: true,
+      reservation: newReservation,
+      message: `[${newReservation.stockName}] ${newReservation.strategyTitle} 예약매수가 성공적으로 접수되었습니다. 개장 시 자동 발주됩니다.`
+    };
+  }
+
+  /**
+   * 예약매수 취소 (관리자 전용)
+   */
+  async cancelDebateReservation(reservationId, adminUser = 'admin') {
+    const reservations = this.getDebateReservations();
+    const item = reservations.find(r => r.id === reservationId);
+    if (!item) {
+      throw new Error(`해당 예약 주문을 찾을 수 없습니다. (${reservationId})`);
+    }
+
+    if (item.status === 'FILLED') {
+      throw new Error('이미 전량 체결된 주문은 예약 취소할 수 없습니다.');
+    }
+
+    // 만약 이미 토스증권에 발주 제출된 상태라면 실제 증권사 주문 취소 호출
+    if (item.status === 'ORDER_SUBMITTED' && Array.isArray(item.orderResults)) {
+      for (const ord of item.orderResults) {
+        if (ord.orderId) {
+          try {
+            await tossClient.cancelOrder(ord.orderId);
+            console.log(`[DebateReservation] Cancelled Toss order ${ord.orderId} for reservation ${reservationId}`);
+          } catch (e) {
+            console.warn(`[DebateReservation] Toss order cancel warning:`, e.message);
+          }
+        }
+      }
+    }
+
+    item.status = 'CANCELLED';
+    item.cancelledAt = new Date().toISOString();
+    item.cancelledBy = adminUser;
+
+    this.saveDebateReservations(reservations);
+
+    telegramBot.sendGeneralMessage(
+      `🗑️ <b>[토스증권 AI 예약매수 취소 완료]</b>\n\n` +
+      `• <b>종목명:</b> ${item.stockName} (${item.itemCode})\n` +
+      `• <b>전략:</b> ${item.strategyTitle}\n` +
+      `• <b>예약 ID:</b> <code>${item.id}</code>`
+    );
+
+    return {
+      success: true,
+      message: `[${item.stockName}] 예약매수가 성공적으로 취소되었습니다.`
+    };
+  }
+
+  /**
+   * 개장 골든타임 시 예약 큐에서 대기 중인 주문 자동 발주
+   */
+  async processScheduledReservations() {
+    const reservations = this.getDebateReservations();
+    const pendingList = reservations.filter(r => r.status === 'PENDING');
+    if (pendingList.length === 0) return;
+
+    const now = new Date();
+    const kst = tossClient.getKstDate(now);
+    const day = kst.getDay();
+    if (day === 0 || day === 6) return; // 주말
+
+    const h = kst.getHours();
+    const m = kst.getMinutes();
+    const totalMinutes = h * 60 + m;
+
+    // 국장 발주 허용 시간: 08:00~08:50 (NXT 프리마켓) 또는 08:50~15:20 (KRX 개장/정규장)
+    const isKrOrderWindow = (totalMinutes >= 480 && totalMinutes <= 920);
+
+    for (const res of pendingList) {
+      if (res.market === 'KR' && isKrOrderWindow) {
+        console.log(`[DebateReservation] 🚀 예약 주문 자동 발주 시작: ${res.stockName} (${res.itemCode}) - ${res.strategyTitle}`);
+        const orderResults = [];
+
+        for (const ord of res.orders) {
+          try {
+            const submitRes = await tossClient.submitOrder({
+              symbol: res.itemCode,
+              side: 'BUY',
+              orderType: ord.orderType || 'LIMIT',
+              quantity: ord.quantity || 1,
+              price: ord.price || ord.priceKrw,
+              clientOrderId: `RES-${res.id.slice(-6)}-${ord.subIndex}`
+            });
+
+            orderResults.push({
+              subIndex: ord.subIndex,
+              title: ord.title,
+              orderId: submitRes.orderId,
+              clientOrderId: submitRes.clientOrderId,
+              submittedPrice: ord.price,
+              quantity: ord.quantity,
+              submittedAt: new Date().toISOString(),
+              isSuccess: true
+            });
+          } catch (ordErr) {
+            console.error(`[DebateReservation] Order submit failed for ${res.stockName}:`, ordErr.message);
+            orderResults.push({
+              subIndex: ord.subIndex,
+              title: ord.title,
+              error: ordErr.message,
+              isSuccess: false
+            });
+          }
+        }
+
+        const anySuccess = orderResults.some(o => o.isSuccess);
+        if (anySuccess) {
+          res.status = 'ORDER_SUBMITTED';
+          res.orderResults = orderResults;
+          res.submittedAt = new Date().toISOString();
+
+          telegramBot.sendGeneralMessage(
+            `🚀 <b>[토스증권 예약매수 자동 발주 완료]</b>\n\n` +
+            `• <b>종목명:</b> ${res.stockName} (${res.itemCode})\n` +
+            `• <b>전략:</b> ${res.strategyTitle}\n` +
+            `• <b>발주 주문 번호:</b> ${orderResults.filter(o => o.orderId).map(o => o.orderId).join(', ')}\n` +
+            `• <b>체결 감시:</b> 체결 완료 시 자동 익절/손절 매매일지로 인계됩니다.`
+          );
+        }
+      }
+    }
+
+    this.saveDebateReservations(reservations);
+  }
+
+  /**
+   * 발주 완료된 예약 주문 체결 감시 및 포지션 자동 인계
+   */
+  async checkReservationExecutions() {
+    const reservations = this.getDebateReservations();
+    const submittedList = reservations.filter(r => r.status === 'ORDER_SUBMITTED');
+    if (submittedList.length === 0) return;
+
+    for (const res of submittedList) {
+      let isFilled = false;
+      let filledPrice = 0;
+      let filledQty = 0;
+
+      for (const ord of res.orderResults) {
+        if (!ord.orderId) continue;
+        try {
+          const detail = await tossClient.getOrderDetail(ord.orderId);
+          if (detail && (detail.status === 'FILLED' || detail.executedQuantity > 0)) {
+            isFilled = true;
+            filledQty += (detail.executedQuantity || ord.quantity || 1);
+            filledPrice = detail.averageExecutionPrice || ord.submittedPrice;
+            ord.status = 'FILLED';
+            ord.filledPrice = filledPrice;
+          }
+        } catch (e) {
+          // 조회 실패 시 건너뜀
+        }
+      }
+
+      if (isFilled) {
+        res.status = 'FILLED';
+        res.filledAt = new Date().toISOString();
+        res.finalFilledPrice = filledPrice;
+        res.finalFilledQty = filledQty;
+
+        console.log(`[DebateReservation] 🎉 예약매수 전량 체결 확인: ${res.stockName} (${filledQty}주 @ ${filledPrice}원)`);
+
+        // 🌟 [독립 분리 모드] 집중운용포지션과 분리하여 '예약 운용 포지션(멀티 종목)'으로 독립 등록
+        try {
+          const journal = this.getJournalData();
+          if (!Array.isArray(journal.reservationPositions)) journal.reservationPositions = [];
+
+          // 기존 currentPosition에 잘못 들어가 있던 파수AI 등 예약 포지션 자동 마이그레이션
+          if (journal.currentPosition && journal.currentPosition.strategyNote && journal.currentPosition.strategyNote.includes('AI끝장토론')) {
+            const oldPos = journal.currentPosition;
+            if (!journal.reservationPositions.some(p => p.stockCode === oldPos.stockCode)) {
+              journal.reservationPositions.push({
+                id: `RESPOS-${Date.now()}-${oldPos.stockCode}`,
+                reservationId: res.id,
+                stockCode: oldPos.stockCode,
+                stockName: oldPos.stockName,
+                market: oldPos.market,
+                currency: oldPos.currency,
+                quantity: oldPos.quantity || 1,
+                entryPrice: oldPos.entryPrice,
+                entryPriceKrw: oldPos.entryPriceKrw,
+                currentPrice: oldPos.currentPrice || oldPos.entryPrice,
+                currentPriceKrw: oldPos.currentPriceKrw || oldPos.entryPriceKrw,
+                targetPrice: oldPos.targetPrice,
+                stopLossPrice: oldPos.stopLossPrice,
+                unrealizedPnl: oldPos.unrealizedPnl || 0,
+                unrealizedPnlKrw: oldPos.unrealizedPnlKrw || 0,
+                returnPct: oldPos.returnPct || 0,
+                status: 'HOLDING',
+                orderId: oldPos.orderId,
+                enteredAt: oldPos.enteredAt || new Date().toISOString(),
+                targetProfitPct: oldPos.targetProfitPct || 3.0,
+                stopLossPct: oldPos.stopLossPct || -2.0,
+                strategyTitle: res.strategyTitle,
+                exitStrategyTitle: oldPos.strategyNote || '적응형 매도'
+              });
+            }
+            journal.currentPosition = null; // 집중운용포지션 초기화 (순수 자동매매 전용 복원)
+          }
+
+          const isKr = res.market === 'KR';
+          const fx = await tossClient.fetchUsdkrwRate();
+          const exitPlan = res.exitPlan || {};
+
+          const targetPrice = isKr
+            ? Math.round(filledPrice * (1 + (exitPlan.targetProfitPct || 3.0) / 100))
+            : parseFloat((filledPrice * (1 + (exitPlan.targetProfitPct || 3.0) / 100)).toFixed(2));
+          const stopLossPrice = isKr
+            ? Math.round(filledPrice * (1 + (exitPlan.stopLossPct || -2.0) / 100))
+            : parseFloat((filledPrice * (1 + (exitPlan.stopLossPct || -2.0) / 100)).toFixed(2));
+
+          const existingPos = journal.reservationPositions.find(p => p.stockCode === res.itemCode);
+          if (!existingPos) {
+            journal.reservationPositions.push({
+              id: `RESPOS-${Date.now()}-${res.itemCode}`,
+              reservationId: res.id,
+              stockCode: res.itemCode,
+              stockName: res.stockName,
+              market: res.market,
+              currency: res.currency,
+              quantity: filledQty,
+              entryPrice: filledPrice,
+              entryPriceKrw: isKr ? filledPrice : Math.round(filledPrice * fx),
+              currentPrice: filledPrice,
+              currentPriceKrw: isKr ? filledPrice : Math.round(filledPrice * fx),
+              targetPrice: targetPrice,
+              stopLossPrice: stopLossPrice,
+              unrealizedPnl: 0,
+              unrealizedPnlKrw: 0,
+              returnPct: 0,
+              status: 'HOLDING',
+              orderId: res.orderResults[0]?.orderId || `ORD-${Date.now()}`,
+              enteredAt: new Date().toISOString(),
+              targetProfitPct: exitPlan.targetProfitPct || 3.0,
+              stopLossPct: exitPlan.stopLossPct || -2.0,
+              strategyTitle: res.strategyTitle,
+              exitStrategyTitle: exitPlan.exitStrategyTitle || '적응형 매도',
+              strategyNote: `AI끝장토론 [${res.strategyTitle}] 체결 포지션`
+            });
+          }
+
+          this.saveJournalData(journal);
+
+          telegramBot.sendGeneralMessage(
+            `🎉 <b>[토스증권 AI 끝장토론 예약 포지션 독립 등록 완료]</b>\n\n` +
+            `• <b>종목명:</b> ${res.stockName} (${res.itemCode})\n` +
+            `• <b>체결단가:</b> ${filledPrice.toLocaleString()}원 × ${filledQty}주\n` +
+            `• <b>목표가 (익절):</b> ${targetPrice.toLocaleString()}원 (+${exitPlan.targetProfitPct || 3.0}%)\n` +
+            `• <b>손절선 (손절):</b> ${stopLossPrice.toLocaleString()}원 (${exitPlan.stopLossPct || -2.0}%)\n` +
+            `• <b>매도 전략:</b> ${exitPlan.exitStrategyTitle}\n\n` +
+            `매매일지의 독립 예약 포지션 섹션에서 실시간 손익과 익절/손절이 자동 감시됩니다.`
+          );
+        } catch (jErr) {
+          console.error('[DebateReservation] Error transferring to reservation position:', jErr.message);
+        }
+      }
+    }
+
+    this.saveDebateReservations(reservations);
+  }
+
+  /**
+   * 🌟 AI 끝장토론 예약 운용 포지션(멀티 종목) 실시간 시세 추적 및 자동 익절/손절 매도 감시
+   */
+  async monitorReservationPositions() {
+    const journal = this.getJournalData();
+    if (!Array.isArray(journal.reservationPositions) || journal.reservationPositions.length === 0) {
+      return;
+    }
+
+    // 🌟 [핵심 안전장치] 토스증권 실제 계좌 잔고 우선 대조
+    let activeHoldingsMap = new Map();
+    let holdingsChecked = false;
+    try {
+      const holdingsRes = await tossClient.getHoldings();
+      if (holdingsRes && holdingsRes.success && holdingsRes.data && Array.isArray(holdingsRes.data.items)) {
+        holdingsChecked = true;
+        for (const item of holdingsRes.data.items) {
+          const qty = Number(item.quantity) || 0;
+          if (qty > 0 && item.symbol) {
+            activeHoldingsMap.set(String(item.symbol).trim(), item);
+          }
+        }
+      }
+    } catch (hErr) {
+      console.warn('[DebateReservation] Failed to fetch live holdings for verification:', hErr.message);
+    }
+
+    const fxRate = await tossClient.fetchUsdkrwRate();
+    const remainingPositions = [];
+    const reservations = this.getDebateReservations();
+    let reservationsUpdated = false;
+
+    for (const pos of journal.reservationPositions) {
+      if (pos.status !== 'HOLDING') continue;
+
+      // 🌟 [실계좌 실측 검증] 실제 토스 계좌에 해당 주식이 더 이상 존재하지 않는 경우 -> 이미 매도 완료됨
+      if (holdingsChecked && !activeHoldingsMap.has(String(pos.stockCode).trim())) {
+        console.log(`[DebateReservation] 종목 ${pos.stockName}(${pos.stockCode}) 실계좌 잔고 0 감지 -> 감시 종료 및 예약 청산 완료 처리`);
+        const targetRes = reservations.find(r => r.id === pos.reservationId || r.itemCode === pos.stockCode);
+        if (targetRes && targetRes.status !== 'CLOSED') {
+          targetRes.status = 'CLOSED';
+          targetRes.closedAt = new Date().toISOString();
+          targetRes.exitReason = '토스증권 실계좌 매도 완료 감지';
+          reservationsUpdated = true;
+        }
+        continue; // remainingPositions에 추가하지 않고 즉시 청산 종료 (반복 발주/알림 스팸 원천 차단)
+      }
+
+      try {
+        const quote = await tossClient.getQuote(pos.stockCode);
+        if (quote && quote.lastPrice > 0) {
+          const livePrice = quote.lastPrice;
+          pos.currentPrice = livePrice;
+          const isKr = pos.market === 'KR';
+          pos.currentPriceKrw = isKr ? livePrice : Math.round(livePrice * fxRate);
+
+          const pnlPerShare = livePrice - pos.entryPrice;
+          const returnPct = parseFloat(((pnlPerShare / pos.entryPrice) * 100).toFixed(2));
+          pos.returnPct = returnPct;
+          pos.unrealizedPnl = parseFloat((pnlPerShare * pos.quantity).toFixed(2));
+          pos.unrealizedPnlKrw = isKr ? Math.round(pos.unrealizedPnl) : Math.round(pos.unrealizedPnl * fxRate);
+
+          // 1. 목표가 도달 익절 매도 판정
+          const isTargetReached = (livePrice >= pos.targetPrice);
+          // 2. 손절선 도달 손절 매도 판정
+          const isStopLossReached = (livePrice <= pos.stopLossPrice);
+
+          if (isTargetReached || isStopLossReached) {
+            const isProfit = isTargetReached;
+            const reasonCode = isProfit ? 'TAKE_PROFIT' : 'STOP_LOSS';
+            const reasonTitle = isProfit
+              ? `🎯 AI 끝장토론 예약매매 목표가(+${pos.targetProfitPct}%) 익절 청산`
+              : `⛔ AI 끝장토론 예약매매 손절선(${pos.stopLossPct}%) 손절 청산`;
+
+            console.log(`[DebateReservation] ${reasonTitle}: ${pos.stockName} (${returnPct}%, 현재가 ${livePrice}원)`);
+
+            let sellOrderId = null;
+            try {
+              const sellRes = await tossClient.submitOrder({
+                symbol: pos.stockCode,
+                side: 'SELL',
+                orderType: 'MARKET',
+                quantity: pos.quantity,
+                clientOrderId: `EX-${pos.stockCode}-${Date.now().toString().slice(-6)}`
+              });
+              sellOrderId = sellRes?.orderId || null;
+            } catch (sellErr) {
+              console.error(`[DebateReservation] Exit order failed for ${pos.stockName}:`, sellErr.message);
+            }
+
+            // debateReservations.json 상태를 CLOSED로 영구 갱신하여 부활 방지
+            const targetRes = reservations.find(r => r.id === pos.reservationId || r.itemCode === pos.stockCode);
+            if (targetRes) {
+              targetRes.status = 'CLOSED';
+              targetRes.closedAt = new Date().toISOString();
+              targetRes.exitPrice = livePrice;
+              targetRes.exitReason = reasonTitle;
+              targetRes.realizedPnlKrw = parseFloat(((livePrice - pos.entryPrice) * pos.quantity).toFixed(2));
+              targetRes.returnPct = returnPct;
+              reservationsUpdated = true;
+            }
+
+            // 매매일지 history에 청산 이력 1회만 영구 기록
+            const investedAmount = isKr ? (pos.entryPrice * pos.quantity) : (pos.entryPriceKrw * pos.quantity);
+            const proceedsAmount = isKr ? (livePrice * pos.quantity) : (pos.currentPriceKrw * pos.quantity);
+            const realizedPnl = parseFloat((proceedsAmount - investedAmount).toFixed(2));
+
+            if (!Array.isArray(journal.history)) journal.history = [];
+            const alreadyLogged = journal.history.some(h => h.itemCode === pos.stockCode && h.strategyType === 'DEBATE_RESERVATION');
+            if (!alreadyLogged) {
+              const journalItem = {
+                id: `DEBATE-EXIT-${Date.now()}-${pos.stockCode}`,
+                strategyType: 'DEBATE_RESERVATION',
+                stockName: pos.stockName,
+                itemCode: pos.stockCode,
+                market: pos.market,
+                currency: pos.currency,
+                entryFxRate: fxRate,
+                exitFxRate: fxRate,
+                totalQuantity: pos.quantity,
+                averagePrice: pos.entryPrice,
+                exitPrice: livePrice,
+                investedAmount: investedAmount,
+                proceedsAmount: proceedsAmount,
+                realizedPnl: realizedPnl,
+                realizedPnlKrw: realizedPnl,
+                returnPct: returnPct,
+                reasonCode: reasonCode,
+                reasonTitle: reasonTitle,
+                orderId: pos.orderId,
+                sellOrderId: sellOrderId || null,
+                startedAt: pos.enteredAt,
+                closedAt: new Date().toISOString(),
+                note: `AI 끝장토론 [${pos.strategyTitle || '예약매수'}] 자동 청산 (${pos.exitStrategyTitle || '적응형 매도'})`
+              };
+              journal.history.unshift(journalItem);
+            }
+
+            // 실제 매도 발주에 성공했을 때만 텔레그램 알림 1회 발송
+            if (sellOrderId) {
+              telegramBot.sendGeneralMessage(
+                `${isProfit ? '🎯' : '⛔'} <b>[토스증권 AI 끝장토론 예약 포지션 자동 청산]</b>\n\n` +
+                `• <b>종목명:</b> ${pos.stockName} (${pos.stockCode})\n` +
+                `• <b>청산 사유:</b> ${reasonTitle}\n` +
+                `• <b>매수가:</b> ${pos.entryPrice.toLocaleString()}원 ➔ <b>매도가:</b> ${livePrice.toLocaleString()}원\n` +
+                `• <b>수익률:</b> <b>${returnPct > 0 ? '+' : ''}${returnPct}%</b> (${realizedPnl.toLocaleString()}원)\n` +
+                `• <b>보유 수량:</b> ${pos.quantity}주 전량 매도 완료`
+              );
+            }
+
+            continue; // 청산 완료되었으므로 remainingPositions에 추가하지 않음
+          }
+        }
+      } catch (err) {
+        console.warn(`[DebateReservation] Quote/monitoring error for ${pos.stockName}:`, err.message);
+      }
+
+      remainingPositions.push(pos);
+    }
+
+    if (reservationsUpdated) {
+      this.saveDebateReservations(reservations);
+    }
+
+    journal.reservationPositions = remainingPositions;
+    this.saveJournalData(journal);
   }
 }
 

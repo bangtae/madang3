@@ -2169,6 +2169,7 @@ app.get('/api/trading/journal', async (req, res) => {
       currentMonth: journal.currentMonth || stockAutoTrader.getCurrentMonthKey(),
       monthlyArchives: journal.monthlyArchives || {},
       currentPosition: journal.currentPosition,
+      reservationPositions: journal.reservationPositions || [],
       customStrategies: journal.customStrategies || [],
       history: journal.history || [],
       stats: journal.stats || {},
@@ -2184,6 +2185,7 @@ app.get('/api/trading/journal', async (req, res) => {
       currentMonth: journal.currentMonth || stockAutoTrader.getCurrentMonthKey(),
       monthlyArchives: journal.monthlyArchives || {},
       currentPosition: journal.currentPosition,
+      reservationPositions: journal.reservationPositions || [],
       customStrategies: journal.customStrategies || [],
       history: journal.history || [],
       stats: journal.stats || {},
@@ -2451,6 +2453,51 @@ app.get('/api/trading/market-sessions', (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// AI 끝장토론 토스증권 예약매수 3대 전략 REST API (관리자 전용)
+// ==========================================
+// 1. 예약매수 큐 목록 조회
+app.get('/api/debate/reservations', (req, res) => {
+  try {
+    const list = stockAutoTrader.getDebateReservations();
+    res.json({ success: true, count: list.length, reservations: list });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. 예약매수 신청 접수 (관리자 전용)
+app.post('/api/debate/reserve-buy', async (req, res) => {
+  try {
+    const { debateId, itemCode, strategyType } = req.body || {};
+    const adminUser = req.headers['x-admin-user'] || 'admin';
+    if (!strategyType || (!debateId && !itemCode)) {
+      return res.status(400).json({ success: false, error: '필수 파라미터(전략유형, 종목정보)가 누락되었습니다.' });
+    }
+    const result = await stockAutoTrader.createDebateReservation({
+      debateId,
+      itemCode,
+      strategyType,
+      adminUser
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// 3. 예약매수 취소 (관리자 전용)
+app.delete('/api/debate/reservations/:id', async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const adminUser = req.headers['x-admin-user'] || 'admin';
+    const result = await stockAutoTrader.cancelDebateReservation(reservationId, adminUser);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 

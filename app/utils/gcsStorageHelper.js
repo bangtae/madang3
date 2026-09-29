@@ -436,6 +436,77 @@ const GcsStorageHelper = {
       console.error('[GCS] saveCouncilReportsToGcs error:', err.message);
       return false;
     }
+  },
+
+  /**
+   * AI 끝장토론 토스 예약매수 큐 (debateReservations.json) GCS 영구 동기화
+   */
+  async syncDebateReservationsFromGcs(localFilePath) {
+    if (!this.isAvailable()) return null;
+    const gcsFile = 'debateReservations.json';
+    try {
+      const file = bucket.file(gcsFile);
+      const [exists] = await file.exists();
+
+      let localData = [];
+      if (fs.existsSync(localFilePath)) {
+        try {
+          const parsed = JSON.parse(fs.readFileSync(localFilePath, 'utf8'));
+          if (Array.isArray(parsed)) localData = parsed;
+        } catch (e) {}
+      }
+
+      if (exists) {
+        const [contents] = await file.download();
+        const parsed = JSON.parse(contents.toString('utf8'));
+        const gcsData = Array.isArray(parsed) ? parsed : [];
+
+        const idMap = new Map();
+        localData.forEach(item => { if (item.id) idMap.set(item.id, item); });
+        gcsData.forEach(item => { if (item.id && !idMap.has(item.id)) idMap.set(item.id, item); });
+
+        const merged = Array.from(idMap.values());
+        merged.sort((a, b) => {
+          const tA = a.created_at || a.timestamp || '';
+          const tB = b.created_at || b.timestamp || '';
+          return tB.localeCompare(tA);
+        });
+
+        fs.writeFileSync(localFilePath, JSON.stringify(merged, null, 2), 'utf8');
+        console.log(`[GCS] Successfully synced debateReservations.json from GCS (${merged.length} reservations)`);
+        if (merged.length > gcsData.length) {
+          await this.saveDebateReservationsToGcs(merged);
+        }
+        return merged;
+      } else {
+        if (localData && localData.length > 0) {
+          await this.saveDebateReservationsToGcs(localData);
+          console.log('[GCS] Initial debateReservations.json uploaded to GCS.');
+        }
+        return localData;
+      }
+    } catch (err) {
+      console.error('[GCS] syncDebateReservationsFromGcs error:', err.message);
+    }
+    return null;
+  },
+
+  async saveDebateReservationsToGcs(data) {
+    if (!this.isAvailable() || !data) return false;
+    try {
+      const file = bucket.file('debateReservations.json');
+      const jsonStr = JSON.stringify(data, null, 2);
+      await file.save(Buffer.from(jsonStr, 'utf8'), {
+        contentType: 'application/json',
+        resumable: false,
+        metadata: { cacheControl: 'no-cache, max-age=0' }
+      });
+      console.log(`[GCS] Saved debateReservations.json to gs://${BUCKET_NAME}/debateReservations.json`);
+      return true;
+    } catch (err) {
+      console.error('[GCS] saveDebateReservationsToGcs error:', err.message);
+      return false;
+    }
   }
 };
 
