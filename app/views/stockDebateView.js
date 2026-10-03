@@ -26,19 +26,48 @@ window.StockDebateView = {
   },
 
   cachedReservations: [],
+  cachedPositions: [],
   isLoadingReservations: false,
 
   async loadReservations() {
     if (!this.isAdmin()) {
       this.cachedReservations = [];
+      this.cachedPositions = [];
       return [];
     }
     try {
       this.isLoadingReservations = true;
-      const res = await fetch('/api/debate/reservations');
-      if (res.ok) {
-        const data = await res.json();
+      const [resDebate, resJournal] = await Promise.allSettled([
+        fetch('/api/debate/reservations'),
+        fetch('/api/trading/journal')
+      ]);
+      if (resDebate.status === 'fulfilled' && resDebate.value.ok) {
+        const data = await resDebate.value.json();
         this.cachedReservations = Array.isArray(data.reservations) ? data.reservations : [];
+      }
+      if (resJournal.status === 'fulfilled' && resJournal.value.ok) {
+        const jData = await resJournal.value.json();
+        const positions = [];
+        if (jData.currentPosition) positions.push(jData.currentPosition);
+        if (Array.isArray(jData.reservationPositions)) positions.push(...jData.reservationPositions);
+        this.cachedPositions = positions;
+
+        // active reservations에 실시간 현재가 및 체결가 동기화
+        this.cachedReservations.forEach(r => {
+          const matchedPos = positions.find(p => (p.itemCode === r.itemCode || p.stockCode === r.itemCode));
+          if (matchedPos) {
+            r.currentPrice = matchedPos.currentPrice || r.currentPrice;
+            r.finalFilledPrice = matchedPos.entryPrice || matchedPos.averagePrice || r.finalFilledPrice;
+            if (matchedPos.targetPrice) {
+              if (!r.exitPlan) r.exitPlan = {};
+              r.exitPlan.targetPrice = matchedPos.targetPrice;
+            }
+            if (matchedPos.stopLossPrice) {
+              if (!r.exitPlan) r.exitPlan = {};
+              r.exitPlan.stopLossPrice = matchedPos.stopLossPrice;
+            }
+          }
+        });
       }
     } catch (e) {
       console.warn('[StockDebateView] Error loading reservations:', e.message);
@@ -49,190 +78,307 @@ window.StockDebateView = {
   },
 
   renderReservationsPanel() {
+    // 운용 종합 현황 패널은 '관리 > 주식자동매매' 화면으로 이전되었습니다.
+    // AI 끝장 토론실에서는 종목별 토론 카드 내부에 진행 상태만 표시됩니다.
     const panel = document.getElementById('debate-reservations-panel');
-    if (!panel) return;
-    if (!this.isAdmin()) {
+    if (panel) {
       panel.style.display = 'none';
       panel.innerHTML = '';
-      return;
     }
+  },
 
-    const reservations = this.cachedReservations || [];
-    const activeList = reservations.filter(r => r.status === 'PENDING' || r.status === 'ORDER_SUBMITTED' || r.status === 'FILLED');
+  extractDebateStrategy(d) {
+    const rawPrice = parseFloat(String(d.current_price || '0').replace(/[^0-9.]/g, '')) || 0;
+    const isKr = /^[0-9]{6}$/.test(d.item_code);
 
-    if (activeList.length === 0) {
-      panel.style.display = 'block';
-      panel.innerHTML = `
-        <div style="background: rgba(15, 23, 42, 0.65); border: 1px dashed rgba(59, 130, 246, 0.35); border-radius: 12px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 1.2rem;">📋</span>
-            <div>
-              <strong style="color: #93c5fd; font-size: 0.9rem;">[관리자 전용] 토스증권 AI 예약매수 대기 목록 (0건)</strong>
-              <div style="font-size: 0.78rem; color: #94a3b8;">아래 토론 카드에서 3대 전략 버튼을 눌러 개장 전 예약매수를 신청할 수 있습니다. (1, 2번 전략 무조건 1주 단일 매매)</div>
-            </div>
-          </div>
-          <button type="button" id="btn-refresh-reservations" class="btn btn-sm btn-outline-info" style="font-size: 0.78rem; padding: 4px 10px;">
-            🔄 예약 현황 갱신
-          </button>
-        </div>
-      `;
-      const btnRef = document.getElementById('btn-refresh-reservations');
-      if (btnRef) {
-        btnRef.addEventListener('click', () => {
-          this.loadReservations().then(() => this.renderReservationsPanel());
-        });
+    let supportMin = 0;
+    let supportMax = 0;
+    let target1 = 0;
+    let target2 = 0;
+    let stopLoss = 0;
+    let strategyNote = '';
+
+    // 1. turns 텍스트 및 전체 텍스트 수집
+    const allText = [];
+    if (Array.isArray(d.turns)) {
+      d.turns.forEach(t => allText.push(t.message || ''));
+    }
+    if (d.verdict_summary) allText.push(d.verdict_summary);
+    if (d.topic) allText.push(d.topic);
+    const fullContent = allText.join('\n');
+
+    // 2. 1차 매수가 / 지지선 밴드 파싱 (예: "35,000원 ~ 38,000원", "지지선은 120,000원", "눌림목 구간인 122,000원")
+    const mRange = fullContent.match(/(?:1차\s*매수|지지선|눌림목|매수가|진입가)[^0-9]*([0-9,]+)\s*원?\s*~[^\d]*([0-9,]+)\s*원/i);
+    if (mRange) {
+      supportMin = parseInt(mRange[1].replace(/,/g, ''), 10);
+      supportMax = parseInt(mRange[2].replace(/,/g, ''), 10);
+    } else {
+      const mSingle = fullContent.match(/(?:1차\s*매수|단기\s*지지선|눌림목\s*구간인?|지지선|매수\s*타점)[^0-9]*([0-9,]+)\s*원/i);
+      if (mSingle) {
+        supportMin = parseInt(mSingle[1].replace(/,/g, ''), 10);
+        supportMax = supportMin;
       }
-      return;
     }
 
-    panel.style.display = 'block';
-    let cardsHtml = activeList.map(r => {
-      const isKr = r.market === 'KR';
-      let statusBadge = '';
-      if (r.status === 'PENDING') {
-        statusBadge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">⏳ 개장 대기 중 (08:00/08:55 발주)</span>';
-      } else if (r.status === 'ORDER_SUBMITTED') {
-        statusBadge = '<span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">🚀 토스증권 발주 완료 (체결 대기)</span>';
-      } else if (r.status === 'FILLED') {
-        statusBadge = '<span style="background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">🎉 체결 완료 (실시간 감시중)</span>';
-      } else {
-        statusBadge = `<span style="color: #94a3b8; font-size: 0.72rem;">${r.status}</span>`;
-      }
-
-      const orderLines = (r.orders || []).map(o => `• ${o.title}: ${o.price.toLocaleString()}${isKr ? '원' : '$'} × ${o.quantity}주`).join('<br>');
-      const exitTitle = r.exitPlan?.exitStrategyTitle || '적응형 매도';
-
-      return `
-        <div style="background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap;">
-            <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <strong style="color: #f8fafc; font-size: 1rem;">${r.stockName}</strong>
-                <span style="color: #94a3b8; font-size: 0.8rem;">${r.itemCode}</span>
-                <span style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; padding: 1px 6px; border-radius: 4px; font-size: 0.74rem; font-weight: 600;">${r.strategyTitle}</span>
-              </div>
-              <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 2px;">
-                접수일시: ${r.createdAt ? r.createdAt.replace('T', ' ').substring(0, 19) : '-'} | 총 ${r.totalQuantity}주 (${(r.totalBudgetKrw || 0).toLocaleString()}원)
-              </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              ${statusBadge}
-              <button type="button" class="btn-cancel-reservation" data-id="${r.id}" data-name="${r.stockName}" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 3px 8px; font-size: 0.74rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                🗑️ 취소
-              </button>
-            </div>
-          </div>
-          <div style="font-size: 0.78rem; color: #cbd5e1; background: rgba(15, 23, 42, 0.5); padding: 6px 10px; border-radius: 6px; line-height: 1.4;">
-            ${orderLines}
-          </div>
-          <div style="font-size: 0.74rem; color: #38bdf8;">
-            🎯 <strong>체결 후 매도 전략:</strong> ${exitTitle}
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    panel.innerHTML = `
-      <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 14px; padding: 16px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 1.25rem;">📋</span>
-            <h3 style="color: #60a5fa; margin: 0; font-size: 1.05rem; font-weight: 700;">
-              [관리자 전용] 나의 AI 끝장토론 예약매수 대기 목록 (${activeList.length}건)
-            </h3>
-            <span style="background: rgba(34, 197, 94, 0.2); color: #4ade80; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 600;">개장 시점 자동 발주</span>
-          </div>
-          <button type="button" id="btn-refresh-reservations" class="btn btn-sm btn-outline-info" style="font-size: 0.78rem; padding: 4px 10px;">
-            🔄 실시간 갱신
-          </button>
-        </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px;">
-          ${cardsHtml}
-        </div>
-      </div>
-    `;
-
-    const btnRef = document.getElementById('btn-refresh-reservations');
-    if (btnRef) {
-      btnRef.addEventListener('click', () => {
-        this.loadReservations().then(() => this.renderReservationsPanel());
-      });
+    // 3. 목표 청산가 파싱 (예: "1차: 42,000원 / 2차: 45,000원", "저항선은 135,000원")
+    const mTarget = fullContent.match(/(?:목표\s*청산가|목표가|저항선)[^0-9]*(?:1차\s*[:：]?\s*)?([0-9,]+)\s*원?(?:[^\d]*(?:2차\s*[:：]?\s*)?([0-9,]+)\s*원)?/i);
+    if (mTarget) {
+      target1 = parseInt(mTarget[1].replace(/,/g, ''), 10);
+      if (mTarget[2]) target2 = parseInt(mTarget[2].replace(/,/g, ''), 10);
     }
+
+    // 4. 손절가 파싱 (예: "종가 기준 35,000원 이탈 시", "손절가 29,850원", "손절가는 추세 이탈 기준선인 112,000원")
+    const mStop = fullContent.match(/(?:최종\s*손절가|손절가|손절선|이탈\s*기준선인?)[^0-9]*([0-9,]+)\s*원/i);
+    if (mStop) {
+      stopLoss = parseInt(mStop[1].replace(/,/g, ''), 10);
+    }
+
+    // 5. 합리적 유효성 검증 및 기본값 보정 (토론에 수치가 없을 때의 안전 스윙 기본값)
+    const baseBuy = (supportMin > 0 && supportMin < rawPrice * 1.05) ? Math.round((supportMin + (supportMax || supportMin)) / 2) : Math.round(rawPrice * 0.97);
+    const finalTarget = (target1 > rawPrice) ? target1 : Math.round(baseBuy * 1.12);
+    const finalStop = (stopLoss > 0 && stopLoss < baseBuy) ? stopLoss : Math.round(baseBuy * 0.94);
+
+    return {
+      rawPrice,
+      isKr,
+      supportMin,
+      supportMax,
+      buyPrice: baseBuy,
+      target1: finalTarget,
+      target2,
+      stopLoss: finalStop,
+      hasParsedStrategy: Boolean(supportMin > 0 || target1 > 0 || stopLoss > 0)
+    };
+  },
+
+  /**
+   * 토론 판정 결과(승리 에이전트, 스코어, 테마 등) 분석 기반 프론트엔드 AI 1픽 최적 전략 판정
+   */
+  determineRecommendedStrategy(d) {
+    const judge = d?.judge_decision || {};
+    const winnerPersona = (judge.winner_persona || '').trim();
+    const winnerScore = parseFloat(judge.winner_total_score || 0);
+    const winnerReason = (judge.winner_reason || '').trim();
+
+    if (winnerPersona.includes('기술') || winnerPersona.includes('technical')) {
+      return {
+        strategyType: 'BREAKOUT_OPEN',
+        badge: '🏆 AI 1픽 · 초단타',
+        agentTitle: '기술적분석가',
+        title: '⚡ 초단타 시초가 돌파 매수',
+        shortTitle: '초단타 시초가 돌파',
+        subtitle: '초단타 개장 돌파 원칙',
+        desc: '09:00 개장 후 시초가 지지 & 양봉 안착 확인 시 즉시 진입 (30분 타임아웃)',
+        color: '#34d399',
+        border: 'rgba(52, 211, 153, 0.6)',
+        bg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(6, 78, 59, 0.45))',
+        reason: winnerReason || '기관/외인 수급 변곡점 및 거래량 실린 5일선 돌파',
+        winnerPersona: '기술적분석가',
+        winnerScore: winnerScore || 130
+      };
+    }
+
+    if (winnerPersona.includes('단가') || winnerPersona.includes('danka') || winnerPersona.includes('차티스트')) {
+      return {
+        strategyType: 'PULLBACK_SUPPORT',
+        badge: '🏆 AI 1픽 · 단타',
+        agentTitle: '단가 에이전트',
+        title: '📉 단타 지지선 반등 매수',
+        shortTitle: '단타 지지선 반등',
+        subtitle: '단타 눌림목 반등 원칙',
+        desc: '지지선 터치 후 1틱 이상 호가 반등 확인 시 진입 (호가 붕괴 시 미체결 회피)',
+        color: '#38bdf8',
+        border: 'rgba(56, 189, 248, 0.6)',
+        bg: 'linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(30, 58, 138, 0.45))',
+        reason: winnerReason || '자금 효율 극대화 및 지지선 안전마진 확보',
+        winnerPersona: '단가/차티스트',
+        winnerScore: winnerScore || 120
+      };
+    }
+
+    return {
+      strategyType: 'SPLIT_ACCUMULATION',
+      badge: '🏆 AI 1픽 · 스윙',
+      agentTitle: winnerPersona || '심의위원회',
+      title: '🪜 스윙 2회 분할 안심 매수',
+      shortTitle: '스윙 2회 분할',
+      subtitle: '스윙 20일선 추세 분할 원칙',
+      desc: '1차 시초가 안착 진입 + 2차 지지선 반등 확인 분할 (계좌 예수금 10% 한도)',
+      color: '#c084fc',
+      border: 'rgba(192, 132, 252, 0.6)',
+      bg: 'linear-gradient(135deg, rgba(147, 51, 234, 0.22), rgba(88, 28, 135, 0.45))',
+      reason: winnerReason || '안전자산 마진 및 변동성 완화 분할 접근',
+      winnerPersona: winnerPersona || '심의위원회',
+      winnerScore: winnerScore || 110
+    };
   },
 
   renderDebateReservationButtons(d) {
     if (!this.isAdmin()) return '';
-    const rawPrice = parseFloat(String(d.current_price || '0').replace(/[^0-9.]/g, '')) || 0;
-    const isKr = /^[0-9]{6}$/.test(d.item_code);
-    const dipPrice = Math.round(rawPrice * 0.985); // -1.5%
-    const split2Price = Math.round(rawPrice * 0.98); // -2.0%
+    const strat = this.extractDebateStrategy(d);
+    const rawPrice = strat.rawPrice;
+    const isKr = strat.isKr;
+    const unit = isKr ? '원' : '$';
 
-    // 10만원 이하 검증 (국장 기준 10만원 초과 종목은 비활성화 또는 안내)
-    const isOver100k = isKr && rawPrice > 100000;
+    // AI 1픽 추천 전략 산출
+    const rec = this.determineRecommendedStrategy(d);
 
-    // 이미 예약 대기 중인 종목인지 확인
-    const isReserved = (this.cachedReservations || []).some(r => r.itemCode === d.item_code && (r.status === 'PENDING' || r.status === 'ORDER_SUBMITTED'));
+    // 예산 한도 검증: 국장은 10만원 초과 시 비활성화, 미장은 소수점 금액 매수($50 등) 지원으로 항상 활성화
+    const isOverBudget = isKr ? rawPrice > 100000 : false;
+    const isUsFractional = !isKr && rawPrice > 100;
+
+    // 이미 예약 대기 또는 체결 보유 중인 종목인지 확인
+    const activeRes = (this.cachedReservations || []).find(r => r.itemCode === d.item_code && (r.status === 'PENDING' || r.status === 'ORDER_SUBMITTED' || r.status === 'FILLED'));
+    const isReserved = Boolean(activeRes);
+
+    // 비동기 실시간 시세 갱신 트리거 (카드 렌더링 후 백그라운드 갱신)
+    setTimeout(() => {
+      this.fetchLivePriceForCard(d.id, d.item_code, unit, isKr);
+    }, 100);
+
+    const budgetBadgeHtml = isKr
+      ? (isOverBudget ? '<span style="color: #f87171; margin-left: 6px; font-weight: 600;">⚠️ 10만원 초과 (매매 불가)</span>' : '<span style="color: #10b981; margin-left: 6px; font-weight: 600;">✅ 10만원 이하 매매 적합</span>')
+      : (isUsFractional ? '<span style="color: #38bdf8; margin-left: 6px; font-weight: 600;">🪙 소수점 금액 매수 가능 (1회 $50 권장)</span>' : '<span style="color: #10b981; margin-left: 6px; font-weight: 600;">✅ $100 이하 1주/소수점 적합</span>');
+
+    let liveStatusHtml = '';
+    if (activeRes) {
+      const buyPrice = activeRes.finalFilledPrice || activeRes.orders?.[0]?.price || 0;
+      const currentPrice = activeRes.currentPrice || rawPrice;
+      const targetPrice = activeRes.exitPlan?.targetPrice || strat.target1;
+      const stopLossPrice = activeRes.exitPlan?.stopLossPrice || strat.stopLoss;
+      const returnPct = buyPrice > 0 ? (((currentPrice - buyPrice)/buyPrice)*100).toFixed(2) : '0.00';
+      const returnColor = Number(returnPct) >= 0 ? '#f87171' : '#60a5fa';
+      const statusTitle = activeRes.status === 'FILLED' ? '🟢 체결 완료 (실시간 감시 중)' : (activeRes.status === 'ORDER_SUBMITTED' ? '🚀 발주 접수 완료' : (activeRes.status === 'FAILED' ? '❌ 발주 실패 (거부됨)' : '⏳ 실시간 조건 감시 대기 중 (시초가 안착/반등 확인 시 자동 발주)'));
+
+      liveStatusHtml = `
+        <div style="margin-bottom: 10px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 10px 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+            <strong style="color: #34d399; font-size: 0.84rem;">${statusTitle}</strong>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 0.74rem; color: #cbd5e1;">${activeRes.strategyTitle}</span>
+              <button type="button" class="btn-goto-trading-admin" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; font-weight: 600; cursor: pointer;" title="관리 > 주식자동매매 화면에서 예약 및 운용 포지션을 관리합니다">
+                📋 전체 운용 관리 &rarr;
+              </button>
+            </div>
+          </div>
+          <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 6px;">💡 지지선 반등 확인 또는 시초가 안착 시에만 조건부 발주되며 30분 내 미충족 시 안전 자동 취소됩니다.</div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; font-size: 0.78rem; text-align: center;">
+            <div style="background: rgba(15, 23, 42, 0.6); padding: 5px; border-radius: 4px;">
+              <span style="color: #94a3b8; font-size: 0.70rem; display: block;">매수가</span>
+              <strong style="color: #f8fafc;">${buyPrice.toLocaleString()}${unit}</strong>
+            </div>
+            <div style="background: rgba(15, 23, 42, 0.6); padding: 5px; border-radius: 4px;">
+              <span style="color: #94a3b8; font-size: 0.70rem; display: block;">현재가</span>
+              <strong id="debate-card-progress-current-${d.id}" style="color: ${returnColor};">${currentPrice.toLocaleString()}${unit} (${Number(returnPct) >= 0 ? '+' : ''}${returnPct}%)</strong>
+            </div>
+            <div style="background: rgba(16, 185, 129, 0.15); padding: 5px; border-radius: 4px;">
+              <span style="color: #34d399; font-size: 0.70rem; display: block;">목표가(+3.5%)</span>
+              <strong style="color: #34d399;">${targetPrice.toLocaleString()}${unit}</strong>
+            </div>
+            <div style="background: rgba(239, 68, 68, 0.15); padding: 5px; border-radius: 4px;">
+              <span style="color: #f87171; font-size: 0.70rem; display: block;">손절가(-5.0%)</span>
+              <strong style="color: #f87171;">${stopLossPrice.toLocaleString()}${unit}</strong>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     return `
       <div class="debate-reservation-card-panel" style="margin-top: 12px; padding: 12px 14px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="font-size: 1rem;">⚡</span>
-            <strong style="color: #60a5fa; font-size: 0.88rem;">[관리자 전용] 토스증권 AI 예약매수 3대 전략</strong>
-            <span style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 600;">개장 시점 자동 발주</span>
-            ${isReserved ? '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">✅ 예약 대기 중</span>' : ''}
+            <strong style="color: #60a5fa; font-size: 0.88rem;">[관리자 전용] 토스증권 AI 맞춤 전략 매매</strong>
+            <span style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 600;">조건부 실시간 감시</span>
+            ${isReserved ? '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">✅ 진행 중인 포지션</span>' : ''}
           </div>
           <div style="font-size: 0.76rem; color: #94a3b8;">
-            현재가: <strong style="color: #f8fafc;">${rawPrice.toLocaleString()}${isKr ? '원' : '$'}</strong>
-            ${isOver100k ? '<span style="color: #f87171; margin-left: 6px; font-weight: 600;">⚠️ 10만원 초과 (매매 불가)</span>' : '<span style="color: #10b981; margin-left: 6px; font-weight: 600;">✅ 10만원 이하 매매 적합</span>'}
+            <span id="debate-card-price-wrap-${d.id}">현재가: <strong id="debate-card-price-val-${d.id}" style="color: #f8fafc;">${rawPrice.toLocaleString()}${unit}</strong></span>
+            <span id="debate-card-budget-badge-${d.id}">${budgetBadgeHtml}</span>
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px;">
-          <!-- 1번 버튼: 스마트 눌림목 (1주) -->
-          <button type="button" class="btn-debate-reserve" data-id="${d.id}" data-code="${d.item_code}" data-name="${d.stock_name}" data-strategy="SMART_DIP" ${isOver100k ? 'disabled style="opacity: 0.45; cursor: not-allowed; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; padding: 8px 12px; border-radius: 8px; text-align: left;"' : 'style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.25), rgba(30, 58, 138, 0.4)); border: 1px solid rgba(96, 165, 250, 0.5); color: #e0f2fe; padding: 8px 12px; border-radius: 8px; text-align: left; cursor: pointer; transition: all 0.2s;"'}>
-            <div style="font-weight: 700; font-size: 0.84rem; color: #38bdf8; display: flex; justify-content: space-between;">
-              <span>📉 스마트 눌림목</span>
-              <span style="color: #fbbf24; font-size: 0.75rem;">1주 단일</span>
-            </div>
-            <div style="font-size: 0.78rem; margin-top: 3px; color: #cbd5e1;">
-              예약가: <strong>${dipPrice.toLocaleString()}${isKr ? '원' : '$'}</strong> (-1.5%)
-            </div>
-            <div style="font-size: 0.70rem; color: #94a3b8; margin-top: 2px;">
-              기술분석/단가 지지선 안전 매수
-            </div>
-          </button>
+        ${liveStatusHtml}
 
-          <!-- 2번 버튼: 시초가 우선 체결 (1주) -->
-          <button type="button" class="btn-debate-reserve" data-id="${d.id}" data-code="${d.item_code}" data-name="${d.stock_name}" data-strategy="MARKET_OPEN" ${isOver100k ? 'disabled style="opacity: 0.45; cursor: not-allowed; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; padding: 8px 12px; border-radius: 8px; text-align: left;"' : 'style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 78, 59, 0.4)); border: 1px solid rgba(52, 211, 153, 0.5); color: #ecfdf5; padding: 8px 12px; border-radius: 8px; text-align: left; cursor: pointer; transition: all 0.2s;"'}>
-            <div style="font-weight: 700; font-size: 0.84rem; color: #34d399; display: flex; justify-content: space-between;">
-              <span>⚡ 시초가 우선 체결</span>
-              <span style="color: #fbbf24; font-size: 0.75rem;">1주 단일</span>
+        <!-- 🌟 AI 추천 1픽 전략 단일 카드 (대가 원칙 기반) -->
+        <div class="debate-recommendation-card" style="background: ${rec.bg}; border: 1.5px solid ${rec.border}; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="background: ${rec.color}; color: #0f172a; font-size: 0.72rem; font-weight: 800; padding: 2px 7px; border-radius: 4px;">${rec.badge}</span>
+              <strong style="color: ${rec.color}; font-size: 0.95rem;">${rec.title}</strong>
             </div>
-            <div style="font-size: 0.78rem; margin-top: 3px; color: #cbd5e1;">
-              예약가: <strong>${rawPrice.toLocaleString()}${isKr ? '원' : '$'}</strong> (시초가 우선)
+            <div style="font-size: 0.75rem; color: #cbd5e1;">
+              의결 주도: <b style="color: #fbbf24;">${rec.agentTitle} (${rec.winnerScore}점)</b>
             </div>
-            <div style="font-size: 0.70rem; color: #94a3b8; margin-top: 2px;">
-              09:00 개장 즉시 최우선 체결 노림
-            </div>
-          </button>
+          </div>
 
-          <!-- 3번 버튼: 2회 분할 예약 (각 1주) -->
-          <button type="button" class="btn-debate-reserve" data-id="${d.id}" data-code="${d.item_code}" data-name="${d.stock_name}" data-strategy="SPLIT_BUY" ${isOver100k ? 'disabled style="opacity: 0.45; cursor: not-allowed; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; padding: 8px 12px; border-radius: 8px; text-align: left;"' : 'style="background: linear-gradient(135deg, rgba(147, 51, 234, 0.25), rgba(88, 28, 135, 0.4)); border: 1px solid rgba(192, 132, 252, 0.5); color: #faf5ff; padding: 8px 12px; border-radius: 8px; text-align: left; cursor: pointer; transition: all 0.2s;"'}>
-            <div style="font-weight: 700; font-size: 0.84rem; color: #c084fc; display: flex; justify-content: space-between;">
-              <span>🪜 2회 분할 예약</span>
-              <span style="color: #fbbf24; font-size: 0.75rem;">총 2주 분할</span>
+          <div style="font-size: 0.78rem; color: #e2e8f0; line-height: 1.4; margin-bottom: 8px;">
+            • <b>선정 근거:</b> ${rec.reason}<br>
+            • <b>진입 규칙:</b> ${rec.desc}
+          </div>
+
+          <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; font-size: 0.72rem;">
+            <span style="background: rgba(16, 185, 129, 0.25); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); padding: 3px 7px; border-radius: 4px; font-weight: 600;">🎯 1차 익절 +3.5% (50% 매도)</span>
+            <span style="background: rgba(59, 130, 246, 0.25); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); padding: 3px 7px; border-radius: 4px; font-weight: 600;">🛡️ 본전(매수가) 스탑 상향</span>
+            <span style="background: rgba(245, 158, 11, 0.25); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4); padding: 3px 7px; border-radius: 4px; font-weight: 600;">⚡ 트레일링 -2.5%</span>
+            <span style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); padding: 3px 7px; border-radius: 4px; font-weight: 600;">⛔ 하드 손절 -5.0%</span>
+            <span style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); padding: 3px 7px; border-radius: 4px;">⏱️ 30분 타임아웃</span>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn-debate-reserve" data-id="${d.id}" data-code="${d.item_code}" data-name="${d.stock_name}" data-strategy="${rec.strategyType}" ${isOverBudget ? 'disabled style="opacity: 0.45; cursor: not-allowed; background: rgba(30, 41, 59, 0.7); color: #94a3b8; padding: 9px 16px; border-radius: 8px; font-weight: 700; border: none;"' : `style="flex: 1; min-width: 220px; padding: 10px 16px; background: linear-gradient(135deg, ${rec.color === '#34d399' ? '#059669, #10b981' : (rec.color === '#38bdf8' ? '#2563eb, #38bdf8' : '#7c3aed, #c084fc')}); color: #fff; font-weight: 800; font-size: 0.88rem; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; gap: 6px;"`}>
+              <span>🚀</span>
+              <span>${rec.title} 1-Click 예약 발주</span>
+              <span style="background: rgba(0,0,0,0.25); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${isUsFractional ? '소수점 $50' : '1주 맞춤'}</span>
+            </button>
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 0.74rem; color: #94a3b8;">전략 변경:</span>
+              <select class="sel-strategy-override" data-id="${d.id}" data-code="${d.item_code}" data-name="${d.stock_name}" style="background: #1e293b; color: #f8fafc; border: 1px solid #475569; border-radius: 6px; padding: 8px 10px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                <option value="${rec.strategyType}">🏆 [AI 1픽] ${rec.shortTitle || rec.title}</option>
+                <option value="BREAKOUT_OPEN">⚡ 초단타 시초가 돌파</option>
+                <option value="PULLBACK_SUPPORT">📉 단타 지지선 반등</option>
+                <option value="SPLIT_ACCUMULATION">🪜 스윙 2회 분할</option>
+              </select>
             </div>
-            <div style="font-size: 0.78rem; margin-top: 3px; color: #cbd5e1;">
-              1차 ${rawPrice.toLocaleString()}원 / 2차 ${split2Price.toLocaleString()}원
-            </div>
-            <div style="font-size: 0.70rem; color: #94a3b8; margin-top: 2px;">
-              토론 의결(분할매수) 원칙 준수
-            </div>
-          </button>
+          </div>
         </div>
       </div>
     `;
+  },
+
+  async fetchLivePriceForCard(debateId, itemCode, unit, isKr) {
+    if (!itemCode) return;
+    try {
+      const resp = await fetch(`/api/trading/quote?symbol=${encodeURIComponent(itemCode)}`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.success && data.quote) {
+        const livePrice = Number(data.quote.lastPrice || data.quote.price) || 0;
+        if (livePrice > 0) {
+          const elPriceVal = document.getElementById(`debate-card-price-val-${debateId}`);
+          if (elPriceVal) {
+            elPriceVal.textContent = `${livePrice.toLocaleString()}${unit}`;
+            elPriceVal.style.color = '#38bdf8';
+          }
+          const elMarketPrice = document.getElementById(`debate-card-market-price-${debateId}`);
+          if (elMarketPrice) {
+            elMarketPrice.textContent = `${livePrice.toLocaleString()}${unit}`;
+          }
+          const elBadge = document.getElementById(`debate-card-budget-badge-${debateId}`);
+          if (elBadge) {
+            const isOverBudget = isKr ? livePrice > 100000 : false;
+            const isUsFractional = !isKr && livePrice > 100;
+            elBadge.innerHTML = isKr
+              ? (isOverBudget ? '<span style="color: #f87171; margin-left: 6px; font-weight: 600;">⚠️ 10만원 초과 (매매 불가)</span>' : '<span style="color: #10b981; margin-left: 6px; font-weight: 600;">✅ 10만원 이하 매매 적합</span>')
+              : (isUsFractional ? '<span style="color: #38bdf8; margin-left: 6px; font-weight: 600;">🪙 소수점 금액 매수 가능 (1회 $50 권장)</span>' : '<span style="color: #10b981; margin-left: 6px; font-weight: 600;">✅ $100 이하 1주/소수점 적합</span>');
+          }
+        }
+      }
+    } catch (e) {
+      // 실시간 시세 조회 실패 시 정적 스냅샷 가격 유지
+    }
   },
 
   async handleDebateReserveClick(debateId, itemCode, stockName, strategyType, btnEl) {
@@ -241,66 +387,424 @@ window.StockDebateView = {
       return;
     }
 
-    const stratNames = {
-      'SMART_DIP': '📉 스마트 눌림목 예약매수 (1주 단일)',
-      'MARKET_OPEN': '⚡ 시초가 우선 체결 예약매수 (1주 단일)',
-      'SPLIT_BUY': '🪜 2회 분할 예약매수 (1차 현재가 1주 + 2차 지지선 1주)'
+    const debateItem = (window.StockDebateModel?.items || []).find(d => (debateId && d.id === debateId) || (itemCode && d.item_code === itemCode));
+    if (!debateItem) {
+      alert('⚠️ 해당 종목의 끝장토론 상세 데이터를 찾을 수 없습니다.');
+      return;
+    }
+
+    this.openReservationModal(debateItem, strategyType);
+  },
+
+  openReservationModal(d, strategyType) {
+    const strat = this.extractDebateStrategy(d);
+    let rawPrice = strat.rawPrice;
+    const isKr = strat.isKr;
+    const unit = isKr ? '원' : '$';
+
+    let initialBuyPrice = strat.buyPrice;
+    if (strategyType === 'SMART_DIP') strategyType = 'PULLBACK_SUPPORT';
+    if (strategyType === 'MARKET_OPEN') strategyType = 'BREAKOUT_OPEN';
+    if (strategyType === 'SPLIT_BUY') strategyType = 'SPLIT_ACCUMULATION';
+
+    if (strategyType === 'BREAKOUT_OPEN') initialBuyPrice = rawPrice;
+    if (strategyType === 'PULLBACK_SUPPORT' && strat.supportMin > 0) initialBuyPrice = strat.supportMin;
+
+    // 대가 원칙 적용: 1차 목표가(+3.5%) 및 하드 손절선(-5.0%) 기본값 세팅
+    const initialTargetPrice = isKr ? Math.round(initialBuyPrice * 1.035) : parseFloat((initialBuyPrice * 1.035).toFixed(2));
+    const initialStopLossPrice = isKr ? Math.round(initialBuyPrice * 0.95) : parseFloat((initialBuyPrice * 0.95).toFixed(2));
+
+    // 모달 DOM 생성 또는 재사용
+    let modalEl = document.getElementById('debate-reservation-custom-modal');
+    if (!modalEl) {
+      modalEl = document.createElement('div');
+      modalEl.id = 'debate-reservation-custom-modal';
+      modalEl.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px); padding: 16px; box-sizing: border-box;';
+      document.body.appendChild(modalEl);
+    }
+
+    const stratTitles = {
+      'PULLBACK_SUPPORT': '📉 단타 지지선 반등 예약매수',
+      'BREAKOUT_OPEN': '⚡ 초단타 시초가 돌파 예약매수',
+      'SPLIT_ACCUMULATION': '🪜 스윙 2회 분할 안심 예약매수'
     };
-    const stratName = stratNames[strategyType] || strategyType;
+    const stratTitle = stratTitles[strategyType] || strategyType;
 
-    const confirmMsg =
-      `🎯 [토스증권 AI 예약매수 신청]\n\n` +
-      `• 종목명: ${stockName} (${itemCode})\n` +
-      `• 전략 유형: ${stratName}\n` +
-      `• 발주 시점: 개장 골든타임(08:00 프리마켓 / 08:55 동시호가) 자동 발주\n` +
-      `• 체결 후: 테마 및 수급 분석 기반 자동 익절/손절 감시\n\n` +
-      `해당 전략으로 토스증권 예약매수를 접수하시겠습니까?`;
+    const stratSummaryHtml = `
+      <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.82rem; color: #a7f3d0; line-height: 1.5;">
+        <strong style="color: #34d399; font-size: 0.86rem;">🎯 AI 맞춤 전략 리스크 관리 운용 플랜</strong><br>
+        • <b>진입 규칙:</b> ${strategyType === 'BREAKOUT_OPEN' ? '09:00 개장 후 시초가 지지 & 양봉 안착 확인 시 즉시 진입' : (strategyType === 'PULLBACK_SUPPORT' ? '지지선 터치 후 1틱 이상 호가 반등 확인 시 진입' : '1차 시초가 진입 + 2차 지지선 반등 확인 분할 진입')}<br>
+        • <b>1차 분할 익절:</b> 목표가 <b>+3.5%</b> 도달 시 50% 분할 매도 확정<br>
+        • <b>🛡️ 본전 보호 스탑:</b> 1차 익절 즉시 잔여 50% 손절가를 매수가(본전)로 자동 상향하여 원금 손실 제로화<br>
+        • <b>⚡ 트레일링 스탑:</b> 진입 후 기록한 최고점 대비 -2.5% 하락 시 잔여 물량 전량 청산<br>
+        • <b>⛔ 하드 손절선:</b> 매수가 대비 -5.0% 터치 시 무조건 전량 즉시 손절<br>
+        • <b>⏱️ 안전 자동 취소:</b> 개장 후 30분간 조건 미충족 시 예약 자동 취소
+      </div>
+    `;
 
-    if (!confirm(confirmMsg)) return;
+    modalEl.innerHTML = `
+      <div style="background: #0f172a; border: 1px solid rgba(59, 130, 246, 0.5); border-radius: 14px; width: 100%; max-width: 480px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; color: #f8fafc; font-family: inherit;">
+        <div style="padding: 16px 20px; background: rgba(30, 41, 59, 0.8); border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; font-size: 1.1rem; color: #60a5fa; display: flex; align-items: center; gap: 8px;">
+            <span>🎯</span> [관리자] 토스증권 맞춤 예약매수
+          </h3>
+          <button type="button" id="btn-close-custom-reserve-modal" style="background: transparent; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
 
-    try {
-      if (btnEl) {
-        btnEl.disabled = true;
-        btnEl.style.opacity = '0.6';
+        <div style="padding: 18px 20px; max-height: 80vh; overflow-y: auto;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 10px;">
+            <div>
+              <strong style="font-size: 1.15rem; color: #f8fafc;">${d.stock_name}</strong>
+              <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 6px;">(${d.item_code})</span>
+            </div>
+            <div id="modal-reserve-current-price-box" style="font-size: 0.9rem; color: #38bdf8; font-weight: 700; text-align: right;">
+              현재가: <span id="modal-live-price-text">${rawPrice.toLocaleString()}${unit}</span>
+              <span id="modal-live-price-badge" style="font-size: 0.72rem; color: #94a3b8; font-weight: normal; margin-left: 4px;">(토스 시세 조회 중...)</span>
+            </div>
+          </div>
+
+          ${stratSummaryHtml}
+
+          <!-- 폼 필드 -->
+          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.88rem;">
+            <div>
+              <label style="color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px;">1차 매수 예약 지정가 (${unit})</label>
+              <input type="number" id="modal-reserve-buy-price" value="${initialBuyPrice}" step="${isKr ? 10 : 0.01}" style="width: 100%; padding: 8px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-size: 0.95rem; font-weight: 700; box-sizing: border-box;" />
+              <div id="modal-buy-price-diff" style="font-size: 0.78rem; color: #94a3b8; margin-top: 3px;"></div>
+            </div>
+
+            ${!isKr ? `
+            <!-- 🌟 미국 주식 매수 방식 선택 (1주 온주 vs 소수점 금액) -->
+            <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; padding: 12px 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong style="color: #60a5fa; font-size: 0.86rem;">🇺🇸 미국 주식 매수 방식 선택</strong>
+                <span style="font-size: 0.74rem; color: #94a3b8;">원하는 방식을 선택하세요</span>
+              </div>
+              <div style="display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #f8fafc; font-size: 0.84rem; font-weight: 600;">
+                  <input type="radio" name="modal-us-order-mode" id="modal-us-mode-whole" value="whole" checked />
+                  <span>📦 <strong>1주 온주 매수</strong> (지정가 발주)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #f8fafc; font-size: 0.84rem; font-weight: 600;">
+                  <input type="radio" name="modal-us-order-mode" id="modal-us-mode-fractional" value="fractional" />
+                  <span>🪙 <strong>소수점 금액 매수</strong> (시장가 발주)</span>
+                </label>
+              </div>
+
+              <!-- 1. 온주 매수 패널 -->
+              <div id="modal-us-whole-panel" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                  <label style="color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px; font-size: 0.78rem;">주문 수량 (주)</label>
+                  <input type="number" id="modal-reserve-quantity-us" value="1" min="1" max="100" style="width: 100%; padding: 8px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-size: 0.95rem; font-weight: 700; box-sizing: border-box;" />
+                </div>
+                <div>
+                  <label style="color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px; font-size: 0.78rem;">총 투자예정금액 ($)</label>
+                  <div id="modal-reserve-total-amount-us" style="padding: 8px 12px; background: rgba(30, 41, 59, 0.5); border: 1px solid #334155; border-radius: 6px; color: #38bdf8; font-size: 0.95rem; font-weight: 700;">
+                    $${initialBuyPrice}
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. 소수점 매수 패널 -->
+              <div id="modal-us-fractional-panel" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                  <label style="color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px; font-size: 0.78rem;">1회 투자 금액 ($)</label>
+                  <input type="number" id="modal-reserve-amount-usd" value="50" min="10" max="100" step="5" style="width: 100%; padding: 8px 12px; background: #1e293b; border: 1px solid #3b82f6; border-radius: 6px; color: #38bdf8; font-size: 0.95rem; font-weight: 700; box-sizing: border-box;" />
+                </div>
+                <div>
+                  <label style="color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px; font-size: 0.78rem;">예상 체결 수량</label>
+                  <div id="modal-reserve-est-qty" style="padding: 8px 12px; background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 6px; color: #fbbf24; font-size: 0.90rem; font-weight: 700;">
+                    계산 중...
+                  </div>
+                </div>
+              </div>
+              <div id="modal-us-mode-desc" style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px; line-height: 1.4;">
+                • <strong>온주 매수</strong>: 미국 정규장(22:30~05:00 KST) 개장 시 지정가(LIMIT)로 1주 단위 정확히 발주됩니다.
+              </div>
+            </div>
+            ` : `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px;">주문 수량 (주)</label>
+                <input type="number" id="modal-reserve-quantity" value="1" min="1" max="100" style="width: 100%; padding: 8px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-size: 0.95rem; font-weight: 700; box-sizing: border-box;" />
+              </div>
+              <div>
+                <label style="color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px;">총 투자예정금액</label>
+                <div id="modal-reserve-total-amount" style="padding: 8px 12px; background: rgba(30, 41, 59, 0.5); border: 1px solid #334155; border-radius: 6px; color: #38bdf8; font-size: 0.95rem; font-weight: 700;">
+                  ${initialBuyPrice.toLocaleString()}${unit}
+                </div>
+              </div>
+            </div>
+            `}
+
+            <div>
+              <label style="color: #34d399; font-weight: 600; display: block; margin-bottom: 4px;">🎯 목표 청산가 (${unit})</label>
+              <input type="number" id="modal-reserve-target-price" value="${initialTargetPrice}" step="${isKr ? 10 : 0.01}" style="width: 100%; padding: 8px 12px; background: #1e293b; border: 1px solid rgba(52, 211, 153, 0.4); border-radius: 6px; color: #34d399; font-size: 0.95rem; font-weight: 700; box-sizing: border-box;" />
+              <div id="modal-target-diff" style="font-size: 0.78rem; color: #34d399; margin-top: 3px;"></div>
+            </div>
+
+            <div>
+              <label style="color: #f87171; font-weight: 600; display: block; margin-bottom: 4px;">⛔ 최종 손절가 (${unit})</label>
+              <input type="number" id="modal-reserve-stop-price" value="${initialStopLossPrice}" step="${isKr ? 10 : 0.01}" style="width: 100%; padding: 8px 12px; background: #1e293b; border: 1px solid rgba(248, 113, 113, 0.4); border-radius: 6px; color: #f87171; font-size: 0.95rem; font-weight: 700; box-sizing: border-box;" />
+              <div id="modal-stop-diff" style="font-size: 0.78rem; color: #f87171; margin-top: 3px;"></div>
+            </div>
+
+            <div>
+              <label style="color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px;">전략 메모 / 비고</label>
+              <input type="text" id="modal-reserve-note" value="${strategyType === 'MARKET_OPEN' ? '시초가 안착 확인 스윙' : '지지 확인 후 일봉 5일선 종가 안착 시 매수'}" style="width: 100%; padding: 8px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #cbd5e1; font-size: 0.82rem; box-sizing: border-box;" />
+            </div>
+
+            <div id="modal-reserve-limit-alert" style="display: none; padding: 8px 12px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 6px; color: #fca5a5; font-size: 0.8rem; font-weight: 600;">
+              ⚠️ 총 매수 예정금액이 10만원 이하 매매 제한을 초과합니다!
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 14px 20px; background: rgba(30, 41, 59, 0.6); border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" id="btn-cancel-custom-reserve" style="padding: 9px 16px; background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.3); color: #cbd5e1; border-radius: 8px; font-weight: 600; cursor: pointer;">취소</button>
+          <button type="button" id="btn-submit-custom-reserve" style="padding: 9px 18px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; color: #fff; border-radius: 8px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);">
+            🚀 토스증권 맞춤 예약매수 최종 접수
+          </button>
+        </div>
+      </div>
+    `;
+
+    modalEl.style.display = 'flex';
+
+    // 실시간 계산 업데이트 함수
+    const updateModalCalculations = () => {
+      const bPrice = parseFloat(document.getElementById('modal-reserve-buy-price').value) || 0;
+      const tPrice = parseFloat(document.getElementById('modal-reserve-target-price').value) || 0;
+      const sPrice = parseFloat(document.getElementById('modal-reserve-stop-price').value) || 0;
+
+      const elAlert = document.getElementById('modal-reserve-limit-alert');
+      const btnSubmit = document.getElementById('btn-submit-custom-reserve');
+
+      if (!isKr) {
+        const isFractional = document.getElementById('modal-us-mode-fractional')?.checked;
+        const wholePanel = document.getElementById('modal-us-whole-panel');
+        const fracPanel = document.getElementById('modal-us-fractional-panel');
+        const descEl = document.getElementById('modal-us-mode-desc');
+
+        if (wholePanel) wholePanel.style.display = isFractional ? 'none' : 'grid';
+        if (fracPanel) fracPanel.style.display = isFractional ? 'grid' : 'none';
+        if (descEl) {
+          descEl.innerHTML = isFractional
+            ? '• <strong>소수점 금액 매수</strong>: 토스증권 Open API의 금액 주문(<code>orderAmount</code>)으로 정규장 개장 시 시장가 체결됩니다.'
+            : '• <strong>온주 매수</strong>: 미국 정규장(22:30~05:00 KST) 개장 시 지정가(LIMIT)로 1주 단위 정확히 발주됩니다.';
+        }
+
+        if (isFractional) {
+          const elUsd = document.getElementById('modal-reserve-amount-usd');
+          const elEstQty = document.getElementById('modal-reserve-est-qty');
+          const amountUsd = parseFloat(elUsd?.value) || 50;
+          const estQty = bPrice > 0 ? (amountUsd / bPrice).toFixed(4) : '0';
+          if (elEstQty) elEstQty.textContent = `약 ${estQty}주`;
+          const isOver = amountUsd > 100;
+          if (elAlert) {
+            elAlert.textContent = '⚠️ 1회 소수점 투자 금액은 $100 이하만 가능합니다.';
+            elAlert.style.display = isOver ? 'block' : 'none';
+          }
+          if (btnSubmit) btnSubmit.disabled = isOver;
+        } else {
+          const qty = parseInt(document.getElementById('modal-reserve-quantity-us')?.value, 10) || 1;
+          const totalAmtUsd = (bPrice * qty).toFixed(2);
+          const elTotUsd = document.getElementById('modal-reserve-total-amount-us');
+          if (elTotUsd) elTotUsd.textContent = `$${totalAmtUsd}`;
+          if (elAlert) elAlert.style.display = 'none';
+          if (btnSubmit) btnSubmit.disabled = false;
+        }
+      } else {
+        const qty = parseInt(document.getElementById('modal-reserve-quantity')?.value, 10) || 1;
+        const totalAmt = bPrice * qty;
+        const elTotal = document.getElementById('modal-reserve-total-amount');
+        if (elTotal) elTotal.textContent = `${totalAmt.toLocaleString()}${unit}`;
+
+        // 10만원 검증
+        const isOver = totalAmt > 100000;
+        if (elAlert) {
+          elAlert.textContent = '⚠️ 총 매수 예정금액이 10만원 이하 매매 제한을 초과합니다!';
+          elAlert.style.display = isOver ? 'block' : 'none';
+        }
+        if (btnSubmit) btnSubmit.disabled = isOver;
       }
 
-      const res = await fetch('/api/debate/reserve-buy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-user': 'admin'
-        },
-        body: JSON.stringify({
-          debateId,
-          itemCode,
-          strategyType
-        })
+      // 매수가 대비 현재가 차이
+      const elBuyDiff = document.getElementById('modal-buy-price-diff');
+      if (elBuyDiff && rawPrice > 0) {
+        const diffPct = (((bPrice - rawPrice) / rawPrice) * 100).toFixed(2);
+        elBuyDiff.innerHTML = `현재가 대비: <strong style="color: ${diffPct >= 0 ? '#34d399' : '#38bdf8'};">${diffPct >= 0 ? '+' : ''}${diffPct}%</strong>`;
+      }
+
+      // 목표가 수익률
+      const elTargetDiff = document.getElementById('modal-target-diff');
+      if (elTargetDiff && bPrice > 0) {
+        const gainPct = (((tPrice - bPrice) / bPrice) * 100).toFixed(2);
+        elTargetDiff.innerHTML = `예상 익절 수익률: <strong>+${gainPct}%</strong> (+${(tPrice - bPrice).toLocaleString()}${unit})`;
+      }
+
+      // 손절가 손실률
+      const elStopDiff = document.getElementById('modal-stop-diff');
+      if (elStopDiff && bPrice > 0) {
+        const lossPct = (((sPrice - bPrice) / bPrice) * 100).toFixed(2);
+        elStopDiff.innerHTML = `예상 손절 탈출선: <strong>${lossPct}%</strong> (${(sPrice - bPrice).toLocaleString()}${unit})`;
+      }
+    };
+
+    updateModalCalculations();
+
+    // 🌟 [핵심] 토스증권 Open API 실시간 시세 비동기 조회 및 현재가/기준가 자동 동기화
+    fetch(`/api/trading/quote?symbol=${encodeURIComponent(d.item_code)}`)
+      .then(resp => resp.json())
+      .then(quoteData => {
+        if (quoteData.success && quoteData.quote) {
+          const livePrice = Number(quoteData.quote.lastPrice || quoteData.quote.price) || 0;
+          if (livePrice > 0) {
+            rawPrice = livePrice;
+            const elPriceText = document.getElementById('modal-live-price-text');
+            const elPriceBadge = document.getElementById('modal-live-price-badge');
+            if (elPriceText) elPriceText.textContent = `${livePrice.toLocaleString()}${unit}`;
+            if (elPriceBadge) {
+              elPriceBadge.textContent = '🟢 토스증권 실시간';
+              elPriceBadge.style.color = '#34d399';
+              elPriceBadge.style.fontWeight = '700';
+            }
+
+            // 시초가 안착 매수인 경우 기준 매수가도 실시간 현재가로 자동 갱신
+            if (strategyType === 'MARKET_OPEN') {
+              const elBuyInput = document.getElementById('modal-reserve-buy-price');
+              if (elBuyInput) elBuyInput.value = livePrice;
+            }
+
+            // 실시간 가격 기준으로 괴리율 및 목표가 재계산
+            updateModalCalculations();
+          }
+        } else {
+          const elPriceBadge = document.getElementById('modal-live-price-badge');
+          if (elPriceBadge) elPriceBadge.textContent = '(토론 시점 기준가)';
+        }
+      })
+      .catch(err => {
+        console.warn('[StockDebateView] live quote fetch failed:', err);
+        const elPriceBadge = document.getElementById('modal-live-price-badge');
+        if (elPriceBadge) elPriceBadge.textContent = '(토론 시점 기준가)';
       });
 
-      const data = await res.json();
-      if (data.success) {
-        if (window.UiView && window.UiView.showToast) {
-          window.UiView.showToast(`🎯 [${stockName}] ${stratName} 예약매수가 접수되었습니다!`);
-        } else {
-          alert(`🎯 [${stockName}] ${stratName} 예약매수가 성공적으로 접수되었습니다!`);
-        }
-        await this.loadReservations();
-        this.renderReservationsPanel();
-        this.render();
-      } else {
-        alert(`❌ 예약매수 접수 실패: ${data.error || '오류가 발생했습니다.'}`);
-        if (btnEl) {
-          btnEl.disabled = false;
-          btnEl.style.opacity = '1';
-        }
-      }
-    } catch (err) {
-      alert(`❌ 서버 통신 오류: ${err.message}`);
-      if (btnEl) {
-        btnEl.disabled = false;
-        btnEl.style.opacity = '1';
-      }
+    document.getElementById('modal-reserve-buy-price').addEventListener('input', updateModalCalculations);
+    if (document.getElementById('modal-reserve-quantity')) {
+      document.getElementById('modal-reserve-quantity').addEventListener('input', updateModalCalculations);
     }
+    if (document.getElementById('modal-reserve-quantity-us')) {
+      document.getElementById('modal-reserve-quantity-us').addEventListener('input', updateModalCalculations);
+    }
+    if (document.getElementById('modal-reserve-amount-usd')) {
+      document.getElementById('modal-reserve-amount-usd').addEventListener('input', updateModalCalculations);
+    }
+    const radioWhole = document.getElementById('modal-us-mode-whole');
+    const radioFrac = document.getElementById('modal-us-mode-fractional');
+    if (radioWhole) radioWhole.addEventListener('change', updateModalCalculations);
+    if (radioFrac) radioFrac.addEventListener('change', updateModalCalculations);
+
+    document.getElementById('modal-reserve-target-price').addEventListener('input', updateModalCalculations);
+    document.getElementById('modal-reserve-stop-price').addEventListener('input', updateModalCalculations);
+
+    const closeModal = () => {
+      modalEl.style.display = 'none';
+    };
+
+    document.getElementById('btn-close-custom-reserve-modal').onclick = closeModal;
+    document.getElementById('btn-cancel-custom-reserve').onclick = closeModal;
+
+    // 최종 접수 버튼 클릭 핸들러
+    document.getElementById('btn-submit-custom-reserve').onclick = async () => {
+      const bPrice = parseFloat(document.getElementById('modal-reserve-buy-price').value);
+      const tPrice = parseFloat(document.getElementById('modal-reserve-target-price').value);
+      const sPrice = parseFloat(document.getElementById('modal-reserve-stop-price').value);
+      const note = (document.getElementById('modal-reserve-note').value || '').trim();
+
+      if (!bPrice || bPrice <= 0) {
+        alert('올바른 매수 가격을 입력하세요.');
+        return;
+      }
+
+      let customPlanData = {
+        buyPrice: bPrice,
+        targetPrice: tPrice,
+        stopLossPrice: sPrice,
+        strategyNote: note
+      };
+
+      if (!isKr) {
+        const isFractionalMode = document.getElementById('modal-us-mode-fractional')?.checked;
+        if (isFractionalMode) {
+          // 소수점 금액 매수 선택 시
+          const amountUsd = parseFloat(document.getElementById('modal-reserve-amount-usd')?.value) || 50;
+          if (amountUsd <= 0 || amountUsd > 100) {
+            alert('1회 소수점 투자 금액은 $10~$100 사이로 입력하세요.');
+            return;
+          }
+          customPlanData.isFractional = true;
+          customPlanData.orderAmount = amountUsd;
+          customPlanData.quantity = parseFloat((amountUsd / bPrice).toFixed(4)) || 1;
+        } else {
+          // 1주 온주 매수 (기본값)
+          const qty = parseInt(document.getElementById('modal-reserve-quantity-us')?.value, 10) || 1;
+          customPlanData.isFractional = false;
+          customPlanData.orderAmount = null;
+          customPlanData.quantity = qty;
+        }
+      } else {
+        const qty = parseInt(document.getElementById('modal-reserve-quantity').value, 10);
+        if (bPrice * qty > 100000) {
+          alert('총 매수 금액이 10만원 이하 매매 제한을 초과합니다.');
+          return;
+        }
+        customPlanData.quantity = qty;
+      }
+
+      const submitBtn = document.getElementById('btn-submit-custom-reserve');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ 예약 접수 중...';
+
+      try {
+        const res = await fetch('/api/debate/reserve-buy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-user': 'admin'
+          },
+          body: JSON.stringify({
+            debateId: d.id,
+            itemCode: d.item_code,
+            strategyType,
+            customPlan: customPlanData
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          closeModal();
+          if (window.UiView && window.UiView.showToast) {
+            window.UiView.showToast(`🎯 [${d.stock_name}] 맞춤 예약매수가 접수되었습니다!`);
+          } else {
+            alert(`🎯 [${d.stock_name}] 맞춤 예약매수가 성공적으로 접수되었습니다!`);
+          }
+          await this.loadReservations();
+          this.render();
+          if (window.StockTradingAdminView && typeof window.StockTradingAdminView.loadReservations === 'function') {
+            window.StockTradingAdminView.loadReservations();
+          }
+        } else {
+          alert(`❌ 예약매수 접수 실패: ${data.error || '오류가 발생했습니다.'}`);
+          submitBtn.disabled = false;
+          submitBtn.textContent = '🚀 토스증권 맞춤 예약매수 최종 접수';
+        }
+      } catch (err) {
+        alert(`❌ 통신 오류: ${err.message}`);
+        submitBtn.disabled = false;
+        submitBtn.textContent = '🚀 토스증권 맞춤 예약매수 최종 접수';
+      }
+    };
   },
 
   async handleCancelReservation(reservationId, stockName, btnEl) {
@@ -332,8 +836,10 @@ window.StockDebateView = {
           alert(`🗑️ [${stockName}] 예약매수가 취소되었습니다.`);
         }
         await this.loadReservations();
-        this.renderReservationsPanel();
         this.render();
+        if (window.StockTradingAdminView && typeof window.StockTradingAdminView.loadReservations === 'function') {
+          window.StockTradingAdminView.loadReservations();
+        }
       } else {
         alert(`❌ 예약 취소 실패: ${data.error || '오류가 발생했습니다.'}`);
         if (btnEl) {
@@ -774,6 +1280,29 @@ window.StockDebateView = {
           this.handleDebateReserveClick(debateId, itemCode, stockName, strategyType, reserveBtn);
           return;
         }
+        const gotoAdminBtn = e.target.closest('.btn-goto-trading-admin');
+        if (gotoAdminBtn) {
+          e.stopPropagation();
+          if (window.AppController && window.AppController.switchTopNav) {
+            window.AppController.switchTopNav('admin');
+            const adminSideBtn = document.querySelector('[data-side="stock-trading-admin"]');
+            if (adminSideBtn) adminSideBtn.click();
+            if (window.StockTradingAdminView) window.StockTradingAdminView.init();
+          }
+          return;
+        }
+      });
+
+      feedContainer.addEventListener('change', (e) => {
+        const stratSel = e.target.closest('.sel-strategy-override');
+        if (stratSel) {
+          e.stopPropagation();
+          const debateId = stratSel.getAttribute('data-id');
+          const itemCode = stratSel.getAttribute('data-code');
+          const stockName = stratSel.getAttribute('data-name');
+          const strategyType = stratSel.value;
+          this.handleDebateReserveClick(debateId, itemCode, stockName, strategyType, stratSel);
+        }
       });
     }
 
@@ -826,7 +1355,7 @@ window.StockDebateView = {
 
     try {
       const res = await window.StockDebateModel.triggerDebate(stockQuery);
-      if (res.success) {
+      if (res && res.success) {
         // 1.5초 주기로 12턴 완료 또는 최대 30초 동안 지속 동기화
         let pollCount = 0;
         const maxPolls = 20; // 30초
@@ -884,17 +1413,10 @@ window.StockDebateView = {
       btnClearAll.style.display = this.isAdmin() ? 'inline-flex' : 'none';
     }
 
-    // 상단 관리자 전용 예약매수 목록 패널 렌더링
-    if (this.isAdmin()) {
-      if (!this._hasInitialLoadedReservations) {
-        this._hasInitialLoadedReservations = true;
-        this.loadReservations().then(() => this.renderReservationsPanel());
-      } else {
-        this.renderReservationsPanel();
-      }
-    } else {
-      const panel = document.getElementById('debate-reservations-panel');
-      if (panel) panel.style.display = 'none';
+    // 종목별 토론 카드 내 진행 상태(예약/발주/체결) 배지 동기화
+    if (this.isAdmin() && !this._hasInitialLoadedReservations) {
+      this._hasInitialLoadedReservations = true;
+      this.loadReservations().then(() => this.render());
     }
 
     const debates = window.StockDebateModel.getFilteredDebates();

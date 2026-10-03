@@ -65,20 +65,23 @@ class TelegramBotHelper {
 
   isPrivateOrLocalIp(ip) {
     if (!ip) return true;
-    const clean = ip.replace(/^.*:/, '').trim();
-    if (['127.0.0.1', 'localhost', '::1', ''].includes(clean)) return true;
+    let clean = ip.trim();
+    if (clean.startsWith('::ffff:')) clean = clean.slice(7);
+    if (['127.0.0.1', 'localhost', '::1', '', '::'].includes(clean)) return true;
     if (clean.startsWith('192.168.') || clean.startsWith('10.') || clean.startsWith('169.254.')) return true;
     if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(clean)) return true;
+    if (/^fe80:/i.test(clean) || /^fc00:/i.test(clean) || /^fd00:/i.test(clean)) return true;
     return false;
   }
 
   isIpMatch(ip, pattern) {
     if (!ip || !pattern) return false;
-    const p = pattern.trim();
-    if (p === '*' || p === ip) return true;
+    const p = pattern.trim().toLowerCase();
+    const target = ip.trim().toLowerCase();
+    if (p === '*' || p === target) return true;
     if (p.endsWith('*')) {
       const prefix = p.slice(0, -1);
-      return ip.startsWith(prefix);
+      return target.startsWith(prefix);
     }
     return false;
   }
@@ -221,8 +224,20 @@ class TelegramBotHelper {
     return s.trim();
   }
 
+  isCloudEnvironment() {
+    // GCP Cloud Run (K_SERVICE), App Engine, 또는 프로덕션 환경 감지
+    return Boolean(process.env.K_SERVICE || process.env.GAE_APPLICATION || process.env.GOOGLE_CLOUD_PROJECT || process.env.NODE_ENV === 'production' || process.env.FORCE_TELEGRAM === 'true');
+  }
+
   async sendGeneralMessage(text, parseMode = 'HTML') {
     if (!this.config.enabled || !this.config.botToken) return false;
+
+    // 🌟 [로컬 중복 방지 가드] GCP Cloud Run 환경이 아닐 경우(로컬 PC) 텔레그램 발송 차단
+    if (!this.isCloudEnvironment()) {
+      console.log('[TelegramBot - Local Guard] 🛡️ 로컬 PC 실행 중 감지: GCP Cloud Run과의 중복 발송을 방지하기 위해 텔레그램 발송을 생략합니다.');
+      return true;
+    }
+
     const cleanText = (parseMode === 'HTML') ? this.normalizeTelegramHtml(text) : String(text);
     const chatIds = this.config.allowedChatIds.split(',').map(s => s.trim()).filter(Boolean);
     for (const chatId of chatIds) {
@@ -262,7 +277,10 @@ class TelegramBotHelper {
 
   async handleCallbackQuery(cq) {
     if (!cq || !cq.data) return;
-    const [action, targetIp] = cq.data.split(':');
+    const colonIdx = cq.data.indexOf(':');
+    if (colonIdx === -1) return;
+    const action = cq.data.slice(0, colonIdx);
+    const targetIp = cq.data.slice(colonIdx + 1);
     if (!action || !targetIp) return;
 
     const dataDir = path.join(__dirname, '..', '..', 'data');

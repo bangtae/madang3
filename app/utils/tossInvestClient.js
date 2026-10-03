@@ -5,7 +5,8 @@ const telegramBot = require('./telegramBotHelper');
 
 class TossInvestClient {
   constructor() {
-    this.baseUrl = 'https://openapi.tossinvest.com';
+    this.baseUrl = (process.env.TOSS_API_BASE_URL || 'https://openapi.tossinvest.com').replace(/\/$/, '');
+    this.proxySecret = process.env.TOSS_PROXY_SECRET || null;
     this.tokenCache = null;
     this.tokenExpiresAt = 0;
     this.accountSeqCache = null;
@@ -13,7 +14,20 @@ class TossInvestClient {
     this.lastIpAlertTime = 0;
   }
 
+  async _fetch(url, options = {}) {
+    const opts = { ...options };
+    const headers = { ...(opts.headers || {}) };
+    if (this.proxySecret) {
+      headers['X-Toss-Proxy-Secret'] = this.proxySecret;
+    }
+    opts.headers = headers;
+    return fetch(url, opts);
+  }
+
   async getServerOutboundIp() {
+    if (this.baseUrl.includes('34.72.224.182')) {
+      return '34.72.224.182 (Always Free VM 고정 IP)';
+    }
     try {
       const resp = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
       const data = await resp.json();
@@ -63,12 +77,24 @@ class TossInvestClient {
   }
 
   /**
+   * 토큰 캐시 강제 무효화
+   */
+  clearTokenCache() {
+    this.tokenCache = null;
+    this.tokenExpiresAt = 0;
+    this.accountSeqCache = null;
+    console.log('[TossInvestClient] 🔄 토스증권 API 토큰 캐시를 초기화했습니다.');
+  }
+
+  /**
    * OAuth 2.0 Access Token 발급 및 캐싱
    * 엔드포인트: POST /oauth2/token
+   * @param {boolean} forceRefresh - 캐시 무시하고 즉시 재발급 여부
    */
-  async getAccessToken() {
+  async getAccessToken(forceRefresh = false) {
     const now = Date.now();
-    if (this.tokenCache && this.tokenExpiresAt - 60000 > now) {
+    // 만료 5분(300000ms) 전까지 유효한 경우 캐시 재사용
+    if (!forceRefresh && this.tokenCache && (this.tokenExpiresAt - 300000 > now)) {
       return this.tokenCache;
     }
 
@@ -78,7 +104,7 @@ class TossInvestClient {
     }
 
     try {
-      const resp = await fetch(`${this.baseUrl}/oauth2/token`, {
+      const resp = await this._fetch(`${this.baseUrl}/oauth2/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -112,6 +138,7 @@ class TossInvestClient {
         this.tokenCache = data.access_token;
         const expiresIn = data.expires_in || 86400;
         this.tokenExpiresAt = now + (expiresIn * 1000);
+        console.log(`[TossInvestClient] 🔑 새 Access Token 발급 성공 (만료: ${expiresIn}초 후)`);
         return this.tokenCache;
       } else {
         throw new Error('토큰 발급 응답에 access_token이 누락되었습니다.');
@@ -126,14 +153,20 @@ class TossInvestClient {
    * 사용자 계좌 목록 조회 및 accountSeq 획득
    * 엔드포인트: GET /api/v1/accounts
    */
-  async getAccounts() {
-    const token = await this.getAccessToken();
-    const resp = await fetch(`${this.baseUrl}/api/v1/accounts`, {
+  async getAccounts(isRetry = false) {
+    const token = await this.getAccessToken(isRetry);
+    const resp = await this._fetch(`${this.baseUrl}/api/v1/accounts`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
       }
     });
+
+    if (resp.status === 401 && !isRetry) {
+      console.warn('[TossInvestClient] ⚠️ getAccounts 401 (invalid-token) 감지 -> 토큰 강제 갱신 후 재시도');
+      this.clearTokenCache();
+      return await this.getAccounts(true);
+    }
 
     if (!resp.ok) {
       const err = await resp.text();
@@ -149,14 +182,14 @@ class TossInvestClient {
     return list;
   }
 
-  async getAccountSeq() {
-    if (this.accountSeqCache) return this.accountSeqCache;
+  async getAccountSeq(forceRefresh = false) {
+    if (!forceRefresh && this.accountSeqCache) return this.accountSeqCache;
     const cfg = this.getConfig();
-    if (cfg.accountSeq) {
+    if (!forceRefresh && cfg.accountSeq) {
       this.accountSeqCache = cfg.accountSeq;
       return this.accountSeqCache;
     }
-    const accounts = await this.getAccounts();
+    const accounts = await this.getAccounts(forceRefresh);
     if (accounts.length > 0) {
       return accounts[0].accountSeq;
     }
@@ -166,9 +199,9 @@ class TossInvestClient {
   /**
    * 계좌 전용 공통 인증 헤더 생성
    */
-  async getAuthHeaders() {
-    const token = await this.getAccessToken();
-    const accountSeq = await this.getAccountSeq();
+  async getAuthHeaders(forceRefresh = false) {
+    const token = await this.getAccessToken(forceRefresh);
+    const accountSeq = await this.getAccountSeq(forceRefresh);
     return {
       'Authorization': `Bearer ${token}`,
       'X-Tossinvest-Account': String(accountSeq),
@@ -181,17 +214,23 @@ class TossInvestClient {
    * 계좌 보유 주식 / 잔고 조회
    * 엔드포인트: GET /api/v1/holdings
    */
-  async getHoldings() {
+  async getHoldings(isRetry = false) {
     if (!this.isConfigured()) {
       return { success: false, configured: false, message: 'API 설정 필요' };
     }
 
     try {
-      const headers = await this.getAuthHeaders();
-      const resp = await fetch(`${this.baseUrl}/api/v1/holdings`, {
+      const headers = await this.getAuthHeaders(isRetry);
+      const resp = await this._fetch(`${this.baseUrl}/api/v1/holdings`, {
         method: 'GET',
         headers
       });
+
+      if (resp.status === 401 && !isRetry) {
+        console.warn('[TossInvestClient] ⚠️ getHoldings 401 (invalid-token) 감지 -> 토큰 강제 갱신 후 재시도');
+        this.clearTokenCache();
+        return await this.getHoldings(true);
+      }
 
       if (!resp.ok) {
         const err = await resp.text();
@@ -216,7 +255,7 @@ class TossInvestClient {
     try {
       const token = await this.getAccessToken();
       const cleanSymbol = String(symbol).trim();
-      const resp = await fetch(`${this.baseUrl}/api/v1/prices?symbols=${encodeURIComponent(cleanSymbol)}`, {
+      const resp = await this._fetch(`${this.baseUrl}/api/v1/prices?symbols=${encodeURIComponent(cleanSymbol)}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -251,28 +290,35 @@ class TossInvestClient {
    * 엔드포인트: POST /api/v1/orders
    * @param {Object} params - { symbol, side: 'BUY'|'SELL', orderType: 'MARKET'|'LIMIT', quantity, price, clientOrderId }
    */
-  async submitOrder({ symbol, side = 'BUY', orderType = 'LIMIT', quantity = 1, price = 0, clientOrderId = null }) {
+  async submitOrder({ symbol, side = 'BUY', orderType = 'LIMIT', quantity = 1, price = 0, clientOrderId = null, orderAmount = null }, isRetry = false) {
     if (!this.isConfigured()) {
       throw new Error('토스증권 API 인증 정보(Client ID, Secret)를 먼저 설정해주세요.');
     }
 
-    const headers = await this.getAuthHeaders();
+    const headers = await this.getAuthHeaders(isRetry);
     const body = {
       symbol: String(symbol).trim(),
-      side,   // 'BUY' or 'SELL'
-      orderType, // 'LIMIT' or 'MARKET'
-      quantity: String(quantity || 1)
+      side   // 'BUY' or 'SELL'
     };
 
-    if (orderType === 'LIMIT' && price > 0) {
-      body.price = String(Math.round(price));
+    if (orderAmount && Number(orderAmount) > 0) {
+      // 🌟 미국 주식 소수점 금액 주문 (MARKET 전용, quantity/price 생략)
+      body.orderType = 'MARKET';
+      body.orderAmount = String(orderAmount);
+    } else {
+      body.orderType = orderType; // 'LIMIT' or 'MARKET'
+      body.quantity = String(quantity || 1);
+      if (orderType === 'LIMIT' && price > 0) {
+        body.price = String(Math.round(price));
+      }
     }
+
     if (clientOrderId) {
       body.clientOrderId = String(clientOrderId).slice(0, 36);
     }
 
     try {
-      const resp = await fetch(`${this.baseUrl}/api/v1/orders`, {
+      const resp = await this._fetch(`${this.baseUrl}/api/v1/orders`, {
         method: 'POST',
         headers,
         body: JSON.stringify(body)
@@ -281,6 +327,14 @@ class TossInvestClient {
       const resText = await resp.text();
       let resJson;
       try { resJson = JSON.parse(resText); } catch (e) { resJson = { raw: resText }; }
+
+      // 🌟 [토큰 만료 자동 복구] 401 또는 invalid-token 감지 시 토큰 캐시 초기화 후 1회 즉시 재시도
+      const isTokenExpired = resp.status === 401 || (resJson && resJson.error && resJson.error.code === 'invalid-token') || (typeof resText === 'string' && resText.includes('invalid-token'));
+      if (isTokenExpired && !isRetry) {
+        console.warn(`[TossInvestClient] ⚠️ submitOrder 401 (invalid-token) 감지 (${symbol}) -> 토큰 강제 재발급 후 즉시 재발주`);
+        this.clearTokenCache();
+        return await this.submitOrder({ symbol, side, orderType, quantity, price, clientOrderId, orderAmount }, true);
+      }
 
       if (!resp.ok) {
         let errMsg = '';
@@ -328,14 +382,21 @@ class TossInvestClient {
    * 주문 상세 내역 및 체결 상태 조회
    * 엔드포인트: GET /api/v1/orders/{orderId}
    */
-  async getOrderDetail(orderId) {
+  async getOrderDetail(orderId, isRetry = false) {
     if (!this.isConfigured() || !orderId) return null;
     try {
-      const headers = await this.getAuthHeaders();
-      const resp = await fetch(`${this.baseUrl}/api/v1/orders/${encodeURIComponent(orderId)}`, {
+      const headers = await this.getAuthHeaders(isRetry);
+      const resp = await this._fetch(`${this.baseUrl}/api/v1/orders/${encodeURIComponent(orderId)}`, {
         method: 'GET',
         headers
       });
+
+      if (resp.status === 401 && !isRetry) {
+        console.warn(`[TossInvestClient] ⚠️ getOrderDetail 401 감지 -> 토큰 강제 재발급 후 재시도`);
+        this.clearTokenCache();
+        return await this.getOrderDetail(orderId, true);
+      }
+
       if (!resp.ok) return null;
       const data = await resp.json();
       return data.result || data;
@@ -353,7 +414,7 @@ class TossInvestClient {
     if (!this.isConfigured()) return [];
     try {
       const headers = await this.getAuthHeaders();
-      const resp = await fetch(`${this.baseUrl}/api/v1/orders?status=OPEN`, {
+      const resp = await this._fetch(`${this.baseUrl}/api/v1/orders?status=OPEN`, {
         method: 'GET',
         headers
       });
@@ -374,7 +435,7 @@ class TossInvestClient {
     if (!this.isConfigured()) return { success: false, error: 'API 미설정' };
     const headers = await this.getAuthHeaders();
     try {
-      const resp = await fetch(`${this.baseUrl}/api/v1/orders/${encodeURIComponent(orderId)}/cancel`, {
+      const resp = await this._fetch(`${this.baseUrl}/api/v1/orders/${encodeURIComponent(orderId)}/cancel`, {
         method: 'POST',
         headers,
         body: JSON.stringify({})
@@ -829,7 +890,7 @@ class TossInvestClient {
     if (!this.isConfigured()) return null;
     try {
       const token = await this.getAccessToken();
-      const res = await fetch(`${this.baseUrl}/api/v1/stocks?symbols=${encodeURIComponent(symbol)}`, {
+      const res = await this._fetch(`${this.baseUrl}/api/v1/stocks?symbols=${encodeURIComponent(symbol)}`, {
         headers: { 'Authorization': `Bearer ${token}` },
         signal: AbortSignal.timeout(4000)
       });
@@ -869,7 +930,7 @@ class TossInvestClient {
       });
 
       const url = `${this.baseUrl}/api/v1/rankings?${qs.toString()}`;
-      const res = await fetch(url, { headers, signal: AbortSignal.timeout(5000) });
+      const res = await this._fetch(url, { headers, signal: AbortSignal.timeout(5000) });
       if (!res.ok) {
         const errText = await res.text();
         return { success: false, error: `HTTP ${res.status}: ${errText}` };
@@ -973,92 +1034,10 @@ class TossInvestClient {
   }
 
   /**
-   * 한미 초단타 타깃 종목 발굴 (국장 10만원 이하 / 미장 $100 이하 거래대금 상위 1위)
+   * 한미 초단타 1순위 타깃 종목 발굴 (복수 후보 중 1위 반환)
    * @param {string} market - 'KR' | 'US'
    * @param {number|null} maxPrice - 국장 기본 100,000 KRW / 미장 기본 100.0 USD
    * @param {Array<string>} excludeSymbols - 타 전략 중복 제외 심볼 목록
-   */
-  async findScalpingTargetStock(market = 'KR', maxPrice = null, excludeSymbols = []) {
-    const isUs = String(market).toUpperCase() === 'US';
-    const marketCountry = isUs ? 'US' : 'KR';
-    const defaultMaxPrice = isUs ? 100.0 : 100000;
-    const effectiveMaxPrice = (typeof maxPrice === 'number' && maxPrice > 0) ? maxPrice : defaultMaxPrice;
-
-    let rankRes = await this.getRankings({
-      type: 'MARKET_TRADING_AMOUNT',
-      marketCountry,
-      duration: 'realtime',
-      count: 50,
-      excludeInvestmentCaution: true
-    });
-
-    if (!rankRes.success || !rankRes.rankings || rankRes.rankings.length === 0) {
-      // 장 시작 직전 또는 장외 시 1d 랭킹으로 보조 조회
-      const backupRes = await this.getRankings({
-        type: 'MARKET_TRADING_AMOUNT',
-        marketCountry,
-        duration: '1d',
-        count: 50,
-        excludeInvestmentCaution: true
-      });
-      if (backupRes.success && backupRes.rankings && backupRes.rankings.length > 0) {
-        rankRes = backupRes;
-      }
-    }
-
-    if (!rankRes.rankings || rankRes.rankings.length === 0) {
-      return null;
-    }
-
-    const excludeSet = new Set((excludeSymbols || []).map(s => String(s || '').trim()).filter(Boolean));
-    const highRiskKeywords = ['레버리지', '인버스', '2X', '-2X', '2x', '-2x', 'ETN', '스팩', 'SPAC'];
-
-    const candidates = [];
-    for (const item of rankRes.rankings) {
-      const sym = String(item.symbol || '').trim();
-      if (!sym || excludeSet.has(sym)) {
-        continue;
-      }
-      const price = parseFloat(item.price?.lastPrice || item.lastPrice || (typeof item.price === 'number' ? item.price : 0) || 0);
-      if (price <= 0 || price > effectiveMaxPrice) {
-        continue;
-      }
-
-      // 종목명 조회 및 레버리지/인버스/ETN/스팩 필터링
-      let stockName = item.name || sym;
-      try {
-        const info = await this.getStockInfo(sym);
-        if (info && info.name) {
-          stockName = info.name;
-        }
-      } catch (e) {}
-
-      // 레버리지, 인버스, ETN, 스팩 등 기본예탁금(1천만원) 규제 또는 파생 고위험 종목 제외
-      const isHighRisk = highRiskKeywords.some(kw => stockName.includes(kw) || sym.toUpperCase().includes(kw));
-      if (isHighRisk) {
-        console.log(`[TossClient] High-risk/Leveraged candidate excluded: ${stockName} (${sym})`);
-        continue;
-      }
-
-      candidates.push({
-        symbol: sym,
-        stockName: stockName,
-        market: marketCountry,
-        currency: item.currency || (isUs ? 'USD' : 'KRW'),
-        currentPrice: price,
-        changeRate: parseFloat(item.price?.changeRate || item.changeRate || 0),
-        tradingAmount: parseFloat(item.tradingAmount || 0),
-        tradingVolume: parseFloat(item.tradingVolume || 0)
-      });
-
-      if (candidates.length >= 5) break;
-    }
-
-    return candidates;
-  }
-
-  /**
-   * 한미 초단타 1순위 타깃 종목 발굴 (복수 후보 중 1위 반환)
    */
   async findScalpingTargetStock(market = 'KR', maxPrice = null, excludeSymbols = []) {
     const candidates = await this.findScalpingCandidates(market, maxPrice, excludeSymbols);
@@ -1100,7 +1079,12 @@ class TossInvestClient {
     }
 
     const excludeSet = new Set((excludeSymbols || []).map(s => String(s || '').trim()).filter(Boolean));
-    const highRiskKeywords = ['레버리지', '인버스', '2X', '-2X', '2x', '-2x', 'ETN', '스팩', 'SPAC'];
+    const highRiskKeywords = [
+      '레버리지', '인버스', '2X', '-2X', '2x', '-2x', '3X', '-3X', '3x', '-3x',
+      'ETN', '스팩', 'SPAC',
+      'TQQQ', 'SQQQ', 'SOXL', 'SOXS', 'FNGU', 'FNGD', 'BULZ', 'BERZ',
+      'LABU', 'LABD', 'TECL', 'TECS', 'NUGT', 'DUST', 'UVXY', 'VIXY', 'VIX'
+    ];
 
     const candidates = [];
     for (const item of rankRes.rankings) {
@@ -1121,9 +1105,18 @@ class TossInvestClient {
         }
       } catch (e) {}
 
-      const isHighRisk = highRiskKeywords.some(kw => stockName.includes(kw) || sym.toUpperCase().includes(kw));
+      // 레버리지(2X/3X), 인버스, ETN, 스팩 등 고변동성 파생/위험 종목 철저 차단
+      const isHighRisk = highRiskKeywords.some(kw => stockName.toUpperCase().includes(kw) || sym.toUpperCase().includes(kw));
       if (isHighRisk) {
         console.log(`[TossClient] High-risk/Leveraged candidate excluded: ${stockName} (${sym})`);
+        continue;
+      }
+
+      // 🌟 [스캘퍼 핵심 원칙: 음봉 투매 차단 및 적정 양봉 모멘텀 필터링 (+0.3% ~ +8.5%)]
+      // 마이너스 하락 음봉(차익실현 폭탄/투매 거래량) 및 +9% 이상 과열 상투 종목 진입 원천 배제
+      const changeRate = parseFloat(item.price?.changeRate || item.changeRate || 0);
+      if (changeRate < 0.3 || changeRate > 8.5) {
+        console.log(`[TossClient] Candidate out of safe momentum range (+0.3%~+8.5%): ${stockName} (${sym}) changeRate=${changeRate}%`);
         continue;
       }
 
@@ -1133,7 +1126,7 @@ class TossInvestClient {
         market: marketCountry,
         currency: item.currency || (isUs ? 'USD' : 'KRW'),
         currentPrice: price,
-        changeRate: parseFloat(item.price?.changeRate || item.changeRate || 0),
+        changeRate: changeRate,
         tradingAmount: parseFloat(item.tradingAmount || 0),
         tradingVolume: parseFloat(item.tradingVolume || 0)
       });

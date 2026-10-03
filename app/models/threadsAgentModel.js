@@ -444,5 +444,27 @@ window.ThreadsAgentModel = {
     } catch (e) {
       return { success: false, message: e.message };
     }
+  },
+
+  async triggerTrendScoutAgent() {
+    try {
+      const res = await fetch('/api/system/agents/trend_scout/trigger', { method: 'POST' });
+      const data = await res.json();
+      await this.fetchSystemAgents();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  },
+
+  async triggerDebateWorkerAgent() {
+    try {
+      const res = await fetch('/api/system/agents/stock_debate_arena/trigger', { method: 'POST' });
+      const data = await res.json();
+      await this.fetchSystemAgents();
+      return data;
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
   }
 };

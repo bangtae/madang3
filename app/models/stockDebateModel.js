@@ -387,6 +387,7 @@ window.StockDebateModel = {
           // 비동기 백그라운드 소집 시 3초 후 데이터 재동기화
           setTimeout(() => { this.loadDebates(); }, 3000);
         }
+        return { success: true, debate: result.debate || result };
       } else {
         let errDetail = '서버 연결 실패 또는 에이전트 응답 지연';
         if (res) {

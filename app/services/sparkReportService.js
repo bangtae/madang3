@@ -3,10 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 class SparkReportService {
-  constructor(dataDir, getValidGoogleAccessToken, getGeminiApiKey) {
+  constructor(dataDir, getValidGoogleAccessToken, getGeminiApiKey, telegramBot) {
     this.dataDir = dataDir || path.join(__dirname, '..', '..', 'data');
     this.getValidGoogleAccessToken = getValidGoogleAccessToken || (async () => null);
     this.getGeminiApiKey = getGeminiApiKey || (() => process.env.GEMINI_API_KEY || '');
+    this.telegramBot = telegramBot || null;
 
     this.latestReportsFile = path.join(this.dataDir, 'sparkReportsLatest.json');
     this.configFile = path.join(this.dataDir, 'sparkReportsConfig.json');
@@ -171,6 +172,7 @@ class SparkReportService {
             category: reportCategory.key,
             categoryLabel: reportCategory.label,
             icon: reportCategory.icon,
+            schedule: reportCategory.schedule,
             content: contentText.trim(),
             summarySnippet: contentText.trim().slice(0, 180).replace(/[\r\n]+/g, ' ') + '...',
             source: 'Gemini Spark',
@@ -200,56 +202,204 @@ class SparkReportService {
     }
 
     if (importedReports.length > 0) {
-      // 주간 데이터 교체 정책: 새 주차 수집본이 오면 이전 수집본은 아카이빙/대체하고 최신본 세트로 설정
+      // 슬롯 기반 개별 업데이트 및 최대 5회분 히스토리 누적 보관
+      const currentData = this.getLatestReports();
+      let reportsList = Array.isArray(currentData.reports) && currentData.reports.length > 0
+        ? currentData.reports
+        : this.generateSeedReports().reports;
+
+      const nowIso = new Date().toISOString();
+      const updatedTitles = [];
+
+      for (const imported of importedReports) {
+        const existingIdx = reportsList.findIndex(r =>
+          r.category === imported.category ||
+          (imported.category === 'monthly_economy' && (r.category === 'economy_society' || r.category === 'monthly_economy')) ||
+          (imported.category === 'us_high_freq' && (r.category === 'us_macro' || r.category === 'us_high_freq')) ||
+          (imported.category === 'major_indicators' && (r.category === 'daily_stock' || r.category === 'major_indicators'))
+        );
+
+        if (existingIdx >= 0) {
+          const oldReport = reportsList[existingIdx];
+          const history = Array.isArray(oldReport.history) ? oldReport.history : [];
+          // 이전 버전을 히스토리에 보관 (최대 5건)
+          history.unshift({
+            id: oldReport.id,
+            title: oldReport.title,
+            content: oldReport.content,
+            summarySnippet: oldReport.summarySnippet,
+            collectedAt: oldReport.collectedAt || oldReport.updatedAt || nowIso
+          });
+          if (history.length > 5) history.pop();
+
+          reportsList[existingIdx] = {
+            ...oldReport,
+            id: imported.id,
+            originalFileId: imported.originalFileId,
+            title: imported.title,
+            category: imported.category,
+            categoryLabel: imported.categoryLabel,
+            icon: imported.icon,
+            schedule: imported.schedule,
+            content: imported.content,
+            summarySnippet: imported.summarySnippet,
+            source: 'Gemini Spark',
+            collectedAt: nowIso,
+            updatedAt: nowIso,
+            isNew: true,
+            status: 'READY',
+            history: history
+          };
+          updatedTitles.push(`${imported.icon} ${imported.categoryLabel || imported.title}`);
+        } else {
+          // 신규 슬롯 추가
+          reportsList.push({
+            ...imported,
+            collectedAt: nowIso,
+            updatedAt: nowIso,
+            isNew: true,
+            history: []
+          });
+          updatedTitles.push(`${imported.icon} ${imported.categoryLabel || imported.title}`);
+        }
+      }
+
       const latestSet = {
         weekLabel: this.getWeeklyLabel(),
-        updatedAt: new Date().toISOString(),
-        totalReports: importedReports.length,
-        reports: importedReports
+        updatedAt: nowIso,
+        totalReports: reportsList.length,
+        reports: reportsList
       };
       this.saveLatestReports(latestSet);
-      this.saveConfig({ lastWeeklySyncAt: new Date().toISOString() });
+      this.saveConfig({ lastWeeklySyncAt: nowIso });
+
+      // 텔레그램 실시간 알림 발송
+      this.notifyTelegramNewReports(importedReports).catch(e => {
+        console.warn('[SparkReportService] Telegram notification failed:', e.message);
+      });
 
       return {
         success: true,
         importedCount: importedReports.length,
+        updatedReports: updatedTitles,
         deletedDriveFilesCount: deletedFileIds.length,
         weekLabel: latestSet.weekLabel,
-        message: `성공적으로 ${importedReports.length}개 보고서를 수집하고, 구글 드라이브 임시 파일 ${deletedFileIds.length}개를 안전하게 삭제했습니다.`
+        message: `성공적으로 ${importedReports.length}개 보고서(${updatedTitles.join(', ')})를 수집 및 갱신하고, 구글 드라이브 임시 파일 ${deletedFileIds.length}개를 안전하게 삭제했습니다.`
       };
     }
 
     return {
       success: true,
       importedCount: 0,
-      message: '파일 내용을 파싱하지 못했습니다.'
+      message: '수집할 신규 보고서 파일이 없습니다.'
     };
+  }
+
+  async notifyTelegramNewReports(importedReports) {
+    if (!this.telegramBot || typeof this.telegramBot.sendGeneralMessage !== 'function') return;
+    if (!Array.isArray(importedReports) || importedReports.length === 0) return;
+
+    for (const rep of importedReports) {
+      const kstTime = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }).format(new Date());
+
+      const snippet = rep.summarySnippet ? rep.summarySnippet.slice(0, 220).replace(/[\r\n]+/g, ' ') : '';
+
+      const msg = `📢 <b>[Gemini Spark 경제리포트 신규 수집 알림]</b>
+
+• <b>보고서명:</b> ${rep.icon || '📊'} <b>${rep.title}</b>
+• <b>분류:</b> ${rep.categoryLabel || rep.category}
+• <b>발행 주기:</b> ${rep.schedule || '정기 발행'}
+• <b>수집 일시:</b> ${kstTime}
+• <b>수집 출처:</b> Google Drive (Madang_Spark_Drop)
+
+💡 <b>핵심 요약 미리보기:</b>
+${snippet}...
+
+🔗 <a href="https://madang3-264643074286.asia-northeast3.run.app/">포털 투자 &gt; Gemini Spark 경제리포트 바로가기</a>`;
+
+      try {
+        await this.telegramBot.sendGeneralMessage(msg, 'HTML');
+      } catch (err) {
+        console.warn('[SparkReportService] Failed to send telegram alert for report:', rep.title, err.message);
+      }
+    }
   }
 
   categorizeReport(filename) {
     const name = (filename || '').toLowerCase();
-    if (name.includes('사회') || name.includes('인구') || name.includes('정기 경제')) {
-      return { key: 'economy_society', label: '정기 경제 및 사회 지표', icon: '🏛️' };
+    // 1. 금융 거시 지표 보고서 (매월 첫 번째 월요일 오전 9시경)
+    if (name.includes('금융 거시') || (name.includes('금융') && (name.includes('거시') || name.includes('지표')))) {
+      return {
+        key: 'macro_finance',
+        label: '금융 거시 지표 보고서',
+        icon: '📈',
+        schedule: '매월 첫 번째 월요일 오전 9시경'
+      };
     }
-    if (name.includes('금융') || name.includes('거시')) {
-      return { key: 'macro_finance', label: '정기 금융 거시 지표', icon: '📈' };
+    // 2. 미국 고빈도 지표 보고서 (매월 1일 오전 9:00경)
+    if (name.includes('고빈도') || (name.includes('미국') && (name.includes('지표') || name.includes('고빈도') || name.includes('주간')))) {
+      return {
+        key: 'us_high_freq',
+        label: '미국 고빈도 지표 보고서',
+        icon: '🇺🇸',
+        schedule: '매월 1일 오전 9:00경'
+      };
     }
-    if (name.includes('sap') || name.includes('엔터프라이즈')) {
-      return { key: 'sap_tech', label: '주간 SAP 통합 기술', icon: '🏢' };
-    }
-    if (name.includes('it') || name.includes('기업 동향') || name.includes('빅테크')) {
-      return { key: 'it_trends', label: '국내외 주요 IT 기업 동향', icon: '💻' };
-    }
-    if (name.includes('일일') || name.includes('주식 요약')) {
-      return { key: 'daily_stock', label: '일일 경제 및 주식 요약', icon: '📋' };
-    }
-    if (name.includes('미국') || name.includes('us')) {
-      return { key: 'us_macro', label: '미국 주간 경제 지표', icon: '🇺🇸' };
-    }
+    // 3. 부동산 종합 분석 보고서 (매월 1일 오전 9:00경)
     if (name.includes('부동산') || name.includes('아파트')) {
-      return { key: 'real_estate', label: '월간 전국 부동산 종합 분석', icon: '🏠' };
+      return {
+        key: 'real_estate',
+        label: '부동산 종합 분석 보고서',
+        icon: '🏠',
+        schedule: '매월 1일 오전 9:00경'
+      };
     }
-    return { key: 'general_macro', label: '글로벌 경제 리포트', icon: '📊' };
+    // 4. 월간 경기 지표 보고서 (매월 1일 오전 9:00경)
+    if (name.includes('경기 지표') || name.includes('월간 경기') || name.includes('사회') || name.includes('인구')) {
+      return {
+        key: 'monthly_economy',
+        label: '월간 경기 지표 보고서',
+        icon: '🏛️',
+        schedule: '매월 1일 오전 9:00경'
+      };
+    }
+    // 5. 주요 지표 동향 보고서 (매월 세 번째 월요일 오전 9시경)
+    if (name.includes('주요 지표') || name.includes('지표 동향') || name.includes('동향 보고서') || name.includes('주요지표') || name.includes('일일 경제')) {
+      return {
+        key: 'major_indicators',
+        label: '주요 지표 동향 보고서',
+        icon: '📊',
+        schedule: '매월 세 번째 월요일 오전 9시경'
+      };
+    }
+    // 6. SAP 통합 동향 보고서 (매주 월 오전 9:00경)
+    if (name.includes('sap') || name.includes('엔터프라이즈')) {
+      return {
+        key: 'sap_tech',
+        label: 'SAP 통합 동향 보고서',
+        icon: '🏢',
+        schedule: '매주 월 오전 9:00경'
+      };
+    }
+    // 7. IT 기업 동향 보고서 (매주 월 오전 9:00경)
+    if (name.includes('it') || name.includes('기업 동향') || name.includes('빅테크')) {
+      return {
+        key: 'it_trends',
+        label: 'IT 기업 동향 보고서',
+        icon: '💻',
+        schedule: '매주 월 오전 9:00경'
+      };
+    }
+    return {
+      key: 'general_macro',
+      label: '글로벌 경제 리포트',
+      icon: '📊',
+      schedule: '정기 발행'
+    };
   }
 
   getWeeklyLabel() {
@@ -655,14 +805,17 @@ class SparkReportService {
       reports: [
         {
           id: 'spark-rep-01',
-          title: '정기 경제 및 사회 지표 보고서',
-          category: 'economy_society',
-          categoryLabel: '정기 경제 및 사회 지표',
+          title: '월간 경기 지표 보고서',
+          category: 'monthly_economy',
+          categoryLabel: '월간 경기 지표 보고서',
           icon: '🏛️',
+          schedule: '매월 1일 오전 9:00경',
           collectedAt: now.toISOString(),
           status: 'READY',
+          isNew: false,
+          history: [],
           summarySnippet: '최신 산업 생산성 지표와 인구 구조 변화, 정부 재정 지출 추세를 종합 분석하여 국가 잠재성장률 동향을 진단했습니다.',
-          content: `## 🏛️ 정기 경제 및 사회 지표 심층 보고서
+          content: `## 🏛️ 월간 경기 지표 심층 보고서
 
 ### 1. 주요 거시 산업 및 생산 지표
 - **제조업 가동률 지수**: 전월 대비 0.8% 상승한 73.4% 기록, 반도체·전자부품 수출 반등에 힘입어 2분기 연속 회복세 유지.
@@ -680,14 +833,17 @@ class SparkReportService {
         },
         {
           id: 'spark-rep-02',
-          title: '정기 금융 거시 지표 보고서',
+          title: '금융 거시 지표 보고서',
           category: 'macro_finance',
-          categoryLabel: '정기 금융 거시 지표',
+          categoryLabel: '금융 거시 지표 보고서',
           icon: '📈',
+          schedule: '매월 첫 번째 월요일 오전 9시경',
           collectedAt: now.toISOString(),
           status: 'READY',
+          isNew: false,
+          history: [],
           summarySnippet: '글로벌 주요국 기준금리 정책 경로, 장단기 국채 금리 스프레드, 원/달러 환율 및 금융 유동성 추이를 종합 점검했습니다.',
-          content: `## 📈 정기 금융 거시 지표 종합 보고서
+          content: `## 📈 금융 거시 지표 종합 보고서
 
 ### 1. 글로벌 통화 정책 및 금리 동향
 - **미국 연준(Fed)**: 인플레이션 둔화 추세(PCE 2%대 안착)에 따른 완만한 금리 인하 사이클 전개 중, 점도표 기준 연내 추가 인하 여력 상존.
@@ -704,35 +860,90 @@ class SparkReportService {
         },
         {
           id: 'spark-rep-03',
-          title: '주간 IT 기업 및 최신 동향',
-          category: 'it_trends',
-          categoryLabel: '국내외 주요 IT 기업 동향',
-          icon: '💻',
+          title: '미국 고빈도 지표 보고서',
+          category: 'us_high_freq',
+          categoryLabel: '미국 고빈도 지표 보고서',
+          icon: '🇺🇸',
+          schedule: '매월 1일 오전 9:00경',
           collectedAt: now.toISOString(),
           status: 'READY',
-          summarySnippet: '글로벌 빅테크(빅5)의 AI 데이터센터 투자 확대, HBM 수요 급증, 온디바이스 AI 칩셋 경쟁 현황을 심층 분석했습니다.',
-          content: `## 💻 국내외 주요 IT 기업 최신 동향 보고서
+          isNew: false,
+          history: [],
+          summarySnippet: '미국 노동부 비농업 고용보고서, 소비자물가지수(CPI), 미시간대 소비자심리 등 실시간 고빈도 거시 데이터를 수집 및 정리했습니다.',
+          content: `## 🇺🇸 미국 고빈도 거시 경제 지표 보고서
 
-### 1. 글로벌 빅테크 AI CapEx(설비투자) 추세
-- **빅테크 4사(MS, 구글, 아마존, 메타)**: 2026년 연간 AI 인프라 자본지출(CapEx) 합산 2,000억 달러 상회 전망.
-- **빅테크 수익화 진전**: 클라우드(Azure, Google Cloud, AWS) 내 생성형 AI 기여도가 두 자릿수 성장률 기록하며 ROI 우려 해소.
+### 1. 인플레이션 지표 (CPI & Core CPI)
+- **헤드라인 CPI**: 전년 대비 2.5% 상승으로 예상치 부합, 에너지 가격 하락이 전반적인 물가 둔화 견인.
+- **근원 CPI (Core CPI)**: 주거비(Shelter) 하향 안정화 지연으로 전월 대비 0.3% 상승, 완만한 둔화 궤적 유지.
 
-### 2. 반도체 및 HBM 공급망
-- **SK하이닉스 & 삼성전자**: 차세대 HBM3E 및 HBM4 양산 로드맵 앞당김, 주요 GPU 공급사 납품 경쟁 심화.
-- **엔비디아(NVIDIA)**: 차세대 블랙웰(Blackwell) 아키텍처 서버 본격 출하 개시, 전력 효율 개선형 솔루션 채택 확산.
+### 2. 고용 및 소득 고빈도 지표
+- **신규 비농업 고용(Nonfarm Payrolls)**: 14.2만 건 증가, 과열 국면 탈피 후 연준의 중립 수준에 근접.
+- **시간당 평균 임금 상승률**: 전년 대비 3.8%로 임금발 인플레이션 압력 완화.
 
-### 3. 국내 IT 및 인터넷 플랫폼
-- **네이버·카카오**: 기업용 B2B 초거대 AI 모델 엔터프라이즈 레퍼런스 확보 및 검색·커머스 결합 가속.
-- **전망**: 전력·인프라 병목을 해결하는 원전·전력망 수혜주 및 고효율 AI 칩 설계 팹리스 중심의 수급 쏠림 지속 전망.`
+### 3. 소비 및 경기 선행지표
+- **소매판매(Retail Sales)**: 견고한 소비자 지출 지속, 미국 경제의 70%를 차지하는 소비 연착륙(Soft Landing) 시나리오 뒷받침.`
         },
         {
           id: 'spark-rep-04',
-          title: '주간 SAP 통합 기술 보고서',
-          category: 'sap_tech',
-          categoryLabel: '주간 SAP 통합 기술',
-          icon: '🏢',
+          title: '부동산 종합 분석 보고서',
+          category: 'real_estate',
+          categoryLabel: '부동산 종합 분석 보고서',
+          icon: '🏠',
+          schedule: '매월 1일 오전 9:00경',
           collectedAt: now.toISOString(),
           status: 'READY',
+          isNew: false,
+          history: [],
+          summarySnippet: '전국 아파트 매매 및 전세 가격 지수, 주택담보대출 금리 변동, 지역별 양극화 동향을 성공적으로 분석했습니다.',
+          content: `## 🏠 월간 전국 부동산 시장 종합 분석 보고서
+
+### 1. 수도권 vs 지방 매매가 양극화
+- **서울 및 수도권 핵심지**: 강남 3구 및 마용성 중심의 신고가 경신과 거래량 회복, 신축 선호 현상 뚜렷.
+- **지방 광역시 및 도지역**: 미분양 적체와 대출 규제 영향으로 가격 보합 및 하락세 지속, 지역 간 온도차 극심.
+
+### 2. 전세 시장 및 임대차 동향
+- **서울 아파트 전세가**: 60주 연속 상승세 기록, 입주 물량 감소와 전세 사기 기피로 아파트 전세 수요 집중.
+- **월세화 가속**: 전세대출 금리 부담 및 고액 보증금 기피로 준전세 및 월세 계약 비중 50% 육박.
+
+### 3. 정부 대출 규제(스트레스 DSR 2단계) 영향
+- 수도권 주담대 한도 축소로 중저가 외곽 지역 매수 관망세 전환, 똘똘한 한 채 쏠림 가속화.`
+        },
+        {
+          id: 'spark-rep-05',
+          title: '주요 지표 동향 보고서',
+          category: 'major_indicators',
+          categoryLabel: '주요 지표 동향 보고서',
+          icon: '📊',
+          schedule: '매월 세 번째 월요일 오전 9시경',
+          collectedAt: now.toISOString(),
+          status: 'READY',
+          isNew: false,
+          history: [],
+          summarySnippet: '글로벌 원자재 가격, 달러 인덱스, 대미/대중 수출입 통계 및 국채 수익률 곡선 주요 지표 동향을 종합 점검했습니다.',
+          content: `## 📊 주요 거시 경제 지표 동향 보고서
+
+### 1. 글로벌 원자재 및 공급망 지표
+- **국제유가(WTI)**: 배럴당 $70 안팎의 안정세, 중동 지정학적 리스크에도 불구하고 글로벌 수요 둔화 우려로 상단 제한.
+- **구리 및 원자재**: 닥터 코퍼(Copper) 가격 반등으로 글로벌 제조업 바닥 탈출 기대감 반영.
+
+### 2. 수출입 통계 및 무역 수지
+- **대미/대중 수출 비중**: 반도체 및 자동차 중심의 대미 흑자 유지, 대중국 IT 수출 점진적 개선세.
+- **무역수지**: 연속 흑자 기조 유지로 경상수지 체질 강화.
+
+### 3. 글로벌 채권 및 크레딧 스프레드
+- 회사채 신용 스프레드 축소세 지속, 우량 기업 중심의 자금 조달 여건 양호.`
+        },
+        {
+          id: 'spark-rep-06',
+          title: 'SAP 통합 동향 보고서',
+          category: 'sap_tech',
+          categoryLabel: 'SAP 통합 동향 보고서',
+          icon: '🏢',
+          schedule: '매주 월 오전 9:00경',
+          collectedAt: now.toISOString(),
+          status: 'READY',
+          isNew: false,
+          history: [],
           summarySnippet: 'SAP BTP 및 Integration Suite, Clean Core 아키텍처 전환, S/4HANA 마이그레이션 모범 사례를 종합 정리했습니다.',
           content: `## 🏢 주간 SAP 통합 기술 및 엔터프라이즈 아키텍처 보고서
 
@@ -748,72 +959,30 @@ class SparkReportService {
 - 글로벌 제조업 및 유통사의 레거시 ECC에서 S/4HANA Private Cloud 전환 프로젝트에서 하이브리드 인터페이스 장애율 85% 감축 달성.`
         },
         {
-          id: 'spark-rep-05',
-          title: '일일 경제 및 주식 요약 보고서',
-          category: 'daily_stock',
-          categoryLabel: '일일 경제 및 주식 요약',
-          icon: '📋',
-          collectedAt: now.toISOString(),
-          status: 'READY',
-          summarySnippet: '국내 증시 마감 시황, 외국인·기관 순매수 특징 종목, 당일 주요 공시 및 섹터별 등락 요인을 요약했습니다.',
-          content: `## 📋 일일 경제 및 주식 시장 종합 요약
-
-### 1. 코스피·코스닥 수급 및 지수 요약
-- **코스피 지수**: 전일 대비 +0.45% 상승한 2,612선 마감. 외국인 1,800억원 순매수, 기관 금융투자 중심 1,200억원 순매수.
-- **코스닥 지수**: 바이오 및 소부장 강세로 +0.68% 상승 마감.
-
-### 2. 시장 주도 테마 및 섹터
-- **원자력/전력설비**: AI 데이터센터 전력 공급 부족 이슈로 두산에너빌리티, 효성중공업 강세.
-- **바이오/제약**: 글로벌 기술수출 파이프라인 임상 발표 기대감으로 코스닥 바이오 대형주 매수세 유입.
-- **이차전지**: 저가 매수세 유입되며 기술적 반등 시도.
-
-### 3. 당일 주요 공시 및 기업 이벤트
-- 대형 반도체 부품사 공급계약 체결 및 수주 잔고 급증 공시.
-- 다음 거래일 체크 포인트: 미국 증시 기술주 실적 발표 및 장외 국채 입찰 결과 주목.`
-        },
-        {
-          id: 'spark-rep-06',
-          title: '미국 주간 경제 지표 보고서',
-          category: 'us_macro',
-          categoryLabel: '미국 주간 경제 지표',
-          icon: '🇺🇸',
-          collectedAt: now.toISOString(),
-          status: 'READY',
-          summarySnippet: '미국 노동부 비농업 고용보고서, 소비자물가지수(CPI), 소매판매 실적 데이터를 수집 및 정리했습니다.',
-          content: `## 🇺🇸 미국 주간 경제 지표 종합 보고서
-
-### 1. 인플레이션 지표 (CPI & Core CPI)
-- **헤드라인 CPI**: 전년 대비 2.5% 상승으로 예상치 부합, 에너지 가격 하락이 전반적인 물가 둔화 견인.
-- **근원 CPI (Core CPI)**: 주거비(Shelter) 하향 안정화 지연으로 전월 대비 0.3% 상승, 완만한 둔화 궤적 유지.
-
-### 2. 고용 및 소득 지표
-- **신규 비농업 고용(Nonfarm Payrolls)**: 14.2만 건 증가, 과열 국면 탈피 후 연준의 중립 수준에 근접.
-- **시간당 평균 임금 상승률**: 전년 대비 3.8%로 임금발 인플레이션 압력 완화.
-
-### 3. 소비 및 경기 선행지표
-- **소매판매(Retail Sales)**: 견고한 소비자 지출 지속, 미국 경제의 70%를 차지하는 소비 연착륙(Soft Landing) 시나리오 뒷받침.`
-        },
-        {
           id: 'spark-rep-07',
-          title: '월간 전국 부동산 종합 분석',
-          category: 'real_estate',
-          categoryLabel: '월간 전국 부동산 종합 분석',
-          icon: '🏠',
+          title: 'IT 기업 동향 보고서',
+          category: 'it_trends',
+          categoryLabel: 'IT 기업 동향 보고서',
+          icon: '💻',
+          schedule: '매주 월 오전 9:00경',
           collectedAt: now.toISOString(),
           status: 'READY',
-          summarySnippet: '전국 아파트 매매 및 전세 가격 지수, 주택담보대출 금리 변동, 지역별 양극화 동향을 성공적으로 분석했습니다.',
-          content: `## 🏠 월간 전국 부동산 시장 종합 분석 보고서
+          isNew: false,
+          history: [],
+          summarySnippet: '글로벌 빅테크(빅5)의 AI 데이터센터 투자 확대, HBM 수요 급증, 온디바이스 AI 칩셋 경쟁 현황을 심층 분석했습니다.',
+          content: `## 💻 국내외 주요 IT 기업 최신 동향 보고서
 
-### 1. 수도권 vs 지방 매매가 양극화
-- **서울 및 수도권 핵심지**: 강남 3구 및 마용성 중심의 신고가 경신과 거래량 회복, 신축 선호 현상 뚜렷.
-- **지방 광역시 및 도지역**: 미분양 적체와 대출 규제 영향으로 가격 보합 및 하락세 지속, 지역 간 온도차 극심.
+### 1. 글로벌 빅테크 AI CapEx(설비투자) 추세
+- **빅테크 4사(MS, 구글, 아마존, 메타)**: 2026년 연간 AI 인프라 자본지출(CapEx) 합산 2,000억 달러 상회 전망.
+- **빅테크 수익화 진전**: 클라우드(Azure, Google Cloud, AWS) 내 생성형 AI 기여도가 두 자릿수 성장률 기록하며 ROI 우려 해소.
 
-### 2. 전세 시장 및 임대차 동향
-- **서울 아파트 전세가**: 60주 연속 상승세 기록, 입주 물량 감소와 전세 사기 기피로 아파트 전세 수요 집중.
-- **월세화 가속**: 전세대출 금리 부담 및 고액 보증금 기피로 준전세 및 월세 계약 비중 50% 육박.
+### 2. 반도체 및 HBM 공급망
+- **SK하이닉스 & 삼성전자**: 차세대 HBM3E 및 HBM4 양산 로드맵 앞당김, 주요 GPU 공급사 납품 경쟁 심화.
+- **엔비디아(NVIDIA)**: 차세대 블랙웰(Blackwell) 아키텍처 서버 본격 출하 개시, 전력 효율 개선형 솔루션 채택 확산.
 
-### 3. 정부 대출 규제(스트레스 DSR 2단계) 영향
-- 수도권 주담대 한도 축소로 중저가 외곽 지역 매수 관망세 전환, 똘똘한 한 채 쏠림 가속화.`
+### 3. 국내 IT 및 인터넷 플랫폼
+- **네이버·카카오**: 기업용 B2B 초거대 AI 모델 엔터프라이즈 레퍼런스 확보 및 검색·커머스 결합 가속.
+- **전망**: 전력·인프라 병목을 해결하는 원전·전력망 수혜주 및 고효율 AI 칩 설계 팹리스 중심의 수급 쏠림 지속 전망.`
         }
       ]
     };

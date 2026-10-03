@@ -75,17 +75,19 @@ window.ThreadsAgentView = {
     const sysAgents = model.systemAgents || [];
     const getAgent = (id) => sysAgents.find(a => a.id === id) || { id, is_running: false, pid: null };
 
-    // 10대 에이전트 인스턴스 매핑
+    // 12대 에이전트 인스턴스 매핑
     const agThreads = getAgent('threads');
     const agSap = getAgent('sap');
     const agSupervisor = getAgent('supervisor');
     const agLead = getAgent('lead_orchestrator');
+    const agAiServiceUpdater = getAgent('ai_service_updater');
+    const agTrendScout = getAgent('trend_scout');
+    const agDebateWorker = getAgent('stock_debate_arena');
     const agDanka = getAgent('sub_danka');
     const agGrowth = getAgent('sub_growth');
     const agCautious = getAgent('sub_cautious');
     const agTechnical = getAgent('sub_technical');
     const agJurini = getAgent('sub_jurini');
-    const agAiServiceUpdater = getAgent('ai_service_updater');
 
     // 스케줄 & 배치 시간 메타 박스 HTML 렌더러 헬퍼
     const renderScheduleBox = (agent, defaultIntervalText, defaultNextRunText) => {
@@ -132,17 +134,7 @@ window.ThreadsAgentView = {
     const subCouncilList = [agDanka, agGrowth, agCautious, agTechnical, agJurini];
     const subCouncilRunningCount = subCouncilList.filter(a => a.is_running).length;
 
-    // 끝장 토론 통계 집계
-    const allDebates = (window.StockDebateModel && window.StockDebateModel.items && window.StockDebateModel.items.length > 0)
-      ? window.StockDebateModel.items
-      : (window.PORTAL_DATA_STOCK_DEBATES || []);
-    const totalDebates = allDebates.length;
-    const todayIso = new Date().toISOString().slice(0, 10);
-    const todayDebatesCount = allDebates.filter(d => (d.timestamp || '').includes(todayIso)).length;
-    const todayDebates = todayDebatesCount > 0 ? todayDebatesCount : totalDebates;
-    const existingDebateQuery = document.getElementById('input-debate-stock')?.value || '';
-
-    // 입력창 포커스 중일 때는 전체 재렌더링 대신 상태 배지와 통계만 스마트 업데이트
+    // 입력창 포커스 중일 때는 전체 재렌더링 대신 상태 배지만 스마트 업데이트
     const activeEl = document.activeElement;
     if (activeEl && container.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
       this.updateLiveBadgesOnly();
@@ -161,38 +153,67 @@ window.ThreadsAgentView = {
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
           <div>
             <h2>🤖 AI 에이전트 정보</h2>
-            <p>사내 10대 AI 에이전트의 실시간 가동 상태, Base URL, API 토큰 만료 정보 조회 및 온디맨드 분석·끝장 토론 실행</p>
+            <p>사내 12대 AI 에이전트의 실시간 가동 상태, Base URL, API 토큰 만료 정보 조회 및 온디맨드 분석 제어</p>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <span id="system-agents-summary-pill" class="agent-badge badge-running" style="font-size: 0.85rem; padding: 6px 14px;">
-              🟢 10대 에이전트 중 <b>${model.systemAgentsSummary ? model.systemAgentsSummary.runningCount : 0}개</b> 가동 중
+              🟢 12대 에이전트 중 <b>${model.systemAgentsSummary ? model.systemAgentsSummary.runningCount : 0}개</b> 가동 중
             </span>
             <button type="button" id="btn-agent-refresh-view" class="btn btn-secondary btn-sm" style="padding: 6px 12px;">🔄 전체 새로고침</button>
           </div>
         </div>
       </div>
 
+      <!-- 하이브리드 듀얼 호스트 가동 상태 배너 -->
+      <div class="host-hybrid-status-banner" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 18px;">
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.5rem;">🌐</span>
+            <div>
+              <div style="font-size: 0.88rem; font-weight: 700; color: #34d399;">GCP 클라우드 VM (24/7 상시 가동)</div>
+              <div style="font-size: 0.74rem; color: #94a3b8;">1호 Threads AI 뉴스, 2호 SAP, 6호 트렌드 감시 상주</div>
+            </div>
+          </div>
+          <span class="agent-badge badge-running" style="font-size: 0.75rem;">🟢 24/7 ONLINE</span>
+        </div>
+        <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.5rem;">💻</span>
+            <div>
+              <div style="font-size: 0.88rem; font-weight: 700; color: #38bdf8;">로컬 개발 노트북 (장 운영 배치)</div>
+              <div style="font-size: 0.74rem; color: #94a3b8;">주식 총괄·끝장토론, AI업데이터, 5대 서브에이전트 전담</div>
+            </div>
+          </div>
+          <span class="agent-badge ${agSupervisor.is_running || agLead.is_running ? 'badge-running' : 'badge-ready'}" style="font-size: 0.75rem;">
+            ${agSupervisor.is_running || agLead.is_running ? '🟢 장중 연결됨' : '⚪ 대기/휴면'}
+          </span>
+        </div>
+      </div>
+
       <!-- 에이전트 바로가기 퀵 네비게이션 -->
       <div class="agent-quick-nav-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; padding: 10px 14px; background: rgba(15, 23, 42, 0.6); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); align-items: center;">
         <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">⚡ 바로가기:</span>
-        <a href="#card-threads-agent" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">1호 Threads</a>
-        <a href="#card-sap-agent" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">2호 SAP</a>
+        <a href="#card-threads-agent" class="btn btn-sm" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none; border: 1px solid rgba(16, 185, 129, 0.6); color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.15);">🌐 1호 Threads</a>
+        <a href="#card-sap-agent" class="btn btn-sm" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none; border: 1px solid rgba(16, 185, 129, 0.6); color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.15);">🌐 2호 SAP</a>
         <a href="#card-supervisor-agent" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">3호 감독관</a>
         <a href="#card-lead-agent" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">4호 메인주식</a>
-        <a href="#card-ai-service-updater-agent" class="btn btn-sm" style="font-size: 0.78rem; padding: 3px 10px; text-decoration: none; border: 1px solid rgba(56, 189, 248, 0.6); color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.15);">🤖 5호 AI Service Update Agent</a>
-        <a href="#card-sub-council-group" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">6호 5대 서브에이전트</a>
+        <a href="#card-ai-service-updater-agent" class="btn btn-sm" style="font-size: 0.78rem; padding: 3px 10px; text-decoration: none; border: 1px solid rgba(56, 189, 248, 0.6); color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.15);">🤖 5호 AI Service</a>
+        <a href="#card-trend-scout-agent" class="btn btn-sm" style="font-size: 0.78rem; padding: 3px 10px; text-decoration: none; border: 1px solid rgba(16, 185, 129, 0.6); color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.15);">🌐 6호 트렌드 감시</a>
+        <a href="#card-debate-worker-agent" class="btn btn-sm" style="font-size: 0.78rem; padding: 3px 10px; text-decoration: none; border: 1px solid rgba(244, 63, 94, 0.6); color: #fb7185; font-weight: 700; background: rgba(244, 63, 94, 0.15);">⚔️ 7호 끝장토론 워커</a>
+        <a href="#card-sub-council-group" class="btn btn-sm btn-outline" style="font-size: 0.78rem; padding: 3px 8px; text-decoration: none;">8호 5대 서브에이전트</a>
       </div>
 
       <!-- 모듈형 에이전트 카드 그리드 -->
       <div class="agent-cards-grid">
         
         <!-- 1호: Threads AI 뉴스 에이전트 카드 -->
-        <div class="card agent-card agent-module-card" id="card-threads-agent">
+        <div class="card agent-card agent-module-card" id="card-threads-agent" style="border: 1px solid rgba(16, 185, 129, 0.3);">
           <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
             <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span style="font-size: 1.4rem;">📰</span>
                 <h3 class="card-title" style="margin: 0;">1호: Threads AI 뉴스 에이전트</h3>
+                <span class="agent-badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.72rem;">🌐 GCP Cloud (24/7)</span>
               </div>
               <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #94a3b8;">실시간 증시 뉴스·공시 요약 브리핑 및 Threads 자동 포스팅</p>
             </div>
@@ -267,12 +288,13 @@ window.ThreadsAgentView = {
         </div>
 
         <!-- 2호: SAP Integration Suite 에이전트 카드 -->
-        <div class="card agent-card agent-module-card" id="card-sap-agent">
+        <div class="card agent-card agent-module-card" id="card-sap-agent" style="border: 1px solid rgba(16, 185, 129, 0.3);">
           <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
             <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span style="font-size: 1.4rem;">⚙️</span>
-                <h3 class="card-title" style="margin: 0;">2호: SAP Integration Suite 에이전트</h3>
+                <h3 class="card-title" style="margin: 0; color: #34d399;">2호: SAP Integration Suite 에이전트</h3>
+                <span class="agent-badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.72rem;">🌐 GCP Cloud (12시간 배치)</span>
               </div>
               <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #94a3b8;">SCN 커뮤니티 및 공식 뉴스 피드 자동 수집 &amp; 포털 동기화 데몬</p>
             </div>
@@ -340,9 +362,10 @@ window.ThreadsAgentView = {
         <div class="card agent-card agent-module-card" id="card-supervisor-agent">
           <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
             <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span style="font-size: 1.4rem;">🛡️</span>
                 <h3 class="card-title" style="margin: 0;">3호: AI 통합 감독관 (Supervisor)</h3>
+                <span class="agent-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem;">💻 로컬 노트북</span>
               </div>
               <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #94a3b8;">주식 서브에이전트단 감시·자동 복구(Watchdog) 및 텔레그램 경보 총괄</p>
             </div>
@@ -367,11 +390,12 @@ window.ThreadsAgentView = {
         <div class="card agent-card agent-module-card" id="card-lead-agent">
           <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
             <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span style="font-size: 1.4rem;">📈</span>
-                <h3 class="card-title" style="margin: 0;">4호: 메인 주식 총괄 에이전트 (Lead)</h3>
+                <h3 class="card-title" style="margin: 0;">4호: 메인 주식 &amp; 가상자산 총괄 에이전트 (Lead)</h3>
+                <span class="agent-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem;">💻 로컬 / 클라우드</span>
               </div>
-              <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #94a3b8;">시장 지표 감시, 5대 심의 리포트 종합 합성 및 최종 매매 합의 오케스트레이션</p>
+              <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #94a3b8;">증시 지표 감시, 빗썸 코인 10대 소스 멀티팩터 심의 및 1개 종목 10만원 분할 스윙 최종 의결</p>
             </div>
             <span id="badge-agent-lead_orchestrator" class="agent-badge ${agLead.is_running ? 'badge-running' : 'badge-stopped'}">
               ${agLead.is_running ? `🟢 가동 중 (PID: ${agLead.pid || '-'})` : '🔴 정지됨'}
@@ -397,7 +421,10 @@ window.ThreadsAgentView = {
               <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 1.6rem; padding: 6px; background: rgba(56, 189, 248, 0.15); border-radius: 8px;">🤖</span>
                 <div>
-                  <h3 class="card-title" style="margin: 0; font-size: 1.15rem; color: #38bdf8;">5호: AI 서비스 정보 업데이트 에이전트 (AI Service Update Agent)</h3>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <h3 class="card-title" style="margin: 0; font-size: 1.15rem; color: #38bdf8;">5호: AI 서비스 정보 업데이트 에이전트 (AI Service Update Agent)</h3>
+                    <span class="agent-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem;">💻 로컬 노트북</span>
+                  </div>
                   <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: #94a3b8;">
                     포털 등록 AI 모델 9대 핵심 스펙 실시간 팩트체크, 웹 검증 및 Supabase 클라우드/텔레그램 동기화 데몬
                   </p>
@@ -451,16 +478,151 @@ window.ThreadsAgentView = {
           </div>
         </div>
 
-        <!-- 6호: 5대 주식 서브에이전트단 통합 모듈 카드 -->
+        <!-- 6호: 국내/해외 검색·트렌드 1순위 감시 에이전트 (Trend Scout Agent) -->
+        <div class="card agent-card agent-module-card" id="card-trend-scout-agent" style="border: 1px solid rgba(16, 185, 129, 0.3);">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid rgba(245, 158, 11, 0.2); padding-bottom: 12px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span style="font-size: 1.6rem; padding: 6px; background: rgba(245, 158, 11, 0.15); border-radius: 8px;">🔥</span>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <h3 class="card-title" style="margin: 0; font-size: 1.15rem; color: #fbbf24;">6호: 검색·트렌드 1순위 감시 에이전트 (Trend Scout)</h3>
+                    <span class="agent-badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.72rem;">🌐 GCP Cloud (24/7)</span>
+                  </div>
+                  <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: #94a3b8;">
+                    국내/해외 17개 핵심 검색·트렌드 소스 1순위 변동 1시간 주기 감시, 텔레그램 다이제스트 발송 및 포털 동기화
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="trend-scout-card-badge" class="agent-badge ${agTrendScout.is_running ? 'badge-running' : 'badge-stopped'}" style="font-size: 0.85rem; padding: 6px 12px;">
+                ${agTrendScout.is_running ? `🟢 가동 중 (PID: ${agTrendScout.pid || '-'})` : '🔴 정지됨'}
+              </span>
+            </div>
+          </div>
+
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 14px; padding-top: 14px;">
+            <!-- 스케줄 및 배치 시간 정보 메타 박스 -->
+            ${renderScheduleBox(agTrendScout, '1시간 주기 순회 (1순위 변동 시 알림)', agTrendScout.next_run_time || '1시간 주기 순회')}
+
+            <div class="agent-meta-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; background: rgba(15, 23, 42, 0.6); padding: 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.06);">
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 실행 스크립트</span>
+                <div style="font-size: 0.85rem; font-family: monospace; color: #fbbf24; margin-top: 3px;">trend_scout_agent.py</div>
+              </div>
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 작업 디렉터리</span>
+                <div style="font-size: 0.85rem; font-family: monospace; color: #cbd5e1; margin-top: 3px;">C:\Users\bangt\Downloads\madang6</div>
+              </div>
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 실행 모드</span>
+                <div style="font-size: 0.85rem; color: #a3e635; margin-top: 3px;">1시간 주기 정기 순회 / 온디맨드 즉시 실행</div>
+              </div>
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 동기화 타겟</span>
+                <div style="font-size: 0.85rem; color: #facc15; margin-top: 3px;">텔레그램 실시간 알림 & data/trend_scout_latest.json</div>
+              </div>
+            </div>
+
+            <!-- 제어 버튼 액션 바 -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <button type="button" id="btn-start-trend-scout" class="btn btn-primary btn-sm" ${agTrendScout.is_running ? 'disabled' : ''}>
+                ▶️ 데몬 가동
+              </button>
+              <button type="button" id="btn-stop-trend-scout" class="btn btn-outline btn-sm" ${!agTrendScout.is_running ? 'disabled' : ''}>
+                ⏹️ 데몬 정지
+              </button>
+              <button type="button" id="btn-trigger-trend-scout" class="btn btn-secondary btn-sm" style="background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24; font-weight: 700;">
+                ⚡ 즉시 1회 트렌드 수집 &amp; 알림 실행
+              </button>
+              <button type="button" id="btn-goto-trend-menu" class="btn btn-outline btn-sm" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); margin-left: auto;">
+                🌐 실시간 트렌드 바로가기 &rarr;
+              </button>
+            </div>
+
+            <div id="trend-scout-action-status" class="debate-status-alert hidden" style="display: none; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem;"></div>
+          </div>
+        </div>
+
+        <!-- 7호: AI 끝장 토론실 정기 소집 에이전트 (Debate Arena Worker) -->
+        <div class="card agent-card agent-module-card" id="card-debate-worker-agent">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid rgba(244, 63, 94, 0.2); padding-bottom: 12px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.6rem; padding: 6px; background: rgba(244, 63, 94, 0.15); border-radius: 8px;">⚔️</span>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <h3 class="card-title" style="margin: 0; font-size: 1.15rem; color: #fb7185;">7호: AI 끝장 토론실 정기 소집 워커 (주식 &amp; 코인 24/7)</h3>
+                    <span class="agent-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem;">💻 로컬 / 클라우드</span>
+                  </div>
+                  <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: #94a3b8;">
+                    Next장·정규장·미국장 개장 30분 전 주식 토론 및 24시간 빗썸 코인 12턴 난타전 자동 소집/기록
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="debate-worker-card-badge" class="agent-badge ${agDebateWorker.is_running ? 'badge-running' : 'badge-stopped'}" style="font-size: 0.85rem; padding: 6px 12px;">
+                ${agDebateWorker.is_running ? `🟢 가동 중 (PID: ${agDebateWorker.pid || '-'})` : '🔴 정지됨'}
+              </span>
+            </div>
+          </div>
+
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 14px; padding-top: 14px;">
+            <!-- 스케줄 및 배치 시간 정보 메타 박스 -->
+            ${renderScheduleBox(agDebateWorker, '개장 30분 전 및 1시간 주기 배치', agDebateWorker.next_run_time || 'Next장/정규장/미국장 개장 30분 전')}
+
+            <div class="agent-meta-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; background: rgba(15, 23, 42, 0.6); padding: 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.06);">
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 실행 스크립트</span>
+                <div style="font-size: 0.85rem; font-family: monospace; color: #fb7185; margin-top: 3px;">hourly_debate_worker.py</div>
+              </div>
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 작업 디렉터리</span>
+                <div style="font-size: 0.85rem; font-family: monospace; color: #cbd5e1; margin-top: 3px;">C:\Users\bangt\Downloads\madang6</div>
+              </div>
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 실행 모드</span>
+                <div style="font-size: 0.85rem; color: #a3e635; margin-top: 3px;">개장 30분 전 및 1시간 주기 배치 / 온디맨드 1회 즉시 실행</div>
+              </div>
+              <div class="meta-item">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">📌 연동 타겟</span>
+                <div style="font-size: 0.85rem; color: #facc15; margin-top: 3px;">텔레그램 끝장토론 브리핑 & data/stockCouncilReports.json</div>
+              </div>
+            </div>
+
+            <!-- 제어 버튼 액션 바 -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <button type="button" id="btn-start-debate-worker" class="btn btn-primary btn-sm" ${agDebateWorker.is_running ? 'disabled' : ''}>
+                ▶️ 데몬 가동
+              </button>
+              <button type="button" id="btn-stop-debate-worker" class="btn btn-outline btn-sm" ${!agDebateWorker.is_running ? 'disabled' : ''}>
+                ⏹️ 데몬 정지
+              </button>
+              <button type="button" id="btn-trigger-debate-worker" class="btn btn-secondary btn-sm" style="background: rgba(244, 63, 94, 0.18); border: 1px solid rgba(244, 63, 94, 0.45); color: #fb7185; font-weight: 700;">
+                ⚡ 즉시 1회 끝장토론 자동 실행
+              </button>
+              <button type="button" id="btn-goto-debate-arena-menu" class="btn btn-outline btn-sm" style="color: #f43f5e; border-color: rgba(244, 63, 94, 0.4); margin-left: auto;">
+                🔥 AI 끝장 토론실 바로가기 &rarr;
+              </button>
+            </div>
+
+            <div id="debate-worker-action-status" class="debate-status-alert hidden" style="display: none; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem;"></div>
+          </div>
+        </div>
+
+        <!-- 8호: 5대 주식 & 코인 전문 분석단 통합 모듈 카드 -->
         <div class="card agent-card agent-module-card agent-card-wide" id="card-sub-council-group" style="grid-column: 1 / -1;">
           <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span style="font-size: 1.5rem;">🏛️</span>
-                <h3 class="card-title" style="margin: 0;">6호: 5대 주식 서브에이전트단 정보 및 끝장 토론</h3>
+                <h3 class="card-title" style="margin: 0;">8호: 5대 주식 &amp; 코인 전문 분석단 정보 및 상태 모니터링</h3>
+                <span class="agent-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem;">💻 로컬 / 클라우드</span>
               </div>
               <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: #94a3b8;">
-                단가 · 성장론자 · 신중론자 · 기술적분석가 · 주린이 5인의 실시간 프로세스 상태 조회 및 온디맨드 심의 발주 · 끝장 토론 소집
+                단가 · 성장론자 · 신중론자 · 기술적분석가 · 주린이 5인의 주식 심의 및 24시간 빗썸 코인 10대 소스 멀티팩터 분석 프로세스 모니터링
               </p>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -475,11 +637,11 @@ window.ThreadsAgentView = {
             <!-- 5인 에이전트 상태 정보 리스트 -->
             <div class="sub-agents-control-table" style="display: flex; flex-direction: column; gap: 10px;">
               ${[
-                { id: 'sub_danka', name: '단가 분석 에이전트', icon: '⚖️', desc: '적정 단가 및 가치 평가 심의', agent: agDanka },
-                { id: 'sub_growth', name: '성장론자 에이전트', icon: '🚀', desc: '미래 성장 모멘텀 및 확장성 분석', agent: agGrowth },
-                { id: 'sub_cautious', name: '신중론자 에이전트', icon: '🛡️', desc: '다운사이드 리스크 및 재무 안전성 점검', agent: agCautious },
-                { id: 'sub_technical', name: '기술적분석가 에이전트', icon: '📊', desc: '차트 패턴 및 수급·이평선 지표 분석', agent: agTechnical },
-                { id: 'sub_jurini', name: '주린이 에이전트', icon: '🌱', desc: '초보자 관점 직관성 및 대중 심리 점검', agent: agJurini }
+                { id: 'sub_danka', name: '단가 분석 에이전트', icon: '⚖️', desc: '적정 단가 및 가치 평가 심의 (주식 & 코인 유통비율·밸류)', agent: agDanka },
+                { id: 'sub_growth', name: '성장론자 에이전트', icon: '🚀', desc: '미래 성장 모멘텀 및 핫섹터(AI/L1/DeFi) 자금 유입 분석', agent: agGrowth },
+                { id: 'sub_cautious', name: '신중론자 에이전트', icon: '🛡️', desc: '다운사이드 리스크 및 김프·펀딩비 절대 거부권(VETO)', agent: agCautious },
+                { id: 'sub_technical', name: '기술적분석가 에이전트', icon: '📊', desc: '차트 지지선, RSI, 숏스퀴즈 수급 및 손익비(TP/SL) 타점', agent: agTechnical },
+                { id: 'sub_jurini', name: '주린이 에이전트', icon: '🌱', desc: '초보자 관점 직관성, 코인판 개미 심리 및 뇌동매매 방지', agent: agJurini }
               ].map(item => `
                 <div class="sub-agent-row" id="row-${item.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); gap: 12px; flex-wrap: wrap;">
                   <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;">
@@ -502,54 +664,6 @@ window.ThreadsAgentView = {
               `).join('')}
             </div>
 
-            <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 0;">
-
-            <!-- 하단: 5대 에이전트 끝장 토론 즉시 소집 컨트롤 (Debate Summon) -->
-            <div class="debate-summon-card" style="margin-bottom: 0;">
-              <div class="summon-header">
-                <div class="summon-title-wrap">
-                  <span class="summon-icon">⚔️</span>
-                  <span class="summon-title">🔥 5대 에이전트 끝장 토론 즉시 소집 (Debate Summon)</span>
-                </div>
-                <div class="summon-header-actions">
-                  <div class="summon-stats-preview">
-                    <span>총 격론 세션: <strong id="debate-stat-total" style="color: #38bdf8;">${totalDebates}</strong>건</span>
-                    <span style="margin: 0 8px; color: rgba(255,255,255,0.2);">|</span>
-                    <span>오늘의 격돌: <strong id="debate-stat-today" style="color: #f59e0b;">${todayDebates}</strong>건</span>
-                  </div>
-                  <button type="button" id="btn-admin-clear-all-debates" class="btn btn-sm btn-clear-debates" title="저장된 모든 끝장 토론 기록을 삭제합니다">
-                    🗑️ 끝장 토론 전체 비우기
-                  </button>
-                  <button type="button" id="btn-goto-stock-debate" class="btn btn-outline btn-sm btn-goto-debate" title="AI 끝장 토론실 피드로 이동">
-                    🔥 토론실 바로가기 &rarr;
-                  </button>
-                </div>
-              </div>
-
-              <div class="summon-input-bar">
-                <div class="stock-input-wrap">
-                  <input type="text" id="input-debate-stock" class="form-input" placeholder="종목명 또는 티커/코드 (예: 엔비디아, NVDA, 삼전, 000660, 알테오젠, TSLA)" value="${existingDebateQuery}" />
-                </div>
-                <button type="button" id="btn-trigger-debate" class="btn btn-danger btn-summon">
-                  🔥 즉시 끝장 토론 소집 (Debate Summon)
-                </button>
-              </div>
-
-              <!-- 빠른 선택 칩 -->
-              <div class="preset-chips-row">
-                <span class="preset-label">⚡ 빠른 격돌 종목:</span>
-                <button type="button" class="debate-preset-chip debate-chip-nvda" data-stock="NVDA" style="border-color: rgba(16, 185, 129, 0.4); color: #34d399; font-weight: 700;">🇺🇸 엔비디아 (NVDA)</button>
-                <button type="button" class="debate-preset-chip" data-stock="005930">삼성전자</button>
-                <button type="button" class="debate-preset-chip" data-stock="000660">SK하이닉스</button>
-                <button type="button" class="debate-preset-chip" data-stock="196170">알테오젠</button>
-                <button type="button" class="debate-preset-chip" data-stock="005380">현대차</button>
-                <button type="button" class="debate-preset-chip" data-stock="034020">두산에너빌리티</button>
-                <button type="button" class="debate-preset-chip" data-stock="TSLA" style="border-color: rgba(244, 63, 94, 0.4); color: #fb7185;">🇺🇸 테슬라 (TSLA)</button>
-              </div>
-
-              <div id="debate-summon-status" class="debate-status-alert hidden" style="display: none;"></div>
-            </div>
-
           </div>
         </div>
 
@@ -569,7 +683,7 @@ window.ThreadsAgentView = {
     // 1. 전체 상단 뱃지 갱신
     const summaryPill = document.getElementById('system-agents-summary-pill');
     if (summaryPill && model.systemAgentsSummary) {
-      summaryPill.innerHTML = `🟢 10대 에이전트 중 <b>${model.systemAgentsSummary.runningCount}개</b> 가동 중`;
+      summaryPill.innerHTML = `🟢 12대 에이전트 중 <b>${model.systemAgentsSummary.runningCount}개</b> 가동 중`;
     }
 
     // 2. 개별 에이전트 뱃지 및 버튼 활성/비활성 상태 갱신
@@ -614,21 +728,20 @@ window.ThreadsAgentView = {
       aiUpdaterBadge.textContent = aiUpdaterAgent.is_running ? `🟢 가동 중 (PID: ${aiUpdaterAgent.pid || '-'})` : '🔴 정지됨';
     }
 
-    // 6. 끝장 토론 통계 갱신
-    this.updateDebateStatsOnly();
-  },
+    // 7. 트렌드 감시 에이전트 카드 뱃지
+    const trendAgent = getAgent('trend_scout');
+    const trendBadge = document.getElementById('trend-scout-card-badge');
+    if (trendBadge) {
+      trendBadge.className = `agent-badge ${trendAgent.is_running ? 'badge-running' : 'badge-stopped'}`;
+      trendBadge.textContent = trendAgent.is_running ? `🟢 가동 중 (PID: ${trendAgent.pid || '-'})` : '🔴 정지됨';
+    }
 
-  updateDebateStatsOnly() {
-    const allDebates = (window.StockDebateModel && window.StockDebateModel.items && window.StockDebateModel.items.length > 0)
-      ? window.StockDebateModel.items
-      : (window.PORTAL_DATA_STOCK_DEBATES || []);
-    const totalEl = document.getElementById('debate-stat-total');
-    const todayEl = document.getElementById('debate-stat-today');
-    if (totalEl) totalEl.textContent = allDebates.length;
-    if (todayEl) {
-      const todayIso = new Date().toISOString().slice(0, 10);
-      const todayCount = allDebates.filter(d => (d.timestamp || '').includes(todayIso)).length;
-      todayEl.textContent = todayCount > 0 ? todayCount : allDebates.length;
+    // 8. 끝장토론 워커 에이전트 카드 뱃지
+    const debateWorkerAgent = getAgent('stock_debate_arena');
+    const debateWorkerBadge = document.getElementById('debate-worker-card-badge');
+    if (debateWorkerBadge) {
+      debateWorkerBadge.className = `agent-badge ${debateWorkerAgent.is_running ? 'badge-running' : 'badge-stopped'}`;
+      debateWorkerBadge.textContent = debateWorkerAgent.is_running ? `🟢 가동 중 (PID: ${debateWorkerAgent.pid || '-'})` : '🔴 정지됨';
     }
   },
 
@@ -742,143 +855,6 @@ window.ThreadsAgentView = {
       });
     }
 
-
-
-    // --- 5대 에이전트 끝장 토론 즉시 소집 이벤트 바인딩 ---
-    const btnGotoDebate = document.getElementById('btn-goto-stock-debate');
-    if (btnGotoDebate) {
-      btnGotoDebate.addEventListener('click', () => {
-        if (window.AppController && window.AppController.switchTopNav) {
-          window.AppController.switchTopNav('invest');
-          const debateSideBtn = document.querySelector('[data-side="stock-debate"]');
-          if (debateSideBtn) debateSideBtn.click();
-        }
-      });
-    }
-
-    const btnTriggerDebate = document.getElementById('btn-trigger-debate');
-    const inputDebateStock = document.getElementById('input-debate-stock');
-    const debateStatusBox = document.getElementById('debate-summon-status');
-
-    const handleDebateSummon = async (overrideStock) => {
-      const stockQuery = (overrideStock || (inputDebateStock ? inputDebateStock.value : '')).trim();
-      if (!stockQuery) {
-        alert('토론을 소집할 주식 종목명이나 종목코드를 입력해주세요.');
-        if (inputDebateStock) inputDebateStock.focus();
-        return;
-      }
-
-      if (btnTriggerDebate) {
-        btnTriggerDebate.disabled = true;
-        btnTriggerDebate.innerHTML = '<span class="loading-spin">🔄</span> 에이전트 5인 소집 및 난타전 진행 중...';
-      }
-      if (debateStatusBox) {
-        debateStatusBox.classList.remove('hidden');
-        debateStatusBox.style.display = 'block';
-        debateStatusBox.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-size: 0.88rem;">
-            <span class="loading-spin" style="display:inline-block; animation: spin 1s infinite linear;">⚔️</span>
-            <span><strong>[${stockQuery}]</strong> 5대 서브에이전트(성장론자·신중론자·기술분석가·주린이·단가)가 격렬한 끝장 토론을 벌이고 있습니다...</span>
-          </div>
-        `;
-      }
-
-      try {
-        if (!window.StockDebateModel) {
-          throw new Error('StockDebateModel을 찾을 수 없습니다.');
-        }
-        const res = await window.StockDebateModel.triggerDebate(stockQuery);
-        if (res.success) {
-          if (debateStatusBox) {
-            debateStatusBox.innerHTML = `
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <div style="color: #10b981; font-size: 0.88rem;">
-                  ✅ <strong>[${stockQuery}]</strong> 끝장 토론이 성공적으로 완료 및 기록되었습니다! 잠시 후 토론실 피드로 자동 이동합니다...
-                </div>
-                <button type="button" id="btn-summon-goto-feed" class="btn btn-outline btn-sm" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); font-size: 0.78rem; padding: 3px 10px;">
-                  🔥 지금 바로 토론실 보기 &rarr;
-                </button>
-              </div>
-            `;
-            const btnSummonGoto = document.getElementById('btn-summon-goto-feed');
-            const navigateToDebate = () => {
-              if (window.AppController && window.AppController.switchTopNav) {
-                window.AppController.switchTopNav('invest');
-                const debateSideBtn = document.querySelector('[data-side="stock-debate"]');
-                if (debateSideBtn) debateSideBtn.click();
-                if (window.StockDebateView) window.StockDebateView.render();
-              }
-            };
-            if (btnSummonGoto) btnSummonGoto.addEventListener('click', navigateToDebate);
-            // 1.5초 후 자동 이동
-            setTimeout(navigateToDebate, 1500);
-          }
-          this.updateDebateStatsOnly();
-        } else {
-          if (debateStatusBox) {
-            debateStatusBox.innerHTML = `<div style="color: #ef4444; font-size: 0.88rem;">⚠️ ${res.message || '토론 소집 실패'}</div>`;
-          }
-        }
-      } catch (e) {
-        if (debateStatusBox) {
-          debateStatusBox.innerHTML = `<div style="color: #ef4444; font-size: 0.88rem;">❌ 오류: ${e.message}</div>`;
-        }
-      } finally {
-        if (btnTriggerDebate) {
-          btnTriggerDebate.disabled = false;
-          btnTriggerDebate.innerHTML = '🔥 즉시 끝장 토론 소집 (Debate Summon)';
-        }
-      }
-    };
-
-    if (btnTriggerDebate) {
-      btnTriggerDebate.addEventListener('click', () => handleDebateSummon());
-    }
-
-    if (inputDebateStock) {
-      inputDebateStock.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          handleDebateSummon();
-        }
-      });
-    }
-
-    // 종목 빠른 선택 칩
-    const quickChips = document.querySelectorAll('.debate-preset-chip');
-    quickChips.forEach(chip => {
-      chip.addEventListener('click', () => {
-        const stock = chip.getAttribute('data-stock');
-        if (inputDebateStock) inputDebateStock.value = stock;
-        handleDebateSummon(stock);
-      });
-    });
-
-    // 끝장 토론 전체 비우기 버튼 (관리자 메뉴)
-    const btnAdminClearDebates = document.getElementById('btn-admin-clear-all-debates');
-    if (btnAdminClearDebates) {
-      btnAdminClearDebates.addEventListener('click', async () => {
-        if (!window.StockDebateModel) return;
-        const total = (window.StockDebateModel.items || []).length;
-        if (total === 0) {
-          alert('삭제할 끝장 토론 기록이 없습니다.');
-          return;
-        }
-        if (confirm(`저장된 모든 끝장 토론 기록(${total}건)을 완전히 삭제하시겠습니까?`)) {
-          btnAdminClearDebates.disabled = true;
-          btnAdminClearDebates.textContent = '⏳ 삭제 중...';
-          await window.StockDebateModel.clearAllDebates();
-          this.updateDebateStatsOnly();
-          if (window.StockDebateView) {
-            window.StockDebateView.render();
-          }
-          btnAdminClearDebates.disabled = false;
-          btnAdminClearDebates.textContent = '🗑️ 끝장 토론 전체 비우기';
-          alert('모든 끝장 토론 기록이 성공적으로 삭제되었습니다.');
-        }
-      });
-    }
-
     // --- 6호 AI 서비스 정보 업데이트 에이전트 제어 이벤트 ---
     const showAiUpdaterStatus = (msg, isSuccess) => {
       const statusBox = document.getElementById('ai-updater-action-status');
@@ -931,6 +907,139 @@ window.ThreadsAgentView = {
           }
           await this.renderMainView();
         }, 1500);
+      });
+    }
+
+    // --- 6호 검색·트렌드 감시 에이전트 (Trend Scout) 제어 이벤트 ---
+    const showTrendScoutStatus = (msg, isSuccess) => {
+      const statusBox = document.getElementById('trend-scout-action-status');
+      if (statusBox) {
+        statusBox.style.display = 'block';
+        statusBox.className = isSuccess ? 'debate-status-alert alert-success' : 'debate-status-alert alert-danger';
+        statusBox.style.backgroundColor = isSuccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+        statusBox.style.border = isSuccess ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)';
+        statusBox.style.color = isSuccess ? '#34d399' : '#f87171';
+        statusBox.innerHTML = `${isSuccess ? '✅' : '⚠️'} ${msg}`;
+        setTimeout(() => {
+          if (statusBox) statusBox.style.display = 'none';
+        }, 5000);
+      }
+    };
+
+    const btnStartTrendScout = document.getElementById('btn-start-trend-scout');
+    if (btnStartTrendScout) {
+      btnStartTrendScout.addEventListener('click', async () => {
+        btnStartTrendScout.disabled = true;
+        btnStartTrendScout.textContent = '⏳ 기동 중...';
+        const res = await model.startSystemAgent('trend_scout');
+        showTrendScoutStatus(res.message || '트렌드 감시 에이전트 기동 요청 완료', res.success !== false);
+        await this.renderMainView();
+      });
+    }
+
+    const btnStopTrendScout = document.getElementById('btn-stop-trend-scout');
+    if (btnStopTrendScout) {
+      btnStopTrendScout.addEventListener('click', async () => {
+        btnStopTrendScout.disabled = true;
+        btnStopTrendScout.textContent = '⏳ 정지 중...';
+        const res = await model.stopSystemAgent('trend_scout');
+        showTrendScoutStatus(res.message || '트렌드 감시 에이전트 정지 완료', res.success !== false);
+        await this.renderMainView();
+      });
+    }
+
+    const btnTriggerTrendScout = document.getElementById('btn-trigger-trend-scout');
+    if (btnTriggerTrendScout) {
+      btnTriggerTrendScout.addEventListener('click', async () => {
+        btnTriggerTrendScout.disabled = true;
+        btnTriggerTrendScout.textContent = '⏳ 트렌드 감시 기동 중...';
+        const res = await model.triggerTrendScoutAgent();
+        showTrendScoutStatus(res.message || '1회 즉시 트렌드 감시 및 알림 작업이 백그라운드에서 시작되었습니다.', res.success !== false);
+        setTimeout(async () => {
+          if (btnTriggerTrendScout) {
+            btnTriggerTrendScout.disabled = false;
+            btnTriggerTrendScout.textContent = '⚡ 즉시 1회 트렌드 수집 & 알림 실행';
+          }
+          await this.renderMainView();
+        }, 1500);
+      });
+    }
+
+    const btnGotoTrend = document.getElementById('btn-goto-trend-menu');
+    if (btnGotoTrend) {
+      btnGotoTrend.addEventListener('click', () => {
+        if (window.AppController && window.AppController.switchTopNav) {
+          window.AppController.switchTopNav('life');
+          const trendSideBtn = document.querySelector('[data-side="trend-ranking"]');
+          if (trendSideBtn) trendSideBtn.click();
+        }
+      });
+    }
+
+    // --- 7호 AI 끝장 토론실 정기 소집 워커 (Debate Worker) 제어 이벤트 ---
+    const showDebateWorkerStatus = (msg, isSuccess) => {
+      const statusBox = document.getElementById('debate-worker-action-status');
+      if (statusBox) {
+        statusBox.style.display = 'block';
+        statusBox.className = isSuccess ? 'debate-status-alert alert-success' : 'debate-status-alert alert-danger';
+        statusBox.style.backgroundColor = isSuccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+        statusBox.style.border = isSuccess ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)';
+        statusBox.style.color = isSuccess ? '#34d399' : '#f87171';
+        statusBox.innerHTML = `${isSuccess ? '✅' : '⚠️'} ${msg}`;
+        setTimeout(() => {
+          if (statusBox) statusBox.style.display = 'none';
+        }, 5000);
+      }
+    };
+
+    const btnStartDebateWorker = document.getElementById('btn-start-debate-worker');
+    if (btnStartDebateWorker) {
+      btnStartDebateWorker.addEventListener('click', async () => {
+        btnStartDebateWorker.disabled = true;
+        btnStartDebateWorker.textContent = '⏳ 기동 중...';
+        const res = await model.startSystemAgent('stock_debate_arena');
+        showDebateWorkerStatus(res.message || '끝장토론 워커 기동 요청 완료', res.success !== false);
+        await this.renderMainView();
+      });
+    }
+
+    const btnStopDebateWorker = document.getElementById('btn-stop-debate-worker');
+    if (btnStopDebateWorker) {
+      btnStopDebateWorker.addEventListener('click', async () => {
+        btnStopDebateWorker.disabled = true;
+        btnStopDebateWorker.textContent = '⏳ 정지 중...';
+        const res = await model.stopSystemAgent('stock_debate_arena');
+        showDebateWorkerStatus(res.message || '끝장토론 워커 정지 완료', res.success !== false);
+        await this.renderMainView();
+      });
+    }
+
+    const btnTriggerDebateWorker = document.getElementById('btn-trigger-debate-worker');
+    if (btnTriggerDebateWorker) {
+      btnTriggerDebateWorker.addEventListener('click', async () => {
+        btnTriggerDebateWorker.disabled = true;
+        btnTriggerDebateWorker.textContent = '⏳ 끝장토론 기동 중...';
+        const res = await model.triggerDebateWorkerAgent();
+        showDebateWorkerStatus(res.message || '1회 즉시 끝장토론 소집 및 기록 작업이 백그라운드에서 시작되었습니다.', res.success !== false);
+        setTimeout(async () => {
+          if (btnTriggerDebateWorker) {
+            btnTriggerDebateWorker.disabled = false;
+            btnTriggerDebateWorker.textContent = '⚡ 즉시 1회 끝장토론 자동 실행';
+          }
+          await this.renderMainView();
+        }, 1500);
+      });
+    }
+
+    const btnGotoDebateArena = document.getElementById('btn-goto-debate-arena-menu');
+    if (btnGotoDebateArena) {
+      btnGotoDebateArena.addEventListener('click', () => {
+        if (window.AppController && window.AppController.switchTopNav) {
+          window.AppController.switchTopNav('invest');
+          const debateSideBtn = document.querySelector('[data-side="stock-debate"]');
+          if (debateSideBtn) debateSideBtn.click();
+          if (window.StockDebateView) window.StockDebateView.render();
+        }
       });
     }
 

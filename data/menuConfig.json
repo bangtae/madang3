@@ -20,14 +20,14 @@
     "description": "서브에이전트 5인의 실시간 격론 및 상호 반박 끝장 토론 피드"
   },
   {
-    "id": "stock-blog",
-    "name": "배고픈투자씨 데일리",
-    "icon": "📰",
+    "id": "crypto-trading",
+    "name": "코인 자동화투자",
+    "icon": "🪙",
     "category": "invest",
-    "statCardId": "card-stat-stock-blog",
+    "statCardId": "card-stat-crypto-trading",
     "guest": true,
     "admin": true,
-    "description": "배고픈투자씨 네이버 블로그 최신 증시분위기 리포트 및 게시글 실시간 연동"
+    "description": "빗썸 Open API & 10대 소스 기반 24시간 1개 종목 10만원 분할 스윙 자동매매 및 AI 끝장토론"
   },
   {
     "id": "blogger-news",
@@ -38,16 +38,6 @@
     "guest": true,
     "admin": true,
     "description": "구글 Blogger API v3 기반 bangtae.blogspot.com 데일리 뉴스요약 연동"
-  },
-  {
-    "id": "stock-journal",
-    "name": "주식 매매일지",
-    "icon": "📑",
-    "category": "invest",
-    "statCardId": "card-stat-stock-journal",
-    "guest": true,
-    "admin": true,
-    "description": "토스증권 Open API & AI 끝장토론 의결 기반 10만원 이하 1주 단일 매매·익절·손절 자동매매 및 실시간 매매일지"
   },
   {
     "id": "api-info",
@@ -174,12 +164,12 @@
   },
   {
     "id": "stock-trading-admin",
-    "name": "주식 자동매매 제어",
+    "name": "주식자동매매",
     "icon": "🤖",
     "category": "admin",
     "guest": false,
     "admin": true,
-    "description": "토스증권 Open API 기반 끝장토론 의결 종목 10만원 이하 1주 단일 예약매매 및 계좌/API 통합 제어"
+    "description": "토스증권 Open API 기반 주식 자동매매 설정 및 매매완료 이력·연간/월간 총 실현수익 통계"
   },
   {
     "id": "menu-config",

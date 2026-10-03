@@ -1,5 +1,104 @@
 [
     {
+        "id":  "sap_news_e7b9d936",
+        "title":  "SAP DM Manage Next Numbers Extension – “Failed to create identifier” before REST endpoint is called",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/product-lifecycle-management-q-a/sap-dm-manage-next-numbers-extension-failed-to-create-identifier-before/qaq-p/14494851",
+        "category":  "Migration",
+        "summary":  "We are trying to use a custom Next Number Extension in SAP Digital Manufacturing to set the SFC identifier based on the production order number. We are aware that the standard Manage Next Numb...",
+        "published_at":  "2026-09-30T12:28:58Z"
+    },
+    {
+        "id":  "sap_news_a7ed0ffa",
+        "title":  "SAP API Management - Unable to rewrite backend target URL/path dynamically",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/sap-api-management-unable-to-rewrite-backend-target-url-path-dynamically/qaq-p/14494966",
+        "category":  "Migration",
+        "summary":  "I am facing an issue in SAP Integration Suite - API Management regarding backend URL rewriting before the request is sent to the target endpoint. My public endpoint: GET /gestaopessoas/funcionari...",
+        "published_at":  "2026-09-30T14:03:44Z"
+    },
+    {
+        "id":  "sap_news_a9a180af",
+        "title":  "Request for Information on Cloud Integration",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/request-for-information-on-cloud-integration/qaq-p/14495023",
+        "category":  "Migration",
+        "summary":  "I’m looking for the following metrics for Liberty’s Integration Suite production tenant from Jan 2026 to date: YTD success rate for all integrations run on the CPI production tenant YTD error rate...",
+        "published_at":  "2026-09-30T14:35:23Z"
+    },
+    {
+        "id":  "sap_news_ecba9e23",
+        "title":  "Have you got authorization server discovery working in MCP gateway in Integration Suite?",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/have-you-got-authorization-server-discovery-working-in-mcp-gateway-in/qaq-p/14495379",
+        "category":  "Migration",
+        "summary":  "I am trying to use an MCP server defined in Integration Suite (trial). I was hoping for a seamless integration with user authentication. When that failed, I poked around a bit. From what I saw it app...",
+        "published_at":  "2026-10-01T07:08:41Z"
+    },
+    {
+        "id":  "sap_news_47a7d399",
+        "title":  "Filtering S/4HANA Cloud business events on \"did this field actually change\"",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/filtering-s-4hana-cloud-business-events-on-quot-did-this-field-actually/ba-p/14493914",
+        "category":  "Blog",
+        "summary":  "I work as a solution architect. I am not a RAP developer, and not really an ABAP developer either. I ended up writing ABAP because the volume of events moving through our landscape was bothering me a...",
+        "published_at":  "2026-10-01T03:57:30Z"
+    },
+    {
+        "id":  "sap_news_e76addf5",
+        "title":  "Using SAP Integration Suite AI Adapter to turn integration failures into actionable insights",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/using-sap-integration-suite-ai-adapter-to-turn-integration-failures-into/ba-p/14495229",
+        "category":  "Blog",
+        "summary":  "Using SAP Integration Suite AI Adapter to turn integration failures into actionable insights Introduction Integration monitoring is an essential part of every integration landscape. When custome...",
+        "published_at":  "2026-09-30T21:15:10Z"
+    },
+    {
+        "id":  "sap_news_a81260fa",
+        "title":  "CPI QA 및 PROD 시스템의 IP 범위",
+        "source":  "SAP Community (Q\u0026A)",
+        "source_url":  "https://community.sap.com/t5/technology-q-a/ip-range-for-cpi-qa-and-prod-system/qaq-p/14494744",
+        "category":  "Migration",
+        "summary":  "안녕하세요. CPI QA 및 PROD 시스템의 IP 범위를 제공해 주세요. 감사합니다, Deepshikha",
+        "published_at":  "2026-09-30T10:46:11Z"
+    },
+    {
+        "id":  "sap_news_a70eb148",
+        "title":  "파일에서 메시로: 마이크로 통합으로 SFTP 데이터 해방",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-sap/file-to-mesh-liberating-sftp-data-with-micro-integrations/ba-p/14421234",
+        "category":  "Best Practice",
+        "summary":  "소개 작년 말에 고급 이벤트 메시인 SAP Integration Suite의 새로운 기능으로 Micro-Integrations가 도입되었습니다. 이 기능은 경량 통합 기능을 제공합니다.",
+        "published_at":  "2026-06-19T05:00:00Z"
+    },
+    {
+        "id":  "sap_news_a726f631",
+        "title":  "Microsoft Graph API - SAP CPI 구현",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/microsoft-graph-api-sap-cpi-implementation/ba-p/14494674",
+        "category":  "Migration",
+        "summary":  "친애하는 여러분, 요즘 더 큰 위험이 되고 있는 기본 인증으로 SMTP를 사용하는 것을 피하기 위해 SAP CPI의 Microsoft Graph API 구성 세부 정보를 공유하기 위해 이 블로그를 작성합니다. 꼭 가보세요...",
+        "published_at":  "2026-09-30T13:43:40Z"
+    },
+    {
+        "id":  "sap_news_b9aaa4e0",
+        "title":  "이제 SAP Store에서 사용 가능: SAP Remote Access and Connectivity(SAP RAC) - 2026년 10월 1일부터 유효",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/enterprise-resource-planning-blog-posts-by-sap/now-available-in-sap-store-sap-remote-access-and-connectivity-sap-rac/ba-p/14489207",
+        "category":  "Blog",
+        "summary":  "SAP RAC란 무엇입니까? SAP RAC는 파트너 및 ISV(독립 소프트웨어 공급업체)에 즉시 사용 가능한 SAP 유지 관리 시스템 환경을 제공하는 SAP ICC에서 운영하는 클라우드 기반 원격 액세스 서비스입니다.",
+        "published_at":  "2026-09-30T03:30:00Z"
+    },
+    {
+        "id":  "sap_news_208043e0",
+        "title":  "SAC Lite Viewer를 사용해 보았지만 내 이야기는 자격도 없었습니다.",
+        "source":  "SAP Community",
+        "source_url":  "https://community.sap.com/t5/technology-blog-posts-by-members/i-tried-the-sac-lite-viewer-and-my-story-didn-t-even-qualify/ba-p/14492516",
+        "category":  "Migration",
+        "summary":  "지난번 성능 기록에 대한 댓글에서 동료 회원이 중요한 지적을 했습니다. 위젯별로 렌더링 시간 위젯을 최적화하기 전에 Lite Viewer를 사용해 보세요. 이는 시청자와 디자이너를 분리합니다.",
+        "published_at":  "2026-09-29T04:01:18Z"
+    },
+    {
         "id":  "sap_news_779c06db",
         "title":  "US10 BTP 평가판에서 TTL001을 사용하면 통합 셀 활성화가 51%에서 실패함",
         "source":  "SAP Community (Q\u0026A)",

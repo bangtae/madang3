@@ -1,0 +1,54 @@
+{
+  "isAutoTradingEnabled": false,
+  "tradingMode": "LIVE",
+  "budget": 100000,
+  "currentPosition": null,
+  "history": [],
+  "lastDebate": {
+    "symbol": "SAND",
+    "market": "KRW-SAND",
+    "korean_name": "샌드박스",
+    "topic": "샌드박스(SAND) 10만원 예산 2분할 스윙 매수 적격성 심의",
+    "decision": "BUY",
+    "score": 86.0,
+    "currentPrice": 103.0,
+    "targetPrice1": 106.6,
+    "targetPrice2": 109.69,
+    "stopLoss": 99.91,
+    "createdAt": "2026-10-04T00:49:16.126214",
+    "turns": [
+      {
+        "speaker": "기술적분석가",
+        "message": "SAND 24h 거래대금 425.1억원과 음수 펀딩비(-0.00479802) 기반 숏스퀴즈 반등 구간 포착. 1차 진입 지지선 101원 유효."
+      },
+      {
+        "speaker": "성장론자",
+        "message": "글로벌 유동성과 김치프리미엄 지표에서 자금 유입 확인. 1차 목표가 106.6원(+3.5%) 도달 시 분할 익절 유력."
+      },
+      {
+        "speaker": "가치/단가분석",
+        "message": "현재가 103.0원은 최근 3일 매물대 하단. 10만원 예산 50% 분할 진입 시 충분한 하방 안전마진 확보."
+      },
+      {
+        "speaker": "신중론자",
+        "message": "주말 및 야간 변동성 위험 상존하므로 손절선 99.91원(-3.0%) 즉각 전량 청산 원칙 필수."
+      },
+      {
+        "speaker": "주린이",
+        "message": "10만원 안에서 2번 나누어 사고, +3.5% 절반 익절 / +6.5% 전량 익절 규칙 준수하면 편안한 스윙 가능."
+      },
+      {
+        "speaker": "심의위원장(총괄)",
+        "message": "종합 점수 86.0점으로 5대 위원 전원 합의. 샌드박스(SAND) 분할 스윙 포지션 진입 및 24시간 감시 개시를 최종 의결합니다."
+      }
+    ]
+  },
+  "stats": {
+    "totalTrades": 0,
+    "winTrades": 0,
+    "lossTrades": 0,
+    "totalRealizedPnlKrw": 0,
+    "winRatePct": 0
+  },
+  "lastDaemonCheckAt": null
+}

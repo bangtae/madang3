@@ -42,7 +42,7 @@
   <link rel="stylesheet" href="style.css?v=3.9">
   <link rel="stylesheet" href="css/monster-defense.css">
   <style>
-    /* 게스트 모드 시 주식 매매일지 및 행성 자료 업로드 관리자 전용 섹션 완전 숨김 */
+    /* 게스트 모드 시 행성 자료 업로드 등 관리자 전용 섹션 완전 숨김 */
     body.is-guest-mode .journal-admin-only,
     body.is-guest-mode .planet-admin-only {
       display: none !important;
@@ -427,14 +427,11 @@
               <button class="nav-side-btn" data-side="stock-debate">
                 <span class="icon">🔥</span> AI 끝장 토론실
               </button>
-              <button class="nav-side-btn" data-side="stock-blog">
-                <span class="icon">📰</span> 배고픈투자씨 데일리
+              <button class="nav-side-btn" data-side="crypto-trading">
+                <span class="icon">🪙</span> 코인 자동화투자
               </button>
               <button class="nav-side-btn" data-side="blogger-news">
                 <span class="icon">🌐</span> 방태 데일리 뉴스
-              </button>
-              <button class="nav-side-btn" data-side="stock-journal">
-                <span class="icon">📑</span> 주식 매매일지
               </button>
             </li>
             <li class="menu-item hidden" id="side-menu-life">
@@ -477,7 +474,7 @@
                 <span class="icon">💻</span> 사이트 기술 정보 & 아키텍처
               </button>
               <button class="nav-side-btn" data-side="stock-trading-admin">
-                <span class="icon">🤖</span> 주식 자동매매 제어
+                <span class="icon">🤖</span> 주식자동매매
               </button>
               <button class="nav-side-btn" data-side="madang-proposals">
                 <span class="icon">🚀</span> madang 시스템 개선 제안서
@@ -1515,193 +1512,209 @@
           <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;">
             <div>
               <h2 style="display: flex; align-items: center; gap: 10px; color: #f8fafc; margin: 0; font-size: 1.6rem; font-weight: 800;">
-                🤖 주식 자동매매 제어 (토스증권 Open API)
+                🤖 주식자동매매 (토스증권 Open API)
               </h2>
               <p style="color: #94a3b8; font-size: 0.92rem; margin: 4px 0 0 0; line-height: 1.5;">
-                AI 끝장토론 의결 종목의 자동 예약 매매(10만원 이하 1주 단일 매매, 목표가 익절, 손절 매도)를 통합 통제하고 토스증권 API 인증 및 계좌를 관리합니다.
+                토스증권 Open API 연동 및 계좌 상태를 관리하고, 주식 자동매매 완료 이력과 연간·월간 총 실현수익 통계를 분석합니다.
               </p>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span id="admin-trading-interval-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
-                ⏱️ 감시 주기: 5분 (예약 감시)
-              </span>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span id="admin-trading-last-sync" style="color: #64748b; font-size: 0.82rem; margin-right: 4px;">최근 갱신: -</span>
               <button type="button" id="btn-admin-trading-refresh" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 6px; cursor: pointer;">
-                <span>🔄</span> 상태 새로고침
+                <span>🔄</span> 상태 및 통계 새로고침
               </button>
             </div>
           </div>
 
-          <!-- 1. 메인 엔진 제어 패널 (가동/정지, 비상매도, 수동사이클) -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; margin-bottom: 24px;">
-            <!-- 엔진 상태 및 가동/정지 카드 -->
-            <div class="card" style="background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 22px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-                <h3 style="margin: 0; font-size: 1.15rem; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
-                  <span>⚡ 자동매매 엔진 상태</span>
+          <!-- 0. ⚔️ 🔥 5대 에이전트 끝장 토론 즉시 소집 (Debate Summon) -->
+          <div class="debate-summon-card" style="margin-bottom: 24px;">
+            <div class="summon-header">
+              <div class="summon-title-wrap">
+                <span class="summon-icon">⚔️</span>
+                <span class="summon-title">🔥 5대 에이전트 끝장 토론 즉시 소집 (Debate Summon)</span>
+              </div>
+              <div class="summon-header-actions">
+                <div class="summon-stats-preview">
+                  <span>총 격론 세션: <strong id="admin-debate-stat-total" style="color: #38bdf8;">0</strong>건</span>
+                  <span style="margin: 0 8px; color: rgba(255,255,255,0.2);">|</span>
+                  <span>오늘의 격돌: <strong id="admin-debate-stat-today" style="color: #f59e0b;">0</strong>건</span>
+                </div>
+                <button type="button" id="btn-admin-clear-all-debates" class="btn btn-sm btn-clear-debates" title="저장된 모든 끝장 토론 기록을 삭제합니다">
+                  🗑️ 끝장 토론 전체 비우기
+                </button>
+                <button type="button" id="btn-goto-stock-debate" class="btn btn-outline btn-sm btn-goto-debate" title="AI 끝장 토론실 피드로 이동">
+                  🔥 토론실 바로가기 &rarr;
+                </button>
+              </div>
+            </div>
+
+            <div class="summon-input-bar">
+              <div class="stock-input-wrap">
+                <input type="text" id="input-admin-debate-stock" class="form-input" placeholder="종목명 또는 티커/코드 (예: 엔비디아, NVDA, 삼전, 000660, 알테오젠, TSLA)" />
+              </div>
+              <button type="button" id="btn-admin-trigger-debate" class="btn btn-danger btn-summon">
+                🔥 즉시 끝장 토론 소집 (Debate Summon)
+              </button>
+            </div>
+
+            <!-- 빠른 선택 칩 -->
+            <div class="preset-chips-row">
+              <span class="preset-label">⚡ 빠른 격돌 종목:</span>
+              <button type="button" class="debate-preset-chip debate-chip-nvda" data-stock="NVDA" style="border-color: rgba(16, 185, 129, 0.4); color: #34d399; font-weight: 700;">🇺🇸 엔비디아 (NVDA)</button>
+              <button type="button" class="debate-preset-chip" data-stock="005930">삼성전자</button>
+              <button type="button" class="debate-preset-chip" data-stock="000660">SK하이닉스</button>
+              <button type="button" class="debate-preset-chip" data-stock="196170">알테오젠</button>
+              <button type="button" class="debate-preset-chip" data-stock="005380">현대차</button>
+              <button type="button" class="debate-preset-chip" data-stock="034020">두산에너빌리티</button>
+              <button type="button" class="debate-preset-chip" data-stock="TSLA" style="border-color: rgba(244, 63, 94, 0.4); color: #fb7185;">🇺🇸 테슬라 (TSLA)</button>
+            </div>
+
+            <div id="admin-debate-summon-status" class="debate-status-alert hidden" style="display: none;"></div>
+          <!-- 0-1. 🌟 [관리자 전용] 토스증권 AI 예약 발주 및 운용 현황 패널 -->
+          <div id="admin-trading-reservations-panel" style="margin-bottom: 24px;"></div>
+
+          <!-- 1. 🌟 [NEW] 연간 & 월간 총 실현수익 종합 통계 대시보드 -->
+          <div class="card" style="background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 22px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(56, 189, 248, 0.08);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <h3 style="margin: 0; font-size: 1.2rem; color: #38bdf8; display: flex; align-items: center; gap: 8px; font-weight: 800;">
+                  <span>📊 주식 자동매매 실현수익 통계</span>
                 </h3>
-                <span id="admin-trading-status-badge" style="padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700;">확인 중...</span>
-              </div>
-              <p style="color: #94a3b8; font-size: 0.88rem; line-height: 1.5; margin: 0 0 18px 0;">
-                엔진 가동 시 끝장토론실의 10만원 이하 매수 의결 종목을 <strong>1회 1종목 1주 단일 매매 원칙</strong>으로 예약매수/매수하고, 5분 주기로 목표가(+15%) 및 손절가(-5%)를 예약 모니터링합니다.
-              </p>
-              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button type="button" id="btn-admin-toggle-trading" class="btn btn-primary" style="flex: 1; padding: 10px 18px; font-weight: 700; border-radius: 8px; cursor: pointer;">
-                  ▶️ 자동매매 가동하기
-                </button>
-                <button type="button" id="btn-admin-manual-cycle" class="btn btn-secondary" style="padding: 10px 16px; font-weight: 600; border-radius: 8px; cursor: pointer;" title="5분 주기를 기다리지 않고 지금 즉시 1회 감시 사이클을 실행합니다.">
-                  ⚡ 즉시 사이클 검증
-                </button>
-              </div>
-            </div>
-
-            <!-- 비상 전량 매도 및 긴급 조치 카드 -->
-            <div class="card" style="background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 22px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-                <h3 style="margin: 0; font-size: 1.15rem; color: #f87171; display: flex; align-items: center; gap: 8px;">
-                  <span>🚨 긴급 청산 (Emergency Exit)</span>
-                </h3>
-                <span style="font-size: 0.75rem; color: #ef4444; font-weight: 700; border: 1px solid rgba(239, 68, 68, 0.4); padding: 2px 8px; border-radius: 4px;">관리자 전용</span>
-              </div>
-              <p style="color: #cbd5e1; font-size: 0.88rem; line-height: 1.5; margin: 0 0 18px 0;">
-                현재 보유 중인 1주 포지션을 토스증권 Open API를 통해 <strong>즉시 시장가로 전량 매도</strong> 처리하고 청산합니다. 급격한 시장 충격 시 긴급하게 사용하세요.
-              </p>
-              <div>
-                <button type="button" id="btn-admin-emergency-sell" class="btn btn-danger" style="width: 100%; padding: 10px 18px; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; cursor: pointer;" disabled>
-                  🚨 현재 보유 종목 비상 전량 매도
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 1-2. 국장 개장 실시간 거래대금 1위 초단타(Scalping) 제어 패널 -->
-          <div class="card" style="background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 22px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.08);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
-              <h3 style="margin: 0; font-size: 1.15rem; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
-                <span>⚡ 국장 개장 거래대금 1위 초단타(Scalping) 제어</span>
-              </h3>
-              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <!-- 현재 시장 세션 뱃지 -->
-                <span id="admin-market-session-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 700;">
-                  ⏳ 세션 확인 중...
-                </span>
-                <span id="admin-scalping-status-badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 700;">
-                  ⏹️ 초단타 정지됨
+                <span id="admin-stat-scope-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 700;">
+                  실시간 집계
                 </span>
               </div>
-            </div>
-
-            <!-- 현재 시장 세션 안내 & 골든타임 가이드 알림 바 -->
-            <div id="admin-market-session-banner" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 1.2rem;">⏱️</span>
-                <div>
-                  <div id="admin-market-session-title" style="font-size: 0.88rem; font-weight: 700; color: #f8fafc;">거래소 운영 세션 로딩 중...</div>
-                  <div id="admin-market-session-desc" style="font-size: 0.78rem; color: #94a3b8; margin-top: 2px;">실시간 거래소 상태를 확인하고 있습니다.</div>
-                </div>
-              </div>
-              <div id="admin-golden-time-badge" style="font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
-                골든타임 판정 중
+                <label for="select-admin-trading-year" style="font-size: 0.82rem; color: #94a3b8; font-weight: 600;">조회 연도:</label>
+                <select id="select-admin-trading-year" class="form-input form-input-sm" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700; border-radius: 6px; padding: 4px 10px; font-size: 0.85rem; cursor: pointer;">
+                  <option value="2026">2026년</option>
+                  <option value="2025">2025년</option>
+                </select>
               </div>
             </div>
 
-            <!-- 💡 거래소별 세부 운영 시간 및 초단타 골든타임 추천 안내 카드 -->
-            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-size: 0.86rem; font-weight: 700; color: #fbbf24; display: flex; align-items: center; gap: 6px;">
-                  <span>💡</span> 초단타(스캘핑) 추천 실행 타이밍 & 거래소 세션
-                </span>
-                <button type="button" id="btn-toggle-market-schedule" style="background: none; border: none; color: #38bdf8; font-size: 0.78rem; cursor: pointer; text-decoration: underline;">
-                  운영 시간표 보기 ▼
+            <!-- 핵심 4대 통계 지표 그리드 -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px;">
+              <!-- 카드 1: 연간 총 실현수익 -->
+              <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 0.82rem; color: #94a3b8; font-weight: 600;"><span id="admin-stat-year-label">2026년</span> 총 실현수익</span>
+                  <span style="font-size: 1.1rem;">📅</span>
+                </div>
+                <div id="admin-stat-yearly-profit" style="font-size: 1.45rem; font-weight: 800; color: #f8fafc; margin-bottom: 6px;">
+                  0원
+                </div>
+                <div style="font-size: 0.78rem; color: #cbd5e1; display: flex; justify-content: space-between;">
+                  <span>거래: <strong id="admin-stat-yearly-trades" style="color: #38bdf8;">0회</strong> (<span id="admin-stat-yearly-winloss">0승 0패</span>)</span>
+                  <span>승률: <strong id="admin-stat-yearly-winrate" style="color: #34d399;">0%</strong></span>
+                </div>
+              </div>
+
+              <!-- 카드 2: 선택월 총 실현수익 -->
+              <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 0.82rem; color: #94a3b8; font-weight: 600;"><span id="admin-stat-month-label">당월</span> 실현수익</span>
+                  <span style="font-size: 1.1rem;">🗓️</span>
+                </div>
+                <div id="admin-stat-monthly-profit" style="font-size: 1.45rem; font-weight: 800; color: #f8fafc; margin-bottom: 6px;">
+                  0원
+                </div>
+                <div style="font-size: 0.78rem; color: #cbd5e1; display: flex; justify-content: space-between;">
+                  <span>거래: <strong id="admin-stat-monthly-trades" style="color: #34d399;">0회</strong> (<span id="admin-stat-monthly-winloss">0승 0패</span>)</span>
+                  <span>승률: <strong id="admin-stat-monthly-winrate" style="color: #34d399;">0%</strong></span>
+                </div>
+              </div>
+
+              <!-- 카드 3: 연간 최고 익절 종목 -->
+              <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 10px; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 0.82rem; color: #94a3b8; font-weight: 600;">🏆 최고 수익 종목</span>
+                  <span style="font-size: 1.1rem;">🚀</span>
+                </div>
+                <div id="admin-stat-best-stock" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  -
+                </div>
+                <div id="admin-stat-best-profit" style="font-size: 0.85rem; font-weight: 700; color: #f87171;">
+                  -
+                </div>
+              </div>
+
+              <!-- 카드 4: 연간 최대 손실 종목 -->
+              <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(96, 165, 250, 0.25); border-radius: 10px; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 0.82rem; color: #94a3b8; font-weight: 600;">🛡️ 최대 손실 종목</span>
+                  <span style="font-size: 1.1rem;">📉</span>
+                </div>
+                <div id="admin-stat-worst-stock" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  -
+                </div>
+                <div id="admin-stat-worst-profit" style="font-size: 0.85rem; font-weight: 700; color: #60a5fa;">
+                  -
+                </div>
+              </div>
+            </div>
+
+            <!-- 연간 월별 실현손익 한눈에 보기 바 (월별 손익 카드 그리드) -->
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px 16px;">
+              <div style="font-size: 0.85rem; font-weight: 700; color: #cbd5e1; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <span>📈</span> <span id="admin-breakdown-year-title">2026년</span> 월별 실현손익 요약
+              </div>
+              <div id="admin-monthly-breakdown-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
+                <!-- 월별 손익 칩 동적 렌더링 -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 📜 매매 완료 이력 섹션 (월별 조회 및 전략 필터링) -->
+          <div id="admin-trading-history-section" class="card" style="background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 22px; margin-bottom: 24px;">
+            <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+                  <span>📜 <span id="admin-history-section-month-label">당월</span> 매매 완료 이력</span>
+                </h3>
+                <span id="admin-history-total-count" style="font-size: 0.8rem; color: #94a3b8; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); padding: 2px 10px; border-radius: 12px;">총 0건</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <!-- 월별 실적 조회 셀렉트박스 -->
+                <select id="select-admin-trading-month" class="form-input form-input-sm" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700; border-radius: 6px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer;" title="조회할 월 선택">
+                  <option value="current">🗓️ 당월 실적</option>
+                </select>
+                <!-- 관리자 당월 이력 초기화 버튼 -->
+                <button type="button" id="btn-admin-clear-trading-history" class="btn btn-danger btn-sm" style="padding: 5px 12px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; cursor: pointer;" title="관리자 당월 매매 이력 및 통계 초기화">
+                  <span>🗑️</span> 이력 초기화
                 </button>
               </div>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; font-size: 0.82rem;">
-                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 8px 12px;">
-                  <strong style="color: #34d399;">🥇 1순위 (최강 추천)</strong><br>
-                  <span style="color: #cbd5e1;">09:00 ~ 09:30 국장 개장 직후</span><br>
-                  <span style="color: #94a3b8; font-size: 0.76rem;">거래대금/변동성 최고점, 당일 주도주 즉시 포착</span>
-                </div>
-                <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 8px 12px;">
-                  <strong style="color: #38bdf8;">🥈 2순위 (얼리버드)</strong><br>
-                  <span style="color: #cbd5e1;">08:00 ~ 08:50 NXT 프리마켓</span><br>
-                  <span style="color: #94a3b8; font-size: 0.76rem;">장전 호재성 갭상승 종목 조기 진입 (08:50 호가정지 주의)</span>
-                </div>
-                <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; padding: 8px 12px;">
-                  <strong style="color: #c084fc;">🥉 3순위 (미장 나스닥)</strong><br>
-                  <span style="color: #cbd5e1;">22:30 ~ 00:00 미장 개장 직후</span><br>
-                  <span style="color: #94a3b8; font-size: 0.76rem;">나스닥/S&P 거래대금 1위($100 이하) 초단타 진입</span>
-                </div>
-              </div>
-
-              <!-- 상세 시간표 펼침 영역 (기본 숨김) -->
-              <div id="market-schedule-detail-box" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1); font-size: 0.8rem; color: #cbd5e1; line-height: 1.6;">
-                • <strong>대체거래소(NXT)</strong>: 08:00~20:00 (프리마켓 08:00~08:50, 호가정지 08:50~09:00, 메인 09:00~15:20, 애프터마켓 15:30~20:00)<br>
-                • <strong>국내 정규장(KRX)</strong>: 09:00~15:30 (동시호가 08:30~09:00, 시간외종가 08:30~08:40 / 15:40~16:00, 시간외단일가 16:00~20:00)<br>
-                • <strong>미국 정규장(US)</strong>: 서머타임 22:30~05:00 KST / 겨울철 23:30~06:00 KST (총 예산 $100 이하 거래대금 1위 초단타)<br>
-                • <strong>동적 타임디케이(Time Decay) 청산 원칙</strong>:<br>
-                  &nbsp;&nbsp;- <strong>0 ~ 30분</strong>: 목표가 <span style="color: #34d399;">+2.5%</span> / 손절선 <span style="color: #f87171;">-1.5%</span><br>
-                  &nbsp;&nbsp;- <strong>30 ~ 60분 (1차 압축)</strong>: 목표가 <span style="color: #34d399;">+1.5%</span> / 손절선 <span style="color: #f87171;">-1.0%</span> (텔레그램 알림 발송)<br>
-                  &nbsp;&nbsp;- <strong>60 ~ 90분 (2차 본전권 탈출)</strong>: 목표가 <span style="color: #34d399;">+0.8%</span> / 손절선 <span style="color: #f87171;">-0.5%</span> (텔레그램 알림 발송)<br>
-                  &nbsp;&nbsp;- <strong>90분 경과</strong>: 시장가 전량 <strong>강제 매도 청산(TIME_OUT)</strong><br>
-                  &nbsp;&nbsp;- <strong>오버나잇 차단</strong>: 국장 15:15 / 미장 마감 15분 전 도달 시 보유시간 무관 <strong>당일 즉시 전량 청산(MARKET_CLOSE_EXIT)</strong><br>
-                • <strong>텔레그램 자동 알림 발송</strong>: 07:55(NXT 프리 5분전), 08:55(국장 개장 5분전), 09:00(국장 개장 정각), 22:25(미장 개장 5분전), 22:30/23:30(미장 개장 정각)
-              </div>
             </div>
 
-            <!-- ⏰ 한미 정규장 개장 자동 실행 스케줄 토글 옵션 -->
-            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <div>
-                <strong style="color: #fbbf24; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-                  <span>⏰</span> 한미 정규장 개장 자동 실행 스케줄러 (국장 09:00 & 미장 22:30/23:30)
-                </strong>
-                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">
-                  활성화 시 매 영업일 아침 09:00(국장 10만원 이하) 및 밤 22:30/23:30(미장 $100 이하) 개장 알림과 함께 거래대금 1위 종목을 예산 내 수량 자동 계산하여 <strong>전자동 시장가 매수</strong>합니다.
-                </div>
-              </div>
-              <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 700; color: #f8fafc;">
-                <input type="checkbox" id="check-admin-scalping-auto-schedule" style="width: 18px; height: 18px; accent-color: #f59e0b; cursor: pointer;">
-                <span>개장 자동 실행</span>
-              </label>
-            </div>
-
-            <!-- 초단타 포지션 및 감시 현황 프리뷰 박스 -->
-            <div id="admin-scalping-position-preview" style="padding: 16px; background: rgba(15, 23, 42, 0.75); border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 8px; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 16px;">
-              현재 가동 중인 초단타 포지션이 없습니다. 아래 [⚡ 거래대금 1위 초단타 실행] 버튼을 눌러 시작하세요.
-            </div>
-
-            <!-- 버튼 영역 -->
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button type="button" id="btn-admin-scalping-start" class="btn btn-primary" style="flex: 1; padding: 10px 18px; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; cursor: pointer; color: #fff; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
-                ⚡ 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)
+            <!-- 전략별 탭 필터 버튼 그룹 -->
+            <div id="admin-history-strategy-tabs" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+              <button type="button" class="btn btn-sm btn-admin-strategy-tab active" data-strategy="all" style="padding: 5px 14px; font-size: 0.82rem; border-radius: 6px; font-weight: 700; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); cursor: pointer;">
+                전체 (<span id="admin-count-hist-all">0</span>)
               </button>
-              <button type="button" id="btn-admin-scalping-stop" class="btn btn-secondary" style="padding: 10px 18px; font-weight: 600; border-radius: 8px; cursor: pointer; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171;" disabled>
-                ⏹️ 초단타 중지
+              <button type="button" class="btn btn-sm btn-admin-strategy-tab" data-strategy="DEBATE_RESERVATION" style="padding: 5px 14px; font-size: 0.82rem; border-radius: 6px; font-weight: 600; background: rgba(15, 23, 42, 0.6); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                ⚔️ AI 끝장토론 (<span id="admin-count-hist-debate">0</span>)
+              </button>
+              <button type="button" class="btn btn-sm btn-admin-strategy-tab" data-strategy="SCALPING" style="padding: 5px 14px; font-size: 0.82rem; border-radius: 6px; font-weight: 600; background: rgba(15, 23, 42, 0.6); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                ⚡ 초단타 (<span id="admin-count-hist-scalping">0</span>)
               </button>
             </div>
 
-            <!-- 초단타 최근 매매 이력 -->
-            <div id="admin-scalping-history-section" style="margin-top: 16px; border-top: 1px dashed rgba(255, 255, 255, 0.12); padding-top: 14px; display: none;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 0.85rem; font-weight: 700; color: #94a3b8;">📜 최근 초단타 매매 완료 이력</span>
-                <span id="admin-scalping-history-count" style="font-size: 0.75rem; color: #64748b;"></span>
-              </div>
-              <div id="admin-scalping-history-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            <!-- 이력 없음 빈 상태 안내 카드 -->
+            <div id="admin-trading-history-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; background: rgba(15, 23, 42, 0.4); border: 1px dashed rgba(255, 255, 255, 0.12); border-radius: 10px; text-align: center;">
+              <span style="font-size: 2.2rem; margin-bottom: 8px;">📭</span>
+              <div style="font-size: 1rem; font-weight: 700; color: #cbd5e1; margin-bottom: 4px;">해당 월의 완료된 매매 이력이 없습니다.</div>
+              <p style="font-size: 0.82rem; color: #94a3b8; max-width: 480px; margin: 0; line-height: 1.4;">
+                주식 자동매매 체결 종목의 청산 매도가 완료되면 이곳에 월별 기록이 누적됩니다.
+              </p>
+            </div>
+
+            <!-- 매매 이력 리스트 컨테이너 -->
+            <div id="admin-trading-history-list" style="display: none; flex-direction: column; gap: 10px;">
+              <!-- 동적 매매 이력 카드 렌더링 -->
             </div>
           </div>
 
-          <!-- 2. 현재 보유 포지션 간이 현황 -->
-          <div class="card" style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-              <h3 style="margin: 0; font-size: 1.05rem; color: #e2e8f0;">📌 현재 모니터링 중인 포지션 요약</h3>
-              <a href="#stock-journal" onclick="window.AppController && window.AppController.switchSideNav('stock-journal')" style="color: #38bdf8; font-size: 0.85rem; text-decoration: none;">
-                📑 전체 매매일지 화면 이동 ➔
-              </a>
-            </div>
-            <div id="admin-trading-position-preview" style="padding: 14px; background: rgba(15, 23, 42, 0.6); border-radius: 8px; color: #cbd5e1; font-size: 0.9rem;">
-              현재 대기/보유 중인 주식 포지션이 없습니다. (자동매매 엔진 가동 시 10만원 이하 1주 단일 매매 집행)
-            </div>
-          </div>
-
-          <!-- 3. 토스증권 Open API Key & 계좌 설정 카드 -->
+          <!-- 토스증권 Open API Key & 계좌 설정 카드 -->
           <div class="card" style="background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 22px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
               <h3 style="margin: 0; font-size: 1.15rem; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
@@ -1983,9 +1996,6 @@
             </div>
           </div>
 
-          <!-- [관리자 전용] 토스증권 AI 예약매수 대기 목록 패널 컨테이너 -->
-          <div id="debate-reservations-panel" style="display: none; margin-bottom: 20px;"></div>
-
           <!-- 필터 및 검색 바 -->
           <div class="debate-filter-toolbar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
             <div id="debate-stock-tabs" class="debate-stock-tabs-wrap">
@@ -2002,57 +2012,9 @@
           </div>
         </section>
 
-        <!-- 뷰 10-4: 배고픈투자씨 데일리 네이버 블로그 최신글 -->
-        <section id="view-stock-blog" class="content-view hidden">
-          <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
-            <div>
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                <h2 style="display: flex; align-items: center; gap: 10px; color: #f8fafc; margin: 0; font-size: 1.6rem; font-weight: 800;">
-                  📰 배고픈투자씨 데일리 증시분위기
-                </h2>
-                <span class="pulse-live-tag" style="background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px;">실시간 연동</span>
-                <span id="stock-blog-total-badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.35); padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">최신 50건</span>
-              </div>
-              <p style="color: #94a3b8; font-size: 0.92rem; margin: 0; line-height: 1.5;">
-                네이버 블로그 <a href="https://blog.naver.com/food-bang" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: underline; font-weight: 600;">배고픈투자씨 (food-bang)</a>의 데일리 시황, 미국 금리·유가 동향, 반도체·AI 전력 수혜주 등 최신 분석글을 실시간으로 확인하세요.
-              </p>
-            </div>
-            
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <span id="stock-blog-last-sync" style="color: #64748b; font-size: 0.82rem;">동기화: 확인 중...</span>
-              <button type="button" id="btn-stock-blog-refresh" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; cursor: pointer;" title="네이버 블로그 최신글 실시간 새로고침">
-                <span class="refresh-icon">🔄</span> 새로고침
-              </button>
-              <a href="https://blog.naver.com/food-bang" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; text-decoration: none; border-radius: 6px; font-weight: 600;">
-                <span>블로그 원문 홈</span> ↗
-              </a>
-            </div>
-          </div>
-
-          <!-- 필터 & 검색 바 -->
-          <div class="stock-blog-toolbar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 12px 16px; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px;">
-            <div id="stock-blog-category-chips" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <button type="button" class="category-chip active" data-category="ALL" style="padding: 5px 14px; border-radius: 16px; font-size: 0.82rem; cursor: pointer; border: 1px solid #38bdf8; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 600;">전체보기</button>
-            </div>
-            <div style="flex: 1; max-width: 320px; min-width: 200px;">
-              <input type="text" id="stock-blog-search-input" class="form-input form-input-sm" style="width: 100%; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem;" placeholder="🔍 제목, 키워드(유가, 반도체 등) 검색..." />
-            </div>
-          </div>
-
-          <!-- 로딩 스피너 및 빈 결과 상태 -->
-          <div id="stock-blog-loading" style="display: none; text-align: center; padding: 60px 20px; color: #94a3b8;">
-            <div class="spinner" style="display: inline-block; width: 36px; height: 36px; border: 3px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-            <p style="margin-top: 14px; font-size: 0.95rem;">네이버 블로그에서 최신 글을 불러오는 중입니다...</p>
-          </div>
-          <div id="stock-blog-empty" style="display: none; text-align: center; padding: 60px 20px; color: #94a3b8;">
-            <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">📭</span>
-            <p style="font-size: 1rem; color: #cbd5e1; font-weight: 600;">검색 결과 또는 등록된 글이 없습니다.</p>
-          </div>
-
-          <!-- 블로그 포스트 카드 그리드 -->
-          <div id="stock-blog-grid" class="stock-blog-grid-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px;">
-            <!-- 동적 렌더링 영역 -->
-          </div>
+        <!-- 뷰 10-4: 🪙 코인 자동화투자 & AI 끝장토론 (Crypto Trading Arena) -->
+        <section id="view-crypto-trading" class="content-view hidden">
+          <!-- 동적 렌더링: app/views/cryptoTradingView.js -->
         </section>
 
         <!-- 뷰 10-5: 방태 데일리 뉴스요약 (Blogger API v3) -->
@@ -2151,274 +2113,6 @@
           <div id="spark-reports-container">
             <!-- SparkReportsView가 동적 렌더링 -->
           </div>
-        </section>
-
-        <!-- [NEW] 토스증권 Open API & AI 끝장토론 주식 매매일지 화면 -->
-        <section id="view-stock-journal" class="content-view hidden">
-          <!-- 상단 헤더 & 컨트롤 바 -->
-          <div class="stock-blog-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;">
-            <div style="flex: 1; min-width: 280px;">
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap;">
-                <h2 style="display: flex; align-items: center; gap: 10px; color: #f8fafc; margin: 0; font-size: 1.6rem; font-weight: 800;">
-                  📑 주식 매매일지 (토스증권 AI 자동매매)
-                </h2>
-                <span id="badge-trading-api-status" class="badge" style="background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.4); padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;">확인 중...</span>
-                <span id="badge-trading-engine-status" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">상태 로딩...</span>
-              </div>
-              <p style="color: #94a3b8; font-size: 0.92rem; margin: 0; line-height: 1.5;">
-                AI 끝장토론실에서 발굴·의결된 유망 종목(10만원 이하)을 <strong>1회 1종목 1주 단일 매매 원칙</strong>으로 예약매수/매수하고, <strong>목표가(+15%) 익절 및 손절(-5%)</strong>을 토스증권 Open API를 통해 실제 집행하며 실시간 텔레그램으로 전송합니다.
-              </p>
-            </div>
-
-            <!-- 우측 액션 버튼 -->
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span id="trading-last-sync-time" style="color: #64748b; font-size: 0.82rem; margin-right: 2px;">최근 점검: -</span>
-              <button type="button" id="btn-open-custom-strategy-modal" class="btn btn-primary btn-sm journal-admin-only" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 6px; cursor: pointer; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; font-weight: 600; border: none; box-shadow: 0 2px 8px rgba(37,99,235,0.3);" title="관리자 맞춤 전략 직접 등록">
-                <span>➕</span> 맞춤 전략 등록
-              </button>
-              <button type="button" id="btn-stock-journal-refresh" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 6px; cursor: pointer;" title="매매일지 새로고침">
-                <span>🔄</span> 새로고침
-              </button>
-            </div>
-          </div>
-
-          <!-- 실시간 단일 보유 포지션 카드 -->
-          <div style="margin-bottom: 28px;">
-            <div class="trading-pos-header-row">
-              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px;">
-                <span>🎯 실시간 집중 운용 포지션 (1회 1종목 1주)</span>
-              </h3>
-              <span style="font-size: 0.8rem; color: #94a3b8;">* 청산 완료 후 다음 끝장토론 종목으로 자동 순환</span>
-            </div>
-
-            <!-- 미보유 상태 카드 -->
-            <div id="card-position-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; background: rgba(30, 41, 59, 0.4); border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 12px; text-align: center;">
-              <span style="font-size: 2.4rem; margin-bottom: 10px;">⏳</span>
-              <div style="font-size: 1.05rem; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">현재 대기/보유 중인 주식 포지션이 없습니다.</div>
-              <p style="font-size: 0.88rem; color: #94a3b8; max-width: 520px; margin: 0; line-height: 1.5;">
-                자동매매 엔진이 5분 주기로 AI 끝장토론실에서 10만원 이하 매수 의결 종목을 탐색하여 예약매수 또는 실시간 1주 매수를 진행합니다.
-              </p>
-            </div>
-
-            <!-- 보유 중 상태 카드 -->
-            <div id="card-position-active" class="trading-pos-card" style="display: none;">
-              <!-- 포지션 상단 헤더: 종목명, 코드, 상태 뱃지, 현재가, 수익률 -->
-              <div class="trading-pos-main-header">
-                <div class="trading-pos-info-block">
-                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
-                    <span id="pos-market-badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">KR</span>
-                    <h4 id="pos-stock-name" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: #ffffff;">-</h4>
-                    <span id="pos-item-code" style="color: #94a3b8; font-size: 0.9rem;">-</span>
-                    <span id="pos-status-badge" style="background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.4); padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">예약매수 접수중</span>
-                  </div>
-                  <!-- 🌟 AI 끝장토론 최신 연동 브리핑 영역 -->
-                  <div class="trading-pos-debate-box" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 10px 12px; margin: 6px 0 8px 0; max-width: 620px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
-                      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 600;">🔥 AI 끝장토론 최신의결:</span>
-                        <span id="pos-debate-action" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 1px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">의결 확인중</span>
-                      </div>
-                      <span id="pos-debate-time" style="font-size: 0.72rem; color: #64748b;">-</span>
-                    </div>
-                    <p id="pos-debate-summary" style="color: #cbd5e1; font-size: 0.83rem; margin: 0 0 8px 0; line-height: 1.45; word-break: break-word;">
-                      -
-                    </p>
-                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
-                      <button type="button" id="btn-goto-position-debate" class="btn btn-sm" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(249, 115, 22, 0.22)); border: 1px solid rgba(249, 115, 22, 0.45); color: #fdba74; font-size: 0.78rem; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease;" title="AI 끝장토론실 12턴 대화 전체 보기">
-                        <span>🔥 AI 끝장토론 12턴 대화 바로보기</span>
-                        <span style="font-size: 0.72rem; opacity: 0.8;">➔</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div id="pos-order-note" class="trading-order-note-box">
-                    -
-                  </div>
-                </div>
-
-                <div class="trading-pos-price-block">
-                  <div id="pos-current-price" style="font-size: 1.6rem; font-weight: 800; color: #ffffff;">-원</div>
-                  <div id="pos-return-pnl" style="font-size: 1.05rem; font-weight: 700; color: #94a3b8;">-</div>
-                </div>
-              </div>
-
-              <!-- 포지션 세부 지표 그리드 -->
-              <div class="trading-metrics-grid">
-                <div class="trading-metric-box">
-                  <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px;">체결/예수단가</div>
-                  <div id="pos-avg-price" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; word-break: break-word;">-</div>
-                </div>
-                <div class="trading-metric-box">
-                  <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                    <span>주문/보유수량</span>
-                    <span id="pos-averaging-badge" style="font-size: 0.68rem; padding: 1px 6px; border-radius: 4px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); white-space: nowrap;">💧 추매 감시</span>
-                  </div>
-                  <div id="pos-quantity" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc;">1주</div>
-                </div>
-                <div class="trading-metric-box">
-                  <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px;">총 투자금액</div>
-                  <div id="pos-total-invested" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; word-break: break-word;">-</div>
-                </div>
-                <div class="trading-metric-box">
-                  <div id="pos-target-label" style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px;">공식 목표가</div>
-                  <div id="pos-target-price" style="font-size: 1.05rem; font-weight: 700; color: #34d399; word-break: break-word;">-</div>
-                </div>
-                <div class="trading-metric-box">
-                  <div id="pos-stop-label" style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 4px;">손절가 (-5%)</div>
-                  <div id="pos-stop-price" style="font-size: 1.05rem; font-weight: 700; color: #f87171; word-break: break-word;">-</div>
-                </div>
-              </div>
-
-              <!-- 실시간 주문·체결 진행 상태 4단계 로드맵 -->
-              <div style="margin-bottom: 20px;">
-                <div style="font-size: 0.82rem; font-weight: 700; color: #94a3b8; margin-bottom: 8px;">실시간 주문·체결 라이프사이클 (1종목 1주 단일 매매)</div>
-                <div class="trading-lifecycle-grid">
-                  <div id="pos-step-1-item" class="trading-lifecycle-step" style="border-color: rgba(56, 189, 248, 0.4);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 4px;">
-                      <span style="font-size: 0.82rem; font-weight: 700; color: #f8fafc; white-space: nowrap;">① 발굴</span>
-                      <span id="pos-step-1-badge" style="font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;">완료</span>
-                    </div>
-                    <div style="font-size: 0.72rem; color: #94a3b8; line-height: 1.3;">10만원 이하 매수 의결</div>
-                  </div>
-
-                  <div id="pos-step-2-item" class="trading-lifecycle-step">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 4px;">
-                      <span style="font-size: 0.82rem; font-weight: 700; color: #f8fafc; white-space: nowrap;">② 접수</span>
-                      <span id="pos-step-2-badge" style="font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;">대기</span>
-                    </div>
-                    <div style="font-size: 0.72rem; color: #94a3b8; line-height: 1.3;">장외 예약 / 개장 시 전송</div>
-                  </div>
-
-                  <div id="pos-step-3-item" class="trading-lifecycle-step">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 4px;">
-                      <span style="font-size: 0.82rem; font-weight: 700; color: #f8fafc; white-space: nowrap;">③ 체결</span>
-                      <span id="pos-step-3-badge" style="font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;">대기</span>
-                    </div>
-                    <div style="font-size: 0.72rem; color: #94a3b8; line-height: 1.3;">토스 실체결가 단가 확정</div>
-                  </div>
-
-                  <div id="pos-step-4-item" class="trading-lifecycle-step">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 4px;">
-                      <span style="font-size: 0.82rem; font-weight: 700; color: #f8fafc; white-space: nowrap;">④ 청산</span>
-                      <span id="pos-step-4-badge" style="font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;">대기</span>
-                    </div>
-                    <div style="font-size: 0.72rem; color: #94a3b8; line-height: 1.3;">목표가(+15%)/손절(-5%)</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 목표가 / 손절가 게이지 바 -->
-              <div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #94a3b8; margin-bottom: 6px;">
-                  <span style="color: #f87171;">⛔ 손절 기준선</span>
-                  <span>현재 위치</span>
-                  <span style="color: #34d399;">🎯 목표가 익절</span>
-                </div>
-                <div style="width: 100%; height: 10px; background: rgba(15, 23, 42, 0.8); border-radius: 5px; overflow: hidden; position: relative;">
-                  <div id="pos-gauge-bar" style="height: 100%; width: 50%; background: linear-gradient(90deg, #3b82f6, #10b981); transition: width 0.4s ease;"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- [NEW] AI 끝장토론 예약 운용 포지션 (독립 멀티 감시) -->
-          <div id="section-debate-reservations" style="margin-bottom: 28px;">
-            <div class="trading-pos-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px;">
-                <span>⚔️ AI 끝장토론 예약 운용 포지션 (개별 감시·자동 익절/손절)</span>
-                <span id="debate-reservation-pos-badge" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.4);">0건 운용중</span>
-              </h3>
-              <span style="font-size: 0.8rem; color: #94a3b8;">* AI 끝장토론실에서 신청된 예약매수 종목별 독립 실시간 감시</span>
-            </div>
-
-            <div id="debate-res-pos-empty" style="display: none; padding: 24px 16px; background: rgba(30, 41, 59, 0.3); border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 10px; text-align: center; color: #94a3b8; font-size: 0.88rem;">
-              현재 체결 및 보유 중인 AI 끝장토론 예약 포지션이 없습니다. AI 끝장토론실에서 3대 전략 예약매수를 신청할 수 있습니다.
-            </div>
-
-            <div id="debate-res-pos-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px;"></div>
-          </div>
-
-          <!-- [NEW] 관리자 맞춤 전략 운용 (10만원 제한 해제 / 분할 익절 / 실시간 감시) -->
-          <div id="section-custom-strategies" style="margin-bottom: 28px;">
-            <div class="trading-pos-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px;">
-                <span>🎯 관리자 맞춤 전략 운용 (독립 감시 / 분할 익절 / 10만원 제한 해제)</span>
-                <span id="custom-strategy-count-badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.4);">0건 운용중</span>
-              </h3>
-              <button type="button" id="btn-open-custom-strategy-modal-inline" class="btn btn-primary btn-sm journal-admin-only" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; cursor: pointer; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; font-weight: 600; border: none; box-shadow: 0 2px 8px rgba(37,99,235,0.3);">
-                <span>➕</span> 맞춤 전략 등록
-              </button>
-            </div>
-
-            <!-- 맞춤 전략 미등록 상태 안내 -->
-            <div id="custom-strategy-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px 20px; background: rgba(30, 41, 59, 0.35); border: 1px dashed rgba(255, 255, 255, 0.12); border-radius: 12px; text-align: center;">
-              <span style="font-size: 2rem; margin-bottom: 8px;">📋</span>
-              <div style="font-size: 1rem; font-weight: 700; color: #cbd5e1; margin-bottom: 4px;">등록된 관리자 맞춤 전략이 없습니다.</div>
-              <p style="font-size: 0.85rem; color: #94a3b8; max-width: 500px; margin: 0 0 14px 0; line-height: 1.4;">
-                원하는 종목(고가 대형주 포함), 매수방식(눌림목/돌파/즉시), 1·2차 목표가 분할 익절, 손절가를 직접 설정하여 AI 종목과 독립적으로 동시 자동매매할 수 있습니다.
-              </p>
-              <button type="button" id="btn-open-custom-strategy-empty" class="btn btn-secondary btn-sm journal-admin-only" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 6px; cursor: pointer;">
-                <span>➕</span> 새 맞춤 전략 등록하기
-              </button>
-            </div>
-
-            <!-- 맞춤 전략 목록 컨테이너 -->
-            <div id="custom-strategy-list" style="display: none; flex-direction: column; gap: 14px;">
-              <!-- 동적 렌더링 영역 -->
-            </div>
-          </div>
-
-          <!-- 3. 🌟 월간 누적 매매 완료 이력 섹션 (3대 전략 완료 내역) -->
-          <div id="trading-history-section" style="margin-top: 28px; margin-bottom: 24px;">
-            <div class="trading-pos-header-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px;">
-                  <span>📜 <span id="history-section-month-label">당월</span> 매매 완료 이력</span>
-                </h3>
-                <span id="history-total-count-badge" style="font-size: 0.8rem; color: #94a3b8; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255,255,255,0.1); padding: 2px 10px; border-radius: 12px;">총 0건</span>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <!-- 월별 실적 조회 셀렉트박스 -->
-                <select id="select-trading-month" class="form-input form-input-sm" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700; border-radius: 6px; padding: 4px 8px; font-size: 0.82rem; cursor: pointer;" title="조회할 월 선택">
-                  <option value="current">🗓️ 당월 실적</option>
-                </select>
-                <!-- 관리자 당월 이력 초기화 버튼 -->
-                <button type="button" id="btn-clear-trading-history" class="btn btn-danger btn-sm journal-admin-only" style="display: none; padding: 5px 10px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; cursor: pointer;" title="관리자 당월 매매 이력 및 통계 초기화">
-                  <span>🗑️</span> 이력 초기화
-                </button>
-              </div>
-            </div>
-
-            <!-- 전략별 탭 필터 버튼 그룹 -->
-            <div id="history-strategy-tabs" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
-              <button type="button" class="btn btn-sm btn-strategy-tab active" data-strategy="all" style="padding: 5px 12px; font-size: 0.82rem; border-radius: 6px; font-weight: 700; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); cursor: pointer;">
-                전체 (<span id="count-hist-all">0</span>)
-              </button>
-              <button type="button" class="btn btn-sm btn-strategy-tab" data-strategy="FOCUSED" style="padding: 5px 12px; font-size: 0.82rem; border-radius: 6px; font-weight: 600; background: rgba(30, 41, 59, 0.6); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
-                🎯 집중포지션 (<span id="count-hist-focused">0</span>)
-              </button>
-              <button type="button" class="btn btn-sm btn-strategy-tab" data-strategy="CUSTOM" style="padding: 5px 12px; font-size: 0.82rem; border-radius: 6px; font-weight: 600; background: rgba(30, 41, 59, 0.6); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
-                ⚙️ 맞춤전략 (<span id="count-hist-custom">0</span>)
-              </button>
-              <button type="button" class="btn btn-sm btn-strategy-tab" data-strategy="SCALPING" style="padding: 5px 12px; font-size: 0.82rem; border-radius: 6px; font-weight: 600; background: rgba(30, 41, 59, 0.6); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
-                ⚡ 초단타 (<span id="count-hist-scalping">0</span>)
-              </button>
-            </div>
-
-            <!-- 이력 없음 빈 상태 안내 카드 -->
-            <div id="trading-history-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; background: rgba(30, 41, 59, 0.35); border: 1px dashed rgba(255, 255, 255, 0.12); border-radius: 12px; text-align: center;">
-              <span style="font-size: 2rem; margin-bottom: 8px;">📭</span>
-              <div style="font-size: 0.98rem; font-weight: 700; color: #cbd5e1; margin-bottom: 4px;">해당 월의 완료된 매매 이력이 없습니다.</div>
-              <p style="font-size: 0.82rem; color: #94a3b8; max-width: 480px; margin: 0; line-height: 1.4;">
-                실시간 집중 포지션, 관리자 맞춤 전략, 초단타 스캘핑의 청산 매도가 완료되면 이곳에 월별 기록이 누적됩니다.
-              </p>
-            </div>
-
-            <!-- 매매 이력 리스트 컨테이너 -->
-            <div id="trading-history-list" style="display: none; flex-direction: column; gap: 10px;">
-              <!-- 동적 카드 렌더링 영역 -->
-            </div>
-          </div>
-
         </section>
 
         <!-- 뷰: 행성 월드 (타이쿤 테마파크 & 클라우드 행성 디오라마) -->
@@ -3246,171 +2940,6 @@
   <div id="sidebar-overlay" class="sidebar-overlay"></div>
   <div id="toast-container" class="toast-container"></div>
 
-  <!-- [NEW] 관리자 맞춤 전략 등록 모달 팝업 -->
-  <div id="modal-custom-strategy" style="display: none; position: fixed; inset: 0; background: rgba(10, 15, 29, 0.75); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 9999; align-items: center; justify-content: center; padding: 16px; overflow-y: auto;">
-    <div style="background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px; max-width: 580px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.5); overflow: hidden;">
-      <!-- 모달 헤더 -->
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: rgba(15, 23, 42, 0.6);">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span id="modal-custom-strategy-icon" style="font-size: 1.3rem;">🎯</span>
-          <div>
-            <h3 id="modal-custom-strategy-title" style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #f8fafc;">관리자 맞춤 주식 전략 등록</h3>
-            <span id="modal-custom-strategy-subtitle" style="font-size: 0.75rem; color: #94a3b8;">* 10만원 금액 제한 해제 / 분할 익절 / 실시간 시세 자동 감시</span>
-          </div>
-        </div>
-        <button type="button" id="btn-close-custom-strategy-modal" style="background: none; border: none; font-size: 1.4rem; color: #94a3b8; cursor: pointer; padding: 4px 8px; line-height: 1; border-radius: 6px;" title="닫기">&times;</button>
-      </div>
-
-      <!-- 모달 본문 폼 -->
-      <form id="form-custom-strategy" style="padding: 22px 24px; max-height: calc(85vh - 120px); overflow-y: auto;">
-        <input type="hidden" id="cs-edit-strategy-id" value="">
-        <!-- 전략 운용 유형 선택 (신규 매수 감시 vs 기존 보유 종목 등록) -->
-        <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.65); padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);">
-          <label style="display: block; font-size: 0.82rem; font-weight: 700; color: #cbd5e1; margin-bottom: 8px;">전략 운용 모드 선택</label>
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <label id="lbl-cs-mode-buy" style="flex: 1; min-width: 220px; display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(56, 189, 248, 0.12); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.5); transition: all 0.2s;">
-              <input type="radio" name="cs-mode" id="cs-mode-buy" value="BUY" checked style="accent-color: #38bdf8; width: 16px; height: 16px;">
-              <div>
-                <div style="font-size: 0.88rem; font-weight: 700; color: #38bdf8;">🎯 신규 매수 감시</div>
-                <div style="font-size: 0.72rem; color: #94a3b8;">조건 도달 시 자동 매수 ➔ 분할 익절/손절</div>
-              </div>
-            </label>
-            <label id="lbl-cs-mode-hold" style="flex: 1; min-width: 220px; display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(30, 41, 59, 0.5); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12); transition: all 0.2s;">
-              <input type="radio" name="cs-mode" id="cs-mode-hold" value="HOLD" style="accent-color: #c084fc; width: 16px; height: 16px;">
-              <div>
-                <div style="font-size: 0.88rem; font-weight: 700; color: #cbd5e1;">📦 기존 보유 종목 등록</div>
-                <div style="font-size: 0.72rem; color: #94a3b8;">이미 보유 중 ➔ 목표가 분할 익절/손절 감시만 집행</div>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- 종목 정보 입력 행 -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
-          <div>
-            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">종목코드 / 티커 <span style="color: #f87171;">*</span></label>
-            <input type="text" id="cs-item-code" required placeholder="예: 005930, CPNG, NVDA" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">종목명 (표시용)</label>
-            <input type="text" id="cs-stock-name" placeholder="예: 쿠팡, 두산에너빌리티, 엔비디아" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-          </div>
-        </div>
-
-        <!-- 매수 조건 및 수량 행 (신규 매수 모드일 때) -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
-          <div id="cs-trigger-type-wrapper">
-            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">매수 진입 방식 <span style="color: #f87171;">*</span></label>
-            <select id="cs-trigger-type" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-              <option value="PULLBACK" selected>눌림목 분할 매수 (기준가 이하 도달 시)</option>
-              <option value="BREAKOUT">돌파 안착 매수 (기준가 이상 돌파 시)</option>
-              <option value="IMMEDIATE">즉시 시장가 매수 (장중 즉시 집행)</option>
-            </select>
-          </div>
-          <div id="cs-quantity-wrapper">
-            <label id="lbl-cs-quantity" style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
-              매수 주문 수량 <span style="color: #f87171;">*</span> <span style="font-size: 0.72rem; color: #34d399; font-weight: normal;">(2주 이상 시 분할 익절)</span>
-            </label>
-            <input type="number" id="cs-quantity" min="1" step="1" value="1" required style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-          </div>
-        </div>
-
-        <!-- 설명 가이드 텍스트 -->
-        <div style="font-size: 0.76rem; color: #94a3b8; background: rgba(30, 41, 59, 0.4); border-left: 3px solid #38bdf8; padding: 6px 10px; border-radius: 4px; margin-bottom: 16px;">
-          💡 <strong>수량 설명:</strong> <span id="cs-quantity-explanation">조건 도달 시 토스증권에서 실제 매수할 주식 수입니다. 2주 이상 등록 시 1차 목표가 도달 시 절반(50%)을 분할 익절하고, 잔여 수량은 2차 목표가까지 자동 보유합니다.</span>
-        </div>
-
-        <!-- [신규 매수 모드] 매수 감시 기준 가격 -->
-        <div id="cs-buy-price-wrapper" style="margin-bottom: 16px;">
-          <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
-            매수 감시 기준 가격 <span style="color: #f87171;">*</span>
-            <span id="cs-trigger-desc" style="font-size: 0.75rem; color: #38bdf8; font-weight: normal;">(현재가가 이 가격 이하로 내려오면 자동 매수)</span>
-          </label>
-          <input type="number" id="cs-buy-price" step="any" placeholder="예: 145000 또는 13.51 (국내: 원 / 미국: $)" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-        </div>
-
-        <!-- [기존 보유 모드 전용] 매수 평단가 입력 -->
-        <div id="cs-entry-price-wrapper" style="display: none; margin-bottom: 16px;">
-          <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #c084fc; margin-bottom: 6px;">
-            매수 평단가 (체결단가) <span style="color: #f87171;">*</span>
-            <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">(보유 중인 주식의 매수 평단가 입력 - 수익률 및 손익 계산 기준)</span>
-          </label>
-          <input type="number" id="cs-entry-price" step="any" placeholder="예: 13.51 또는 145000 (국내: 원 / 미국: $)" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-        </div>
-
-        <!-- 청산 목표가 행 (1차 & 2차) -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
-          <div>
-            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
-              1차 목표 청산가 <span style="color: #f87171;">*</span>
-              <span style="font-size: 0.72rem; color: #34d399; font-weight: normal;">(50% 익절)</span>
-            </label>
-            <input type="number" id="cs-target-1" step="any" required placeholder="예: 157300 또는 16.5" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
-              2차 목표 청산가
-              <span style="font-size: 0.72rem; color: #38bdf8; font-weight: normal;">(잔여 전량 익절, 선택)</span>
-            </label>
-            <input type="number" id="cs-target-2" step="any" placeholder="예: 177100 또는 18.0" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-          </div>
-        </div>
-
-        <!-- [물타기 옵션] 추가 매수 감시 설정 -->
-        <div style="margin-bottom: 16px; background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 14px 16px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; margin: 0; font-size: 0.88rem; font-weight: 700; color: #38bdf8;">
-            <input type="checkbox" id="cs-enable-averaging" style="width: 17px; height: 17px; accent-color: #0284c7; cursor: pointer;">
-            💧 물타기(추가 매수) 감시 활성화
-            <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">(주가 하락 시 추가 매수하여 평단가 인하)</span>
-          </label>
-          <div id="cs-averaging-wrapper" style="display: none; margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(56, 189, 248, 0.2);">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px;">
-              <div>
-                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
-                  물타기 매수 기준가 <span style="color: #38bdf8;">*</span>
-                  <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(이하 하락 시 매수)</span>
-                </label>
-                <input type="number" id="cs-averaging-price" step="any" placeholder="예: 12.00 또는 135000" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-              </div>
-              <div>
-                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
-                  추가 매수 수량 <span style="color: #38bdf8;">*</span>
-                  <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(주)</span>
-                </label>
-                <input type="number" id="cs-averaging-qty" min="1" step="1" value="1" placeholder="예: 1" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-              </div>
-            </div>
-            <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.4;">
-              💡 주가가 설정한 물타기 기준가 이하로 내려오면 토스증권 API로 시장가 1회 추가 매수되며, 평단가가 자동으로 재계산되어 기존 목표가에서 익절을 노립니다.
-            </div>
-          </div>
-        </div>
-
-        <!-- 최종 손절가 -->
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
-            최종 손절 기준가 <span style="color: #f87171;">*</span>
-            <span style="font-size: 0.72rem; color: #f87171; font-weight: normal;">(이탈 시 잔여 전량 즉시 손절)</span>
-          </label>
-          <input type="number" id="cs-stop-loss" step="any" required placeholder="예: 138000 또는 13.51" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box;">
-        </div>
-
-        <!-- 전략 비고 / 주의사항 -->
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">비고 및 대응 메모 (주의사항)</label>
-          <input type="text" id="cs-notes" placeholder="예: 정차한 버스에 탑승 또는 새 문 열렸을 때 진입 (돌파 매수 시 거래량 확인)" style="width: 100%; padding: 9px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.88rem; box-sizing: border-box;">
-        </div>
-
-        <!-- 버튼 바 -->
-        <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 18px;">
-          <button type="button" id="btn-cancel-custom-strategy-modal" class="btn btn-secondary" style="padding: 8px 18px; border-radius: 6px; cursor: pointer;">취소</button>
-          <button type="submit" id="btn-submit-custom-strategy" class="btn btn-primary" style="padding: 8px 20px; border-radius: 6px; cursor: pointer; background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; font-weight: 700; box-shadow: 0 4px 12px rgba(37,99,235,0.4);">
-            🚀 전략 등록 및 실시간 감시 시작
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
 
 
 
@@ -3448,11 +2977,9 @@
   <script src="app/utils/d3.v7.min.js"></script>
   <script src="app/views/systemMindmapView.js?v=1.0"></script>
   <script src="app/views/stockTempView.js?v=2.4"></script>
-  <script src="app/views/stockDebateView.js?v=2.8"></script>
-  <script src="app/views/stockBlogView.js?v=2.4"></script>
+  <script src="app/views/stockDebateView.js?v=2.9"></script>
   <script src="app/views/bloggerNewsView.js?v=2.4"></script>
   <script src="app/views/sparkReportsView.js?v=1.0"></script>
-  <script src="app/views/stockJournalView.js?v=4.4"></script>
   <script src="app/views/stockTradingAdminView.js?v=2.8"></script>
   <script src="app/views/threadsAgentView.js?v=2.6"></script>
   <script src="app/views/sapSuiteView.js?v=2.4"></script>
@@ -3467,6 +2994,8 @@
   <script src="app/views/trendRankingView.js?v=1.0"></script>
   <script src="app/views/bookmarkView.js?v=1.0"></script>
   <script src="app/views/portalChatbotView.js?v=1.2"></script>
+  <script src="app/models/cryptoTradingModel.js?v=1.0"></script>
+  <script src="app/views/cryptoTradingView.js?v=1.0"></script>
   <script src="app/controllers/appController.js?v=3.6"></script>
   <script src="app/main.js?v=3.6"></script>
 

@@ -1,61 +1,119 @@
-// app/views/stockTradingAdminView.js - 관리자 전용 주식 자동매매 제어 뷰
+// app/views/stockTradingAdminView.js - 주식자동매매 관리자 뷰 (연간·월간 총 실현수익 통계 & 매매완료이력 통합)
 (function(window) {
   'use strict';
 
   const StockTradingAdminView = {
     initialized: false,
     pollTimer: null,
-    pollIntervalMs: 10000,
-    isAutoTrading: false,
-    currentPosition: null,
-    scalpingStatus: null,
+    pollIntervalMs: 20000, // 20초 주기 폴링
+    journalData: null,
+    selectedYear: new Date().getFullYear().toString(),
+    selectedMonth: 'current',
+    selectedStrategyTab: 'all',
+    cachedReservations: [],
+    cachedPositions: [],
+    isLoadingReservations: false,
 
     init() {
       if (this.initialized) {
-        this.loadStatus();
+        this.loadData();
         return;
       }
       this.initialized = true;
 
       this.bindEvents();
-      this.loadStatus();
+      this.loadData();
       this.startPolling();
     },
 
     bindEvents() {
-      // 1. 새로고침 버튼
+      // 1. 상태 및 통계 새로고침 버튼
       const btnRefresh = document.getElementById('btn-admin-trading-refresh');
       if (btnRefresh) {
         btnRefresh.addEventListener('click', () => {
-          this.loadStatus(true);
+          this.loadData(true);
         });
       }
 
-      // 2. 자동매매 ON/OFF 토글
-      const btnToggle = document.getElementById('btn-admin-toggle-trading');
-      if (btnToggle) {
-        btnToggle.addEventListener('click', () => {
-          this.toggleAutoTrading();
+      // 2. 조회 연도 변경 이벤트
+      const selYear = document.getElementById('select-admin-trading-year');
+      if (selYear) {
+        selYear.addEventListener('change', (e) => {
+          this.selectedYear = e.target.value;
+          this.renderYearAndMonthViews();
         });
       }
 
-      // 3. 즉시 사이클 검증
-      const btnCycle = document.getElementById('btn-admin-manual-cycle');
-      if (btnCycle) {
-        btnCycle.addEventListener('click', () => {
-          this.handleManualCycle();
+      // 3. 조회 월 변경 이벤트
+      const selMonth = document.getElementById('select-admin-trading-month');
+      if (selMonth) {
+        selMonth.addEventListener('change', (e) => {
+          this.selectedMonth = e.target.value;
+          this.renderYearAndMonthViews();
         });
       }
 
-      // 4. 비상 전량 매도
-      const btnEmergency = document.getElementById('btn-admin-emergency-sell');
-      if (btnEmergency) {
-        btnEmergency.addEventListener('click', () => {
-          this.handleEmergencySell();
+      // 4. 전략별 필터 탭
+      const tabWrap = document.getElementById('admin-history-strategy-tabs');
+      if (tabWrap) {
+        tabWrap.addEventListener('click', (e) => {
+          const btn = e.target.closest('.btn-admin-strategy-tab');
+          if (!btn) return;
+          const strat = btn.getAttribute('data-strategy');
+          if (!strat) return;
+
+          this.selectedStrategyTab = strat;
+          tabWrap.querySelectorAll('.btn-admin-strategy-tab').forEach(b => {
+            b.classList.remove('active');
+            b.style.background = 'rgba(15, 23, 42, 0.6)';
+            b.style.color = '#94a3b8';
+            b.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+            b.style.fontWeight = '600';
+          });
+          btn.classList.add('active');
+          btn.style.background = 'rgba(56, 189, 248, 0.2)';
+          btn.style.color = '#38bdf8';
+          btn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+          btn.style.fontWeight = '700';
+
+          this.renderYearAndMonthViews();
         });
       }
 
-      // 5. API 설정 폼 제출
+      // 5. 당월/선택 월 이력 초기화 버튼
+      const btnClear = document.getElementById('btn-admin-clear-trading-history');
+      if (btnClear) {
+        btnClear.addEventListener('click', async () => {
+          const isArchive = this.selectedMonth && this.selectedMonth !== 'current';
+          const targetTitle = isArchive ? `${this.selectedMonth} 실적 보관함` : '당월';
+          const targetMonth = isArchive ? this.selectedMonth : 'current';
+
+          const ok = confirm(`⚠️ [${targetTitle}] 매매 완료 이력 및 실현 손익 통계를 완전히 초기화하시겠습니까?\n(백업 없이 영구 삭제됩니다)`);
+          if (!ok) return;
+
+          try {
+            const res = await fetch('/api/trading/history/clear', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ month: targetMonth, archive: false })
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.selectedMonth = 'current';
+              if (window.UiView && window.UiView.showToast) {
+                window.UiView.showToast(`🗑️ [${targetTitle}] 매매 이력이 깨끗하게 초기화되었습니다.`);
+              }
+              await this.loadData(false);
+            } else {
+              alert('초기화 실패: ' + (data.error || '오류 발생'));
+            }
+          } catch (err) {
+            alert('초기화 중 오류가 발생했습니다: ' + err.message);
+          }
+        });
+      }
+
+      // 6. 토스 API 설정 폼 제출
       const formApi = document.getElementById('form-admin-toss-api');
       if (formApi) {
         formApi.addEventListener('submit', (e) => {
@@ -64,42 +122,442 @@
         });
       }
 
-      // 6. 초단타 스캘핑 실행 버튼
-      const btnScalpStart = document.getElementById('btn-admin-scalping-start');
-      if (btnScalpStart) {
-        btnScalpStart.addEventListener('click', () => {
-          this.startScalping();
-        });
-      }
-
-      // 7. 초단타 스캘핑 중지 버튼
-      const btnScalpStop = document.getElementById('btn-admin-scalping-stop');
-      if (btnScalpStop) {
-        btnScalpStop.addEventListener('click', () => {
-          this.stopScalping();
-        });
-      }
-
-      // 8. 운영 시간표 보기 토글
-      const btnSchedule = document.getElementById('btn-toggle-market-schedule');
-      if (btnSchedule) {
-        btnSchedule.addEventListener('click', () => {
-          const box = document.getElementById('market-schedule-detail-box');
-          if (box) {
-            const isHidden = box.style.display === 'none';
-            box.style.display = isHidden ? 'block' : 'none';
-            btnSchedule.textContent = isHidden ? '운영 시간표 닫기 ▲' : '운영 시간표 보기 ▼';
+      // 7. 5대 에이전트 끝장 토론 즉시 소집 이벤트 (Debate Summon)
+      const btnGotoDebate = document.getElementById('btn-goto-stock-debate');
+      if (btnGotoDebate) {
+        btnGotoDebate.addEventListener('click', () => {
+          if (window.AppController && window.AppController.switchTopNav) {
+            window.AppController.switchTopNav('invest');
+            const debateSideBtn = document.querySelector('[data-side="stock-debate"]');
+            if (debateSideBtn) debateSideBtn.click();
+            if (window.StockDebateView) window.StockDebateView.render();
           }
         });
       }
 
-      // 9. 09:00 개장 자동 실행 스케줄 체크박스
-      const checkSchedule = document.getElementById('check-admin-scalping-auto-schedule');
-      if (checkSchedule) {
-        checkSchedule.addEventListener('change', (e) => {
-          this.toggleAutoSchedule(e.target.checked);
+      const btnTriggerDebate = document.getElementById('btn-admin-trigger-debate');
+      const inputDebateStock = document.getElementById('input-admin-debate-stock');
+      const debateStatusBox = document.getElementById('admin-debate-summon-status');
+
+      const handleDebateSummon = async (overrideStock) => {
+        const stockQuery = (overrideStock || (inputDebateStock ? inputDebateStock.value : '')).trim();
+        if (!stockQuery) {
+          alert('토론을 소집할 주식 종목명이나 종목코드를 입력해주세요.');
+          if (inputDebateStock) inputDebateStock.focus();
+          return;
+        }
+
+        if (btnTriggerDebate) {
+          btnTriggerDebate.disabled = true;
+          btnTriggerDebate.innerHTML = '<span class="loading-spin">🔄</span> 에이전트 5인 소집 및 난타전 진행 중...';
+        }
+        if (debateStatusBox) {
+          debateStatusBox.classList.remove('hidden');
+          debateStatusBox.style.display = 'block';
+          debateStatusBox.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px; color: #f59e0b; font-size: 0.88rem;">
+              <span class="loading-spin" style="display:inline-block; animation: spin 1s infinite linear;">⚔️</span>
+              <span><strong>[${stockQuery}]</strong> 5대 서브에이전트(성장론자·신중론자·기술분석가·주린이·단가)가 격렬한 끝장 토론을 벌이고 있습니다...</span>
+            </div>
+          `;
+        }
+
+        try {
+          if (!window.StockDebateModel) {
+            throw new Error('StockDebateModel을 찾을 수 없습니다.');
+          }
+          const res = await window.StockDebateModel.triggerDebate(stockQuery);
+          if (res && res.success) {
+            if (debateStatusBox) {
+              debateStatusBox.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                  <div style="color: #10b981; font-size: 0.88rem;">
+                    ✅ <strong>[${stockQuery}]</strong> 끝장 토론이 성공적으로 완료 및 기록되었습니다! 잠시 후 토론실 피드로 자동 이동합니다...
+                  </div>
+                  <button type="button" id="btn-summon-goto-feed" class="btn btn-outline btn-sm" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); font-size: 0.78rem; padding: 3px 10px;">
+                    🔥 지금 바로 토론실 보기 &rarr;
+                  </button>
+                </div>
+              `;
+              const btnSummonGoto = document.getElementById('btn-summon-goto-feed');
+              const navigateToDebate = () => {
+                if (window.AppController && window.AppController.switchTopNav) {
+                  window.AppController.switchTopNav('invest');
+                  const debateSideBtn = document.querySelector('[data-side="stock-debate"]');
+                  if (debateSideBtn) debateSideBtn.click();
+                  if (window.StockDebateView) window.StockDebateView.render();
+                }
+              };
+              if (btnSummonGoto) btnSummonGoto.addEventListener('click', navigateToDebate);
+              // 1.5초 후 자동 이동
+              setTimeout(navigateToDebate, 1500);
+            }
+            this.updateDebateStats();
+          } else {
+            if (debateStatusBox) {
+              debateStatusBox.innerHTML = `<div style="color: #ef4444; font-size: 0.88rem;">⚠️ ${res?.message || '토론 소집 실패'}</div>`;
+            }
+          }
+        } catch (e) {
+          if (debateStatusBox) {
+            debateStatusBox.innerHTML = `<div style="color: #ef4444; font-size: 0.88rem;">❌ 오류: ${e.message}</div>`;
+          }
+        } finally {
+          if (btnTriggerDebate) {
+            btnTriggerDebate.disabled = false;
+            btnTriggerDebate.innerHTML = '🔥 즉시 끝장 토론 소집 (Debate Summon)';
+          }
+        }
+      };
+
+      if (btnTriggerDebate) {
+        btnTriggerDebate.addEventListener('click', () => handleDebateSummon());
+      }
+
+      if (inputDebateStock) {
+        inputDebateStock.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleDebateSummon();
+          }
         });
       }
+
+      // 종목 빠른 선택 칩
+      const quickChips = document.querySelectorAll('#view-stock-trading-admin .debate-preset-chip');
+      quickChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          const stock = chip.getAttribute('data-stock');
+          if (inputDebateStock) inputDebateStock.value = stock;
+          handleDebateSummon(stock);
+        });
+      });
+
+      // 끝장 토론 전체 비우기 버튼 (관리자 메뉴)
+      const btnAdminClearDebates = document.getElementById('btn-admin-clear-all-debates');
+      if (btnAdminClearDebates) {
+        btnAdminClearDebates.addEventListener('click', async () => {
+          if (!window.StockDebateModel) return;
+          const total = (window.StockDebateModel.items || []).length;
+          if (total === 0) {
+            alert('삭제할 끝장 토론 기록이 없습니다.');
+            return;
+          }
+          if (confirm(`저장된 모든 끝장 토론 기록(${total}건)을 완전히 삭제하시겠습니까?`)) {
+            btnAdminClearDebates.disabled = true;
+            btnAdminClearDebates.textContent = '⏳ 삭제 중...';
+            await window.StockDebateModel.clearAllDebates();
+            this.updateDebateStats();
+            if (window.StockDebateView) {
+              window.StockDebateView.render();
+            }
+            btnAdminClearDebates.disabled = false;
+            btnAdminClearDebates.textContent = '🗑️ 끝장 토론 전체 비우기';
+            alert('모든 끝장 토론 기록이 성공적으로 삭제되었습니다.');
+          }
+        });
+      }
+
+      // 8. 예약 발주 및 운용 현황 패널 이벤트 (취소 및 새로고침)
+      const panelContainer = document.getElementById('admin-trading-reservations-panel');
+      if (panelContainer && !panelContainer._hasBound) {
+        panelContainer._hasBound = true;
+        panelContainer.addEventListener('click', (e) => {
+          const btnCancel = e.target.closest('.btn-cancel-admin-reservation');
+          if (btnCancel) {
+            const id = btnCancel.getAttribute('data-id');
+            const name = btnCancel.getAttribute('data-name');
+            this.cancelReservation(id, name, btnCancel);
+            return;
+          }
+          const btnRef = e.target.closest('#btn-refresh-admin-reservations');
+          if (btnRef) {
+            btnRef.disabled = true;
+            btnRef.textContent = '⏳ 갱신 중...';
+            this.loadReservations();
+            return;
+          }
+        });
+      }
+    },
+
+    async loadReservations() {
+      try {
+        this.isLoadingReservations = true;
+        const [resDebate, resJournal] = await Promise.allSettled([
+          fetch('/api/debate/reservations'),
+          fetch('/api/trading/journal')
+        ]);
+        if (resDebate.status === 'fulfilled' && resDebate.value.ok) {
+          const data = await resDebate.value.json();
+          this.cachedReservations = Array.isArray(data.reservations) ? data.reservations : [];
+        }
+        if (resJournal.status === 'fulfilled' && resJournal.value.ok) {
+          const jData = await resJournal.value.json();
+          const positions = [];
+          if (jData.currentPosition) positions.push(jData.currentPosition);
+          if (Array.isArray(jData.reservationPositions)) positions.push(...jData.reservationPositions);
+          this.cachedPositions = positions;
+
+          // active reservations에 실시간 현재가 및 체결가 동기화
+          this.cachedReservations.forEach(r => {
+            const matchedPos = positions.find(p => (p.itemCode === r.itemCode || p.stockCode === r.itemCode));
+            if (matchedPos) {
+              r.currentPrice = matchedPos.currentPrice || r.currentPrice;
+              r.finalFilledPrice = matchedPos.entryPrice || matchedPos.averagePrice || r.finalFilledPrice;
+              if (matchedPos.targetPrice) {
+                if (!r.exitPlan) r.exitPlan = {};
+                r.exitPlan.targetPrice = matchedPos.targetPrice;
+              }
+              if (matchedPos.stopLossPrice) {
+                if (!r.exitPlan) r.exitPlan = {};
+                r.exitPlan.stopLossPrice = matchedPos.stopLossPrice;
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('[StockTradingAdminView] Error loading reservations:', e.message);
+      } finally {
+        this.isLoadingReservations = false;
+      }
+      this.renderReservationsPanel();
+      return this.cachedReservations;
+    },
+
+    async cancelReservation(reservationId, stockName, btnEl) {
+      if (!confirm(`🗑️ [${stockName}] 예약매수를 취소하시겠습니까?`)) return;
+      try {
+        if (btnEl) {
+          btnEl.disabled = true;
+          btnEl.textContent = '⏳';
+        }
+        const res = await fetch(`/api/debate/reservations/${encodeURIComponent(reservationId)}`, {
+          method: 'DELETE',
+          headers: { 'x-admin-user': 'admin' }
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (window.UiView && window.UiView.showToast) {
+            window.UiView.showToast(`🗑️ [${stockName}] 예약매수가 취소되었습니다.`);
+          } else {
+            alert(`🗑️ [${stockName}] 예약매수가 취소되었습니다.`);
+          }
+          await this.loadReservations();
+          if (window.StockDebateView && typeof window.StockDebateView.loadReservations === 'function') {
+            window.StockDebateView.loadReservations().then(() => window.StockDebateView.render());
+          }
+        } else {
+          alert(`❌ 예약 취소 실패: ${data.error || '오류가 발생했습니다.'}`);
+          if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.textContent = '🗑️ 취소';
+          }
+        }
+      } catch (err) {
+        alert(`❌ 통신 오류: ${err.message}`);
+        if (btnEl) {
+          btnEl.disabled = false;
+          btnEl.textContent = '🗑️ 취소';
+        }
+      }
+    },
+
+    renderReservationsPanel() {
+      const panel = document.getElementById('admin-trading-reservations-panel');
+      if (!panel) return;
+
+      const reservations = this.cachedReservations || [];
+      const pendingList = reservations.filter(r => r.status === 'PENDING' || r.status === 'ORDER_SUBMITTED');
+      const filledList = reservations.filter(r => r.status === 'FILLED');
+      const totalActiveCount = pendingList.length + filledList.length;
+
+      // 현재 한국/미국 정규장 개장 여부 및 시간 계산
+      const now = new Date();
+      const kstH = (now.getUTCHours() + 9) % 24;
+      const kstM = now.getUTCMinutes();
+      const kstTotalM = kstH * 60 + kstM;
+      const isKrOpenNow = kstTotalM >= 540 && kstTotalM <= 930; // 09:00 ~ 15:30 KST
+      const isUsOpenNow = kstTotalM >= 1350 || kstTotalM <= 300; // 서머타임 22:30 ~ 05:00 KST
+
+      const marketBadgesHtml = `
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <span style="font-size: 0.72rem; padding: 3px 8px; border-radius: 12px; font-weight: 600; background: ${isKrOpenNow ? 'rgba(34, 197, 94, 0.2)' : 'rgba(148, 163, 184, 0.15)'}; color: ${isKrOpenNow ? '#4ade80' : '#94a3b8'}; border: 1px solid ${isKrOpenNow ? 'rgba(34, 197, 94, 0.4)' : 'rgba(148, 163, 184, 0.3)'};">
+            🇰🇷 국장(KRX): ${isKrOpenNow ? '🟢 정규장 운영 중 (09:00~15:30)' : '🔴 장마감 (09:00 개장)'}
+          </span>
+          <span style="font-size: 0.72rem; padding: 3px 8px; border-radius: 12px; font-weight: 600; background: ${isUsOpenNow ? 'rgba(34, 197, 94, 0.2)' : 'rgba(148, 163, 184, 0.15)'}; color: ${isUsOpenNow ? '#4ade80' : '#94a3b8'}; border: 1px solid ${isUsOpenNow ? 'rgba(34, 197, 94, 0.4)' : 'rgba(148, 163, 184, 0.3)'};">
+            🇺🇸 미장(NYSE/NASDAQ): ${isUsOpenNow ? '🟢 정규장 운영 중 (서머타임 22:30~05:00)' : '🔴 장마감 (밤 22:30 개장)'}
+          </span>
+        </div>
+      `;
+
+      if (totalActiveCount === 0) {
+        panel.style.display = 'block';
+        panel.innerHTML = `
+          <div style="background: rgba(15, 23, 42, 0.75); border: 1px dashed rgba(59, 130, 246, 0.35); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <span style="font-size: 1.2rem;">📋</span>
+                <strong style="color: #93c5fd; font-size: 0.95rem;">[관리자 전용] 토스증권 AI 예약 발주 및 운용 현황 (0건)</strong>
+              </div>
+              <div style="font-size: 0.76rem; color: #94a3b8; margin-bottom: 6px;">
+                AI 끝장 토론실에서 3대 전략 버튼(눌림목/시초가/분할매수)으로 접수한 예약 발주 및 실시간 운용 포지션 목록입니다.
+              </div>
+              ${marketBadgesHtml}
+            </div>
+            <button type="button" id="btn-refresh-admin-reservations" class="btn btn-sm btn-outline-info" style="font-size: 0.78rem; padding: 5px 12px;">
+              🔄 현황 실시간 갱신
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      panel.style.display = 'block';
+
+      const renderCard = (r, isFilledCard = false) => {
+        const isKr = r.market === 'KR';
+        const unit = isKr ? '원' : '$';
+        let statusBadge = '';
+        if (r.status === 'PENDING') {
+          statusBadge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700;">⏳ 개장 대기 (개장 시 자동발주)</span>';
+        } else if (r.status === 'ORDER_SUBMITTED') {
+          statusBadge = '<span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700;">🚀 토스 발주 접수 (체결 대기)</span>';
+        } else if (r.status === 'FILLED') {
+          statusBadge = '<span style="background: rgba(34, 197, 94, 0.25); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.45); padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700;">🎉 체결 완료 (실시간 익절/손절 감시 중)</span>';
+        } else if (r.status === 'FAILED') {
+          statusBadge = `<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700;" title="${r.error || '발주 거부'}">❌ 발주 실패</span>`;
+        }
+
+        const buyPrice = r.finalFilledPrice || r.orders?.[0]?.price || 0;
+        const currentPrice = r.currentPrice || buyPrice;
+        const targetPrice = r.exitPlan?.targetPrice || (buyPrice > 0 ? (isKr ? Math.round(buyPrice * (1 + (r.exitPlan?.targetProfitPct || 10)/100)) : parseFloat((buyPrice * (1 + (r.exitPlan?.targetProfitPct || 10)/100)).toFixed(2))) : 0);
+        const stopLossPrice = r.exitPlan?.stopLossPrice || (buyPrice > 0 ? (isKr ? Math.round(buyPrice * (1 + (r.exitPlan?.stopLossPct || -5)/100)) : parseFloat((buyPrice * (1 + (r.exitPlan?.stopLossPct || -5)/100)).toFixed(2))) : 0);
+        const targetPct = r.exitPlan?.targetProfitPct || (buyPrice > 0 ? (((targetPrice - buyPrice)/buyPrice)*100).toFixed(1) : 0);
+        const stopLossPct = r.exitPlan?.stopLossPct || (buyPrice > 0 ? (((stopLossPrice - buyPrice)/buyPrice)*100).toFixed(1) : 0);
+        const returnPct = buyPrice > 0 ? (((currentPrice - buyPrice)/buyPrice)*100).toFixed(2) : '0.00';
+        const returnColor = Number(returnPct) >= 0 ? '#f87171' : '#60a5fa';
+
+        const orderLines = (r.orders || []).map(o => `• ${o.title}: ${o.price.toLocaleString()}${unit} × ${o.quantity}주 ${o.orderAmount ? `($${o.orderAmount})` : ''}`).join('<br>');
+        const exitTitle = r.exitPlan?.exitStrategyTitle || r.exitPlan?.title || '적응형 매도';
+
+        return `
+          <div style="background: rgba(30, 41, 59, 0.9); border: 1px solid ${isFilledCard ? 'rgba(34, 197, 94, 0.45)' : 'rgba(59, 130, 246, 0.45)'}; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <strong style="color: #f8fafc; font-size: 1.05rem;">${r.stockName}</strong>
+                  <span style="color: #94a3b8; font-size: 0.82rem; font-family: monospace;">${r.itemCode}</span>
+                  <span style="background: rgba(99, 102, 241, 0.25); color: #a5b4fc; padding: 2px 8px; border-radius: 4px; font-size: 0.74rem; font-weight: 600;">${r.strategyTitle}</span>
+                </div>
+                <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 3px;">
+                  ${isFilledCard ? `체결 완료: <strong>${r.filledAt ? r.filledAt.replace('T', ' ').substring(0, 19) : '-'}</strong>` : `접수: ${r.createdAt ? r.createdAt.replace('T', ' ').substring(0, 19) : '-'}`} | 
+                  수량: <strong>${r.finalFilledQty || r.totalQuantity}주</strong> (${(r.totalBudgetKrw || 0).toLocaleString()}원)
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                ${statusBadge}
+                ${!isFilledCard ? `
+                  <button type="button" class="btn-cancel-admin-reservation" data-id="${r.id}" data-name="${r.stockName}" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 4px 10px; font-size: 0.76rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    🗑️ 취소
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- 4대 가격 지표 요약 카드 (매수가, 현재가, 목표가, 손절가) -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+              <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.06); padding: 7px 6px; border-radius: 6px; text-align: center;">
+                <span style="font-size: 0.70rem; color: #94a3b8; display: block; margin-bottom: 2px;">${isFilledCard ? '체결 매수가' : '진입 목표가'}</span>
+                <strong style="font-size: 0.88rem; color: #f8fafc;">${buyPrice.toLocaleString()}${unit}</strong>
+              </div>
+              <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.06); padding: 7px 6px; border-radius: 6px; text-align: center;">
+                <span style="font-size: 0.70rem; color: #94a3b8; display: block; margin-bottom: 2px;">현재가 (실시간)</span>
+                <strong style="font-size: 0.88rem; color: ${returnColor};">
+                  ${currentPrice.toLocaleString()}${unit}
+                  <span style="font-size: 0.72rem; display: block;">(${Number(returnPct) >= 0 ? '+' : ''}${returnPct}%)</span>
+                </strong>
+              </div>
+              <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); padding: 7px 6px; border-radius: 6px; text-align: center;">
+                <span style="font-size: 0.70rem; color: #34d399; display: block; margin-bottom: 2px;">🎯 목표가 (익절)</span>
+                <strong style="font-size: 0.88rem; color: #34d399;">${targetPrice.toLocaleString()}${unit}</strong>
+                <span style="font-size: 0.70rem; color: #6ee7b7; display: block;">(+${targetPct}%)</span>
+              </div>
+              <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); padding: 7px 6px; border-radius: 6px; text-align: center;">
+                <span style="font-size: 0.70rem; color: #f87171; display: block; margin-bottom: 2px;">⛔ 손절가 (손절선)</span>
+                <strong style="font-size: 0.88rem; color: #f87171;">${stopLossPrice.toLocaleString()}${unit}</strong>
+                <span style="font-size: 0.70rem; color: #fca5a5; display: block;">(${stopLossPct}%)</span>
+              </div>
+            </div>
+
+            <div style="font-size: 0.76rem; color: #cbd5e1; background: rgba(15, 23, 42, 0.5); padding: 6px 10px; border-radius: 6px; line-height: 1.4;">
+              ${orderLines}
+            </div>
+            <div style="font-size: 0.74rem; color: #38bdf8;">
+              🎯 <strong>체결 후 매도 전략:</strong> ${exitTitle}
+            </div>
+          </div>
+        `;
+      };
+
+      let pendingSectionHtml = '';
+      if (pendingList.length > 0) {
+        pendingSectionHtml = `
+          <div style="margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 1rem;">⏳</span>
+              <h4 style="color: #93c5fd; margin: 0; font-size: 0.95rem; font-weight: 700;">
+                예약 발주 및 체결 대기 목록 (${pendingList.length}건)
+              </h4>
+              <span style="font-size: 0.72rem; color: #94a3b8;">(개장 시점 자동 발주 대기 또는 토스 체결 대기)</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px;">
+              ${pendingList.map(r => renderCard(r, false)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      let filledSectionHtml = '';
+      if (filledList.length > 0) {
+        filledSectionHtml = `
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 1rem;">🎯</span>
+              <h4 style="color: #4ade80; margin: 0; font-size: 0.95rem; font-weight: 700;">
+                체결 완료 운용 포지션 (${filledList.length}건)
+              </h4>
+              <span style="font-size: 0.72rem; color: #86efac; background: rgba(34, 197, 94, 0.2); padding: 2px 8px; border-radius: 10px;">실시간 자동 익절/손절 감시 가동 중</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px;">
+              ${filledList.map(r => renderCard(r, true)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      panel.innerHTML = `
+        <div style="background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 14px; padding: 16px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.25rem;">📋</span>
+                <h3 style="color: #60a5fa; margin: 0; font-size: 1.05rem; font-weight: 700;">
+                  [관리자 전용] 토스증권 AI 예약 발주 및 운용 현황 (${totalActiveCount}건)
+                </h3>
+              </div>
+              <div style="margin-top: 5px;">
+                ${marketBadgesHtml}
+              </div>
+            </div>
+            <button type="button" id="btn-refresh-admin-reservations" class="btn btn-sm btn-outline-info" style="font-size: 0.78rem; padding: 5px 12px;">
+              🔄 현황 실시간 갱신
+            </button>
+          </div>
+          ${pendingSectionHtml}
+          ${filledSectionHtml}
+        </div>
+      `;
     },
 
     startPolling() {
@@ -107,93 +565,75 @@
       this.pollTimer = setInterval(() => {
         const section = document.getElementById('view-stock-trading-admin');
         if (section && !section.classList.contains('hidden')) {
-          this.loadStatus(false);
+          this.loadData(false);
         }
       }, this.pollIntervalMs);
     },
 
-    async loadStatus(showToast = false) {
+    async updateDebateStats() {
       try {
-        const res = await fetch('/api/trading/status');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-
-        this.isAutoTrading = Boolean(data.isAutoTradingEnabled);
-        this.currentPosition = data.currentPosition || null;
-
-        this.renderStatus(data);
-
-        // 2. 국장 초단타 스캘핑 엔진 상태 조회 및 렌더링
-        try {
-          const scalpRes = await fetch('/api/trading/scalping/status');
-          if (scalpRes.ok) {
-            const scalpData = await scalpRes.json();
-            this.scalpingStatus = scalpData.status || null;
-            this.renderScalpingStatus(this.scalpingStatus);
+        if (window.StockDebateModel && (!window.StockDebateModel.items || window.StockDebateModel.items.length === 0)) {
+          if (typeof window.StockDebateModel.loadDebates === 'function') {
+            await window.StockDebateModel.loadDebates();
           }
-        } catch (err) {
-          console.warn('[StockTradingAdminView] fetch scalping status error:', err);
         }
-
-        // 서버 고정 IP 조회 및 갱신
-        try {
-          const ipRes = await fetch('/api/trading/server-ip');
-          if (ipRes.ok) {
-            const ipData = await ipRes.json();
-            const elIp = document.getElementById('admin-server-egress-ip');
-            if (elIp && ipData.ip) elIp.textContent = ipData.ip;
-          }
-        } catch (e) {}
-
-        if (showToast && window.UiView && window.UiView.showToast) {
-          window.UiView.showToast('🤖 자동매매 엔진 및 API 상태가 갱신되었습니다.');
+        const allDebates = (window.StockDebateModel && window.StockDebateModel.items && window.StockDebateModel.items.length > 0)
+          ? window.StockDebateModel.items
+          : (window.PORTAL_DATA_STOCK_DEBATES || []);
+        const totalEl = document.getElementById('admin-debate-stat-total');
+        const todayEl = document.getElementById('admin-debate-stat-today');
+        if (totalEl) totalEl.textContent = allDebates.length;
+        if (todayEl) {
+          const todayIso = new Date().toISOString().slice(0, 10);
+          const todayCount = allDebates.filter(d => (d.timestamp || '').includes(todayIso)).length;
+          todayEl.textContent = todayCount > 0 ? todayCount : allDebates.length;
         }
-      } catch (e) {
-        console.error('[StockTradingAdminView] loadStatus error:', e);
+      } catch (err) {
+        console.warn('[StockTradingAdminView] updateDebateStats error:', err);
       }
     },
 
-    renderStatus(data) {
-      // 1. 엔진 상태 배지 & 버튼
-      const badgeStatus = document.getElementById('admin-trading-status-badge');
-      const btnToggle = document.getElementById('btn-admin-toggle-trading');
-      if (badgeStatus) {
-        if (this.isAutoTrading) {
-          badgeStatus.textContent = '⚡ 가동 중 (5분 예약 감시)';
-          badgeStatus.style.background = 'rgba(16, 185, 129, 0.2)';
-          badgeStatus.style.color = '#34d399';
-          badgeStatus.style.border = '1px solid rgba(16, 185, 129, 0.4)';
-        } else {
-          badgeStatus.textContent = '⏹️ 정지됨 (OFF)';
-          badgeStatus.style.background = 'rgba(148, 163, 184, 0.15)';
-          badgeStatus.style.color = '#94a3b8';
-          badgeStatus.style.border = '1px solid rgba(148, 163, 184, 0.3)';
+    async loadData(showToast = false) {
+      try {
+        const [journalRes, statusRes, ipRes] = await Promise.allSettled([
+          fetch('/api/trading/journal'),
+          fetch('/api/trading/status'),
+          fetch('/api/trading/server-ip')
+        ]);
+
+        if (journalRes.status === 'fulfilled' && journalRes.value.ok) {
+          this.journalData = await journalRes.value.json();
         }
-      }
 
-      if (btnToggle) {
-        if (this.isAutoTrading) {
-          btnToggle.innerHTML = '<span>⏸️ 자동매매 일시정지</span>';
-          btnToggle.className = 'btn btn-secondary';
-          btnToggle.style.background = 'rgba(239, 68, 68, 0.2)';
-          btnToggle.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-          btnToggle.style.color = '#f87171';
-        } else {
-          btnToggle.innerHTML = '<span>▶️ 자동매매 가동하기</span>';
-          btnToggle.className = 'btn btn-primary';
-          btnToggle.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-          btnToggle.style.borderColor = '#10b981';
-          btnToggle.style.color = '#ffffff';
+        if (statusRes.status === 'fulfilled' && statusRes.value.ok) {
+          const statusData = await statusRes.value.json();
+          this.renderApiStatus(statusData);
         }
-      }
 
-      // 2. 비상 매도 버튼 활성화 여부
-      const btnEmergency = document.getElementById('btn-admin-emergency-sell');
-      if (btnEmergency) {
-        btnEmergency.disabled = !this.currentPosition;
-      }
+        if (ipRes.status === 'fulfilled' && ipRes.value.ok) {
+          const ipData = await ipRes.value.json();
+          const elIp = document.getElementById('admin-server-egress-ip');
+          if (elIp && ipData.ip) elIp.textContent = ipData.ip;
+        }
 
-      // 3. API 연동 배지
+        this.renderAll();
+        this.updateDebateStats();
+        await this.loadReservations();
+
+        const elSync = document.getElementById('admin-trading-last-sync');
+        if (elSync) {
+          elSync.textContent = `최근 갱신: ${new Date().toLocaleTimeString('ko-KR')}`;
+        }
+
+        if (showToast && window.UiView && window.UiView.showToast) {
+          window.UiView.showToast('🤖 주식자동매매 실현수익 통계 및 매매완료 이력이 갱신되었습니다.');
+        }
+      } catch (err) {
+        console.error('[StockTradingAdminView] loadData error:', err);
+      }
+    },
+
+    renderApiStatus(data) {
       const badgeApi = document.getElementById('admin-api-configured-badge');
       if (badgeApi) {
         if (data.configured) {
@@ -209,34 +649,6 @@
         }
       }
 
-      // 4. 포지션 프리뷰
-      const previewEl = document.getElementById('admin-trading-position-preview');
-      if (previewEl) {
-        if (this.currentPosition) {
-          const p = this.currentPosition;
-          const sign = (p.returnPct || 0) >= 0 ? '+' : '';
-          const color = (p.returnPct || 0) >= 0 ? '#f87171' : '#60a5fa';
-          const statusText = p.status === 'RESERVED' ? '⏳ 예약매수 접수중' : '✅ 매수체결 완료';
-          const pnlText = p.status === 'RESERVED' ? '체결 대기중' : `${sign}${(p.unrealizedPnl || 0).toLocaleString()}원 (${sign}${p.returnPct || 0}%)`;
-          previewEl.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div>
-                <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; background: rgba(56, 189, 248, 0.2); color: #38bdf8; margin-right: 6px;">${statusText}</span>
-                <strong>${p.stockName} (${p.itemCode})</strong> | 1주 단일 매매 | 단가: ${(p.averagePrice || p.entryPrice || 0).toLocaleString()}원
-                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">🎯 목표가: ${(p.targetPrice || 0).toLocaleString()}원 (+15% 익절) | ⛔ 손절가: ${(p.stopLossPrice || 0).toLocaleString()}원 (-5% 손절)</div>
-                ${p.note ? `<div style="font-size: 0.76rem; color: #38bdf8; margin-top: 2px;">${p.note}</div>` : ''}
-              </div>
-              <div style="font-size: 1.1rem; font-weight: 800; color: ${color};">
-                ${pnlText}
-              </div>
-            </div>
-          `;
-        } else {
-          previewEl.innerHTML = '현재 대기/보유 중인 주식 포지션이 없습니다. (자동매매 엔진 가동 시 10만원 이하 1주 단일 매매 집행)';
-        }
-      }
-
-      // 5. 설정 폼 값 동기화 (기존 값 보존)
       if (data.config) {
         const inputMode = document.getElementById('admin-toss-mode');
         if (inputMode && data.config.mode) inputMode.value = data.config.mode;
@@ -244,108 +656,6 @@
         if (inputAccount && !inputAccount.value && data.config.accountNo) {
           inputAccount.placeholder = `현재 등록됨 (${data.config.accountNo})`;
         }
-      }
-    },
-
-    async toggleAutoTrading() {
-      const btn = document.getElementById('btn-admin-toggle-trading');
-      const nextState = !this.isAutoTrading;
-      const confirmMsg = nextState ?
-        '🤖 [주식 자동매매 엔진 가동]\n\n' +
-        '• 1회 1종목 1주 (10만원 이하) 단일 매매 원칙\n' +
-        '• 장마감/휴일: 예약매수 접수중 등록 ➔ 정규장 개장(09:00) 시 실주문 발주\n' +
-        '• 정규장 중: 토스증권 1주 실시간 매수 접수 ➔ 체결 완료 시 매매일지 등록\n' +
-        '• 감시 주기: 5분 주기 예약 모니터링 (부하 최소화)\n' +
-        '• 청산 원칙: 목표가 익절(+15%) 및 손절(-5%) 엄수\n\n' +
-        '가동하시겠습니까?' :
-        '⏸️ 주식 자동매매 엔진을 일시정지하시겠습니까?\n(현재 보유 중인 포지션은 그대로 유지됩니다)';
-
-      if (!confirm(confirmMsg)) return;
-
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span>⏳ 처리 중...</span>';
-      }
-
-      try {
-        const res = await fetch('/api/trading/toggle', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled: nextState })
-        });
-        if (!res.ok) throw new Error(`서버 응답 오류 (HTTP ${res.status})`);
-        const data = await res.json();
-        if (data.success) {
-          this.isAutoTrading = Boolean(data.isAutoTradingEnabled);
-          this.renderStatus({
-            isAutoTradingEnabled: this.isAutoTrading,
-            configured: true,
-            currentPosition: this.currentPosition
-          });
-          if (window.UiView && window.UiView.showToast) {
-            window.UiView.showToast(this.isAutoTrading ? '🚀 자동매매 엔진이 가동되었습니다!' : '⏸️ 자동매매 엔진이 일시정지되었습니다.');
-          }
-          // 0.5초 후 서버 최신 상태 동기화
-          setTimeout(() => this.loadStatus(false), 500);
-        } else {
-          alert('자동매매 상태 변경 실패: ' + (data.error || '알 수 없는 오류'));
-        }
-      } catch (e) {
-        alert('자동매매 토글 통신 실패: ' + e.message);
-      } finally {
-        if (btn) btn.disabled = false;
-      }
-    },
-
-    async handleManualCycle() {
-      const btn = document.getElementById('btn-admin-manual-cycle');
-      if (btn) btn.disabled = true;
-
-      try {
-        const res = await fetch('/api/trading/manual-cycle', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await res.json();
-        if (data.success) {
-          this.loadStatus(true);
-          if (window.UiView && window.UiView.showToast) {
-            window.UiView.showToast('⚙️ 트레이딩 엔진 1회 사이클 검증이 완료되었습니다.');
-          }
-        } else {
-          alert('수동 사이클 실행 실패: ' + data.error);
-        }
-      } catch (e) {
-        alert('수동 사이클 통신 오류: ' + e.message);
-      } finally {
-        if (btn) btn.disabled = false;
-      }
-    },
-
-    async handleEmergencySell() {
-      if (!this.currentPosition) {
-        alert('현재 보유 중인 포지션이 없습니다.');
-        return;
-      }
-
-      const p = this.currentPosition;
-      const confirmMsg = `🚨 [비상 전량 매도 경고]\n\n현재 보유 중인 [${p.stockName} (${p.itemCode})] ${p.totalQuantity}주를 즉시 시장가로 전량 매도 청산하시겠습니까?`;
-      if (!confirm(confirmMsg)) return;
-
-      try {
-        const res = await fetch('/api/trading/emergency-sell', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert(`✅ [비상 전량 매도 완료]\n${data.message || ''}`);
-          this.loadStatus(true);
-        } else {
-          alert('비상 매도 실패: ' + (data.message || data.error));
-        }
-      } catch (e) {
-        alert('비상 매도 통신 오류: ' + e.message);
       }
     },
 
@@ -364,7 +674,7 @@
         const data = await res.json();
         if (data.success) {
           alert('🎉 토스증권 Open API 설정이 성공적으로 저장되었습니다.');
-          this.loadStatus(true);
+          this.loadData(true);
         } else {
           alert('설정 저장 실패: ' + (data.message || data.error));
         }
@@ -373,386 +683,412 @@
       }
     },
 
-    async startScalping() {
-      const isUs = this.scalpingStatus?.scalpingSession?.isUsSession;
-      const marketLabel = isUs ? '미장(나스닥/S&P)' : '국장(KRX)';
-      const priceLimit = isUs ? '총 예산 $100 이하' : '총 예산 10만원 이하';
-      const openSchedule = isUs ? '밤 22:30/23:30 정규장 개장 직후' : '아침 09:00 정규장 개장 직후';
+    getAllHistoryItems() {
+      const j = this.journalData || {};
+      const currentList = Array.isArray(j.history) ? j.history : [];
+      const archives = j.monthlyArchives || {};
+      const map = new Map();
 
-      const confirmMsg =
-        `⚡ [토스증권 ${marketLabel} 거래대금 1위 초단타(Scalping)]\n\n` +
-        `• 타깃 조건: 실시간 거래대금 1위 종목 (${priceLimit} 수량 자동 산출 매수)\n` +
-        '• 익절 원칙: +2.5% 도달 시 즉시 시장가 전량 익절\n' +
-        '• 손절 원칙: -1.5% 이탈 시 즉시 시장가 손절 청산\n' +
-        '• 타임디케이: 30분(+1.5%/-1.0%) ➔ 60분(+0.8%/-0.5%) ➔ 90분/장마감 강제청산\n' +
-        `• 개장 대기: 미개장 시 ${openSchedule} 자동 대기\n` +
-        '• 감시 주기: 5초 실시간 초고속 감시\n\n' +
-        `${marketLabel} 초단타 자동매매를 실행하시겠습니까?`;
+      // 1. 현재 월 이력 추가
+      currentList.forEach(it => {
+        const id = it.id || it.orderId || `${it.closedAt || it.startedAt}_${it.stockName}`;
+        if (!map.has(id)) map.set(id, it);
+      });
 
-      if (!confirm(confirmMsg)) return;
-
-      const btnStart = document.getElementById('btn-admin-scalping-start');
-      if (btnStart) {
-        btnStart.disabled = true;
-        btnStart.innerHTML = '<span>⏳ 진입 처리 중...</span>';
-      }
-
-      try {
-        const res = await fetch('/api/trading/scalping/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ manual: true })
+      // 2. 월별 아카이브 이력 추가
+      Object.keys(archives).forEach(mKey => {
+        const archList = Array.isArray(archives[mKey]?.history) ? archives[mKey].history : [];
+        archList.forEach(it => {
+          const id = it.id || it.orderId || `${it.closedAt || it.startedAt}_${it.stockName}`;
+          if (!map.has(id)) map.set(id, it);
         });
-        const data = await res.json();
-        if (data.success) {
-          if (window.UiView && window.UiView.showToast) {
-            window.UiView.showToast(data.message || '⚡ 초단타 스캘핑이 시작되었습니다!');
-          } else {
-            alert('⚡ ' + (data.message || '초단타 스캘핑이 시작되었습니다.'));
-          }
-          this.scalpingStatus = data.status || null;
-          this.renderScalpingStatus(this.scalpingStatus);
-          setTimeout(() => this.loadStatus(false), 500);
-        } else {
-          alert('초단타 실행 실패: ' + (data.message || data.error || '알 수 없는 오류'));
-        }
-      } catch (e) {
-        alert('초단타 실행 통신 오류: ' + e.message);
-      } finally {
-        if (btnStart) {
-          const isUsNow = this.scalpingStatus?.scalpingSession?.isUsSession;
-          btnStart.innerHTML = isUsNow
-            ? '⚡ 미장(나스닥/S&P) 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)'
-            : '⚡ 국장 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)';
-        }
-      }
+      });
+
+      return Array.from(map.values()).sort((a, b) => {
+        const ta = new Date(a.closedAt || a.startedAt || 0).getTime();
+        const tb = new Date(b.closedAt || b.startedAt || 0).getTime();
+        return tb - ta;
+      });
     },
 
-    async stopScalping() {
-      if (!confirm('⏹️ 국장 초단타 스캘핑 감시를 중지하시겠습니까?\n(현재 보유 중인 포지션은 그대로 유지됩니다)')) return;
+    renderAll() {
+      if (!this.journalData) return;
+      this.populateYearAndMonthSelectors();
+      this.renderYearAndMonthViews();
+    },
 
-      const btnStop = document.getElementById('btn-admin-scalping-stop');
-      if (btnStop) {
-        btnStop.disabled = true;
-        btnStop.innerHTML = '<span>⏳ 중지 처리 중...</span>';
+    populateYearAndMonthSelectors() {
+      const allItems = this.getAllHistoryItems();
+      const curYear = new Date().getFullYear().toString();
+      const yearsSet = new Set([curYear]);
+
+      allItems.forEach(it => {
+        const dStr = it.closedAt || it.startedAt;
+        if (dStr) {
+          const y = new Date(dStr).getFullYear().toString();
+          if (!isNaN(y)) yearsSet.add(y);
+        }
+      });
+
+      // 연도 셀렉트 구성
+      const selYear = document.getElementById('select-admin-trading-year');
+      if (selYear) {
+        const sortedYears = Array.from(yearsSet).sort().reverse();
+        selYear.innerHTML = sortedYears.map(y => `<option value="${y}">${y}년</option>`).join('');
+        if (!this.selectedYear || !yearsSet.has(this.selectedYear)) {
+          this.selectedYear = sortedYears[0];
+        }
+        selYear.value = this.selectedYear;
       }
 
-      try {
-        const res = await fetch('/api/trading/scalping/stop', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+      // 월 셀렉트 구성
+      const selMonth = document.getElementById('select-admin-trading-month');
+      if (selMonth) {
+        const curM = this.journalData.currentMonth || new Date().toISOString().slice(0, 7);
+        const parts = curM.split('-');
+        const curDisplay = parts.length === 2 ? `${parseInt(parts[1], 10)}월` : curM;
+
+        let optionsHtml = `<option value="current">🗓️ ${curM} (${curDisplay} 당월 실적)</option>`;
+        const archivedKeys = Object.keys(this.journalData.monthlyArchives || {}).sort().reverse();
+        archivedKeys.forEach(k => {
+          if (k !== curM) {
+            const p = k.split('-');
+            const disp = p.length === 2 ? `${parseInt(p[1], 10)}월` : k;
+            optionsHtml += `<option value="${k}">📁 ${k} (${disp} 실적 보관함)</option>`;
+          }
         });
-        const data = await res.json();
-        if (data.success) {
-          if (window.UiView && window.UiView.showToast) {
-            window.UiView.showToast('⏹️ 초단타 감시가 중지되었습니다.');
-          } else {
-            alert('⏹️ 초단타 감시가 중지되었습니다.');
-          }
-          this.scalpingStatus = data.status || null;
-          this.renderScalpingStatus(this.scalpingStatus);
-          setTimeout(() => this.loadStatus(false), 500);
+        selMonth.innerHTML = optionsHtml;
+
+        if (this.selectedMonth && (this.selectedMonth === 'current' || this.journalData.monthlyArchives?.[this.selectedMonth])) {
+          selMonth.value = this.selectedMonth;
         } else {
-          alert('초단타 중지 실패: ' + (data.message || data.error || '알 수 없는 오류'));
-        }
-      } catch (e) {
-        alert('초단타 중지 통신 오류: ' + e.message);
-      } finally {
-        if (btnStop) {
-          btnStop.innerHTML = '⏹️ 초단타 중지';
+          this.selectedMonth = 'current';
+          selMonth.value = 'current';
         }
       }
     },
 
-    async toggleAutoSchedule(enabled) {
-      try {
-        const res = await fetch('/api/trading/scalping/auto-schedule', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled })
-        });
-        const data = await res.json();
-        if (data.success) {
-          if (window.UiView && window.UiView.showToast) {
-            window.UiView.showToast(data.message || (enabled ? '⏰ 개장 자동 실행이 설정되었습니다.' : '⏸️ 개장 자동 실행이 해제되었습니다.'));
+    renderYearAndMonthViews() {
+      const allItems = this.getAllHistoryItems();
+      const targetYear = this.selectedYear || new Date().getFullYear().toString();
+
+      // 1. 해당 연도 아이템 필터링
+      const yearItems = allItems.filter(it => {
+        const d = it.closedAt || it.startedAt;
+        if (!d) return targetYear === new Date().getFullYear().toString();
+        return new Date(d).getFullYear().toString() === targetYear;
+      });
+
+      // 2. 연간 통계 산출
+      let yearlyProfitKrw = 0;
+      let yearlyWins = 0;
+      let yearlyLosses = 0;
+      let bestItem = null;
+      let worstItem = null;
+
+      // 월별 손익 매핑 (1월 ~ 12월)
+      const monthlyMap = {};
+      for (let m = 1; m <= 12; m++) {
+        const mKey = `${targetYear}-${String(m).padStart(2, '0')}`;
+        monthlyMap[mKey] = { profitKrw: 0, trades: 0, wins: 0, losses: 0 };
+      }
+
+      yearItems.forEach(it => {
+        const pnlKrw = Number(it.realizedPnlKrw || it.profitKrw || it.realizedPnl) || 0;
+        const returnPct = typeof it.returnPct === 'number' ? it.returnPct : (parseFloat(it.returnPct) || 0);
+
+        yearlyProfitKrw += pnlKrw;
+        if (pnlKrw > 0) yearlyWins++;
+        else if (pnlKrw < 0) yearlyLosses++;
+
+        // 최고 / 최대손실 종목 판정
+        if (!bestItem || pnlKrw > (bestItem.pnlKrw || 0)) {
+          bestItem = { ...it, pnlKrw, returnPct };
+        }
+        if (!worstItem || pnlKrw < (worstItem.pnlKrw || 0)) {
+          worstItem = { ...it, pnlKrw, returnPct };
+        }
+
+        // 월별 집계
+        const dStr = it.closedAt || it.startedAt;
+        if (dStr) {
+          const mKey = dStr.slice(0, 7);
+          if (monthlyMap[mKey]) {
+            monthlyMap[mKey].profitKrw += pnlKrw;
+            monthlyMap[mKey].trades++;
+            if (pnlKrw > 0) monthlyMap[mKey].wins++;
+            else if (pnlKrw < 0) monthlyMap[mKey].losses++;
           }
-        } else {
-          alert('스케줄 설정 실패: ' + (data.message || data.error));
         }
-      } catch (e) {
-        alert('스케줄 설정 통신 오류: ' + e.message);
-      }
-    },
+      });
 
-    renderMarketSession(session) {
-      const elBadge = document.getElementById('admin-market-session-badge');
-      const elTitle = document.getElementById('admin-market-session-title');
-      const elDesc = document.getElementById('admin-market-session-desc');
-      const elGolden = document.getElementById('admin-golden-time-badge');
+      const yearlyTrades = yearItems.length;
+      const yearlyWinRate = yearlyTrades > 0 ? ((yearlyWins / yearlyTrades) * 100).toFixed(1) : 0;
 
-      if (!session) return;
+      // 3. 선택 월 통계 및 아이템 추출
+      let activeMonthKey = '';
+      let activeMonthDisplay = '';
+      let monthItems = [];
 
-      if (elBadge) {
-        elBadge.textContent = session.name || '세션 확인 완료';
-        elBadge.style.color = session.badgeColor || '#38bdf8';
-        elBadge.style.borderColor = session.badgeColor ? `${session.badgeColor}66` : 'rgba(56, 189, 248, 0.4)';
-        elBadge.style.background = session.badgeColor ? `${session.badgeColor}22` : 'rgba(56, 189, 248, 0.15)';
-      }
-
-      if (elTitle) {
-        elTitle.textContent = `${session.name} (${session.detailTime || ''})`;
-      }
-
-      if (elDesc) {
-        elDesc.textContent = session.description || '';
-      }
-
-      if (elGolden) {
-        if (session.isScalpingGoldenTime) {
-          if (session.goldenTimePriority === 1) {
-            elGolden.innerHTML = '🥇 1순위 골든타임 (최고 적기)';
-            elGolden.style.background = 'rgba(16, 185, 129, 0.2)';
-            elGolden.style.color = '#34d399';
-            elGolden.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-          } else if (session.goldenTimePriority === 2) {
-            elGolden.innerHTML = '🥈 2순위 (NXT 얼리버드)';
-            elGolden.style.background = 'rgba(56, 189, 248, 0.2)';
-            elGolden.style.color = '#38bdf8';
-            elGolden.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-          } else if (session.goldenTimePriority === 3) {
-            elGolden.innerHTML = '🥉 3순위 (미국장 시황)';
-            elGolden.style.background = 'rgba(168, 85, 247, 0.2)';
-            elGolden.style.color = '#c084fc';
-            elGolden.style.borderColor = 'rgba(168, 85, 247, 0.4)';
-          }
-        } else {
-          elGolden.innerHTML = session.code === 'WEEKEND' || session.code === 'KR_HOLIDAY' ? '휴장 세션' : '일반 세션 (골든타임 대기)';
-          elGolden.style.background = 'rgba(148, 163, 184, 0.15)';
-          elGolden.style.color = '#94a3b8';
-          elGolden.style.borderColor = 'rgba(148, 163, 184, 0.3)';
-        }
-      }
-    },
-
-    renderScalpingStatus(status) {
-      const badge = document.getElementById('admin-scalping-status-badge');
-      const preview = document.getElementById('admin-scalping-position-preview');
-      const btnStart = document.getElementById('btn-admin-scalping-start');
-      const btnStop = document.getElementById('btn-admin-scalping-stop');
-
-      if (!status) return;
-
-      // 1. 시장 세션 렌더링
-      if (status.currentSession) {
-        this.renderMarketSession(status.currentSession);
-      }
-
-      // 2. 09:00 개장 자동 실행 스케줄 체크박스 동기화
-      const checkSchedule = document.getElementById('check-admin-scalping-auto-schedule');
-      if (checkSchedule && typeof status.autoScheduleEnabled === 'boolean') {
-        checkSchedule.checked = status.autoScheduleEnabled;
-      }
-
-      const isUsSession = Boolean(status.scalpingSession?.isUsSession);
-      const waitingMarket = status.waitingMarket || (isUsSession ? 'US' : 'KR');
-      const sessionLabel = isUsSession ? '미장(나스닥/S&P)' : '국장(KRX)';
-
-      if (status.isActive && status.currentPosition) {
-        const p = status.currentPosition;
-        const isUsStock = p.market === 'US' || p.currency === 'USD';
-        const sign = (p.returnPct || 0) >= 0 ? '+' : '';
-        const color = (p.returnPct || 0) >= 0 ? '#f87171' : '#60a5fa';
-        const entryStr = isUsStock ? `$${p.entryPrice}` : `${(p.entryPrice || 0).toLocaleString()}원`;
-        const currentStr = isUsStock ? `$${p.currentPrice}` : `${(p.currentPrice || 0).toLocaleString()}원`;
-        const targetStr = isUsStock ? `$${p.targetPrice}` : `${(p.targetPrice || 0).toLocaleString()}원`;
-        const stopStr = isUsStock ? `$${p.stopLossPrice}` : `${(p.stopLossPrice || 0).toLocaleString()}원`;
-        const pnlStr = isUsStock ? `${sign}$${p.unrealizedPnl}` : `${sign}${(p.unrealizedPnl || 0).toLocaleString()}원`;
-        const elapsedM = typeof p.elapsedMinutes === 'number' ? p.elapsedMinutes : 0;
-        const stageNum = p.decayStage || 1;
-        const remainM = Math.max(0, 90 - elapsedM);
-
-        if (badge) {
-          badge.textContent = `⚡ 가동 중 (${isUsStock ? '미장' : '국장'} 5초 감시 / ${stageNum}단계)`;
-          badge.style.background = 'rgba(16, 185, 129, 0.2)';
-          badge.style.color = '#34d399';
-          badge.style.border = '1px solid rgba(16, 185, 129, 0.4)';
-        }
-        if (btnStart) btnStart.disabled = true;
-        if (btnStop) btnStop.disabled = false;
-
-        if (preview) {
-          preview.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <div>
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
-                  <span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">
-                    ${isUsStock ? '미장 1위' : '국장 1위'}
-                  </span>
-                  <span style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">
-                    ⏳ ${elapsedM}분 경과 [제${stageNum}단계 압축 중]
-                  </span>
-                  <strong style="color: #f8fafc; font-size: 1.05rem;">${p.stockName} (${p.symbol})</strong>
-                  <span style="font-size: 0.8rem; color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.15); padding: 1px 6px; border-radius: 4px;">${p.quantity || 1}주 보유</span>
-                </div>
-                <div style="font-size: 0.85rem; color: #cbd5e1;">
-                  단가: <strong>${entryStr}</strong> (총 매입: <strong style="color: #38bdf8;">${isUsStock ? `$${((p.entryPrice || 0) * (p.quantity || 1)).toFixed(2)}` : `${((p.entryPrice || 0) * (p.quantity || 1)).toLocaleString()}원`}</strong>) | 
-                  현재가: <strong>${currentStr}</strong>
-                </div>
-                <div style="font-size: 0.82rem; margin-top: 4px;">
-                  🎯 <span style="color: #34d399;">동적 익절가(+${p.targetPct || 2.5}%): <strong>${targetStr}</strong></span> | 
-                  ⛔ <span style="color: #f87171;">손절가(${p.stopLossPct || -1.5}%): <strong>${stopStr}</strong></span>
-                </div>
-                <div style="font-size: 0.76rem; color: #fbbf24; margin-top: 4px;">
-                  ⏱️ 90분 타임아웃 강제청산까지 <strong>약 ${remainM}분</strong> 남음 (장마감 15분 전 오버나잇 차단 청산)
-                </div>
-              </div>
-              <div style="text-align: right;">
-                <div style="font-size: 1.25rem; font-weight: 800; color: ${color};">
-                  ${pnlStr} (${sign}${p.returnPct || 0}%)
-                </div>
-                <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
-                  5초 주기 실시간 감시 중
-                </div>
-              </div>
-            </div>
-          `;
-        }
-      } else if (status.isWaitingMarketOpen) {
-        const isWaitingUs = waitingMarket === 'US';
-        const waitTitle = isWaitingUs ? '⏳ 미장 개장 대기 중' : '⏳ 09:00 국장 개장 대기 중';
-        const openPrompt = status.scalpingSession?.nextOpenPrompt || (isWaitingUs ? '오늘 밤 22:30' : '내일 아침 09:00');
-        const isMarketOpenNow = Boolean(status.isMarketOpen || status.currentSession?.isRegularMarket);
-
-        if (badge) {
-          badge.textContent = isMarketOpenNow ? `⚡ ${sessionLabel} 개장 중 (진입 대기)` : waitTitle;
-          badge.style.background = 'rgba(56, 189, 248, 0.15)';
-          badge.style.color = '#38bdf8';
-          badge.style.border = '1px solid rgba(56, 189, 248, 0.35)';
-        }
-        if (btnStart) {
-          btnStart.disabled = false;
-          btnStart.innerHTML = isMarketOpenNow
-            ? `⚡ ${sessionLabel} 즉시 진입 실행 (거래대금 1위 매수)`
-            : (isUsSession ? '⚡ 미장 개장 대기 등록됨 (즉시 재시도)' : '⚡ 국장 개장 대기 등록됨 (즉시 재시도)');
-        }
-        if (btnStop) btnStop.disabled = false;
-
-        if (preview) {
-          preview.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 10px; color: #38bdf8;">
-              <span style="font-size: 1.3rem;">⏳</span>
-              <div>
-                <strong>${isWaitingUs ? '미국 정규장(NYSE/NASDAQ) 개장 대기 모드 가동 중' : '국내 정규장(KRX) 09:00 개장 대기 모드 가동 중'}</strong><br>
-                <span style="font-size: 0.82rem; color: #94a3b8;">
-                  ${openPrompt} 개장 즉시 토스증권 실시간 차트 ${isWaitingUs ? '거래대금 상위($100 이하 예산)' : '거래대금 1위(10만원 이하 예산)'} 종목을 자동 발굴하여 시장가 매수 후 30분 단위 동적 밴드 압축 감시를 개시합니다.
-                </span>
-              </div>
-            </div>
-          `;
-        }
+      if (this.selectedMonth && this.selectedMonth !== 'current' && this.journalData.monthlyArchives?.[this.selectedMonth]) {
+        activeMonthKey = this.selectedMonth;
+        const p = activeMonthKey.split('-');
+        activeMonthDisplay = p.length === 2 ? `${parseInt(p[1], 10)}월` : activeMonthKey;
+        monthItems = this.journalData.monthlyArchives[activeMonthKey].history || [];
       } else {
-        if (badge) {
-          badge.textContent = '⏹️ 초단타 정지됨';
-          badge.style.background = 'rgba(148, 163, 184, 0.15)';
-          badge.style.color = '#94a3b8';
-          badge.style.border = '1px solid rgba(148, 163, 184, 0.3)';
-        }
-        if (btnStart) {
-          btnStart.disabled = false;
-          btnStart.innerHTML = isUsSession
-            ? '⚡ 미장(나스닥/S&P) 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)'
-            : '⚡ 국장 거래대금 1위 초단타 실행 (개장대기 / 즉시진입)';
-        }
-        if (btnStop) btnStop.disabled = true;
+        activeMonthKey = this.journalData.currentMonth || new Date().toISOString().slice(0, 7);
+        const p = activeMonthKey.split('-');
+        activeMonthDisplay = p.length === 2 ? `${parseInt(p[1], 10)}월` : activeMonthKey;
+        monthItems = Array.isArray(this.journalData.history) ? this.journalData.history : [];
+      }
 
-        if (preview) {
-          let historyNotice = '';
-          if (status.history && status.history.length > 0) {
-            const last = status.history[0];
-            const isLastUs = last.market === 'US' || last.currency === 'USD';
-            const lastSign = (last.returnPct || 0) >= 0 ? '+' : '';
-            const lastColor = (last.returnPct || 0) >= 0 ? '#34d399' : '#f87171';
-            let reasonLabel = '🎯 목표가 익절';
-            if (last.exitReason === 'STOP_LOSS') reasonLabel = '⛔ 손절 청산';
-            else if (last.exitReason === 'TIME_OUT') reasonLabel = '⏰ 90분 타임아웃 청산';
-            else if (last.exitReason === 'MARKET_CLOSE_EXIT') reasonLabel = '🚨 장마감 강제청산';
+      let monthlyProfitKrw = 0;
+      let monthlyWins = 0;
+      let monthlyLosses = 0;
 
-            const pnlDisplay = isLastUs
-              ? `${lastSign}$${last.realizedPnl} (${lastSign}${last.returnPct || 0}%)`
-              : `${lastSign}${last.realizedPnl?.toLocaleString() || 0}원 (${lastSign}${last.returnPct || 0}%)`;
-            historyNotice = `
-              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); font-size: 0.82rem; color: #94a3b8;">
-                직전 초단타 결과: <strong>${last.stockName}</strong> (${isLastUs ? '미장' : '국장'}) | ${reasonLabel} | <span style="color: ${lastColor}; font-weight: 700;">${pnlDisplay}</span>
-              </div>
-            `;
-          }
-          preview.innerHTML = `현재 가동 중인 초단타 포지션이 없습니다. 아래 [⚡ ${sessionLabel} 거래대금 1위 초단타 실행] 버튼을 눌러 시작하세요.${historyNotice}`;
+      monthItems.forEach(it => {
+        const pnlKrw = Number(it.realizedPnlKrw || it.profitKrw || it.realizedPnl) || 0;
+        monthlyProfitKrw += pnlKrw;
+        if (pnlKrw > 0) monthlyWins++;
+        else if (pnlKrw < 0) monthlyLosses++;
+      });
+
+      const monthlyTrades = monthItems.length;
+      const monthlyWinRate = monthlyTrades > 0 ? ((monthlyWins / monthlyTrades) * 100).toFixed(1) : 0;
+
+      // 4. DOM 통계 카드 렌더링
+      this.renderMetricCards({
+        targetYear,
+        yearlyProfitKrw,
+        yearlyTrades,
+        yearlyWins,
+        yearlyLosses,
+        yearlyWinRate,
+        bestItem,
+        worstItem,
+        activeMonthDisplay,
+        monthlyProfitKrw,
+        monthlyTrades,
+        monthlyWins,
+        monthlyLosses,
+        monthlyWinRate
+      });
+
+      // 5. 연간 월별 실현손익 한눈에 보기 바 렌더링
+      this.renderMonthlyBreakdown(targetYear, monthlyMap);
+
+      // 6. 매매 완료 이력 목록 렌더링
+      this.renderHistoryList(monthItems, activeMonthDisplay);
+    },
+
+    renderMetricCards(m) {
+      // 1) 연간 총 실현수익 카드
+      const elYearLabel = document.getElementById('admin-stat-year-label');
+      const elYearProfit = document.getElementById('admin-stat-yearly-profit');
+      const elYearTrades = document.getElementById('admin-stat-yearly-trades');
+      const elYearWinLoss = document.getElementById('admin-stat-yearly-winloss');
+      const elYearWinrate = document.getElementById('admin-stat-yearly-winrate');
+
+      if (elYearLabel) elYearLabel.textContent = `${m.targetYear}년`;
+      if (elYearProfit) {
+        const sign = m.yearlyProfitKrw > 0 ? '+' : '';
+        elYearProfit.textContent = `${sign}${m.yearlyProfitKrw.toLocaleString()}원`;
+        elYearProfit.style.color = m.yearlyProfitKrw > 0 ? '#f87171' : (m.yearlyProfitKrw < 0 ? '#60a5fa' : '#f8fafc');
+      }
+      if (elYearTrades) elYearTrades.textContent = `${m.yearlyTrades}회`;
+      if (elYearWinLoss) elYearWinLoss.textContent = `${m.yearlyWins}승 ${m.yearlyLosses}패`;
+      if (elYearWinrate) elYearWinrate.textContent = `${m.yearlyWinRate}%`;
+
+      // 2) 선택월 실현수익 카드
+      const elMonthLabel = document.getElementById('admin-stat-month-label');
+      const elMonthProfit = document.getElementById('admin-stat-monthly-profit');
+      const elMonthTrades = document.getElementById('admin-stat-monthly-trades');
+      const elMonthWinLoss = document.getElementById('admin-stat-monthly-winloss');
+      const elMonthWinrate = document.getElementById('admin-stat-monthly-winrate');
+
+      if (elMonthLabel) elMonthLabel.textContent = m.activeMonthDisplay;
+      if (elMonthProfit) {
+        const sign = m.monthlyProfitKrw > 0 ? '+' : '';
+        elMonthProfit.textContent = `${sign}${m.monthlyProfitKrw.toLocaleString()}원`;
+        elMonthProfit.style.color = m.monthlyProfitKrw > 0 ? '#f87171' : (m.monthlyProfitKrw < 0 ? '#60a5fa' : '#f8fafc');
+      }
+      if (elMonthTrades) elMonthTrades.textContent = `${m.monthlyTrades}회`;
+      if (elMonthWinLoss) elMonthWinLoss.textContent = `${m.monthlyWins}승 ${m.monthlyLosses}패`;
+      if (elMonthWinrate) elMonthWinrate.textContent = `${m.monthlyWinRate}%`;
+
+      // 3) 최고 수익 종목
+      const elBestStock = document.getElementById('admin-stat-best-stock');
+      const elBestProfit = document.getElementById('admin-stat-best-profit');
+      if (elBestStock && elBestProfit) {
+        if (m.bestItem && m.bestItem.pnlKrw > 0) {
+          elBestStock.textContent = `${m.bestItem.stockName || '-'}`;
+          elBestProfit.textContent = `+${m.bestItem.pnlKrw.toLocaleString()}원 (+${m.bestItem.returnPct || 0}%)`;
+          elBestProfit.style.color = '#f87171';
+        } else {
+          elBestStock.textContent = '기록 없음';
+          elBestProfit.textContent = '-';
+          elBestProfit.style.color = '#94a3b8';
         }
       }
 
-      // 3. 최근 초단타 매매 완료 이력 렌더링
-      const historySec = document.getElementById('admin-scalping-history-section');
-      const historyList = document.getElementById('admin-scalping-history-list');
-      const historyCount = document.getElementById('admin-scalping-history-count');
-      if (historySec && historyList) {
-        if (Array.isArray(status.history) && status.history.length > 0) {
-          historySec.style.display = 'block';
-          if (historyCount) historyCount.textContent = `총 ${status.history.length}건`;
-          historyList.innerHTML = status.history.slice(0, 5).map(item => {
-            const isItemUs = item.market === 'US' || item.currency === 'USD';
-            const isProfit = (item.realizedPnl || 0) >= 0;
-            const sign = isProfit ? '+' : '';
-            const pnlColor = isProfit ? '#34d399' : '#f87171';
-            let badgeBg = isProfit ? 'rgba(52, 211, 153, 0.15)' : 'rgba(248, 113, 113, 0.15)';
-            let badgeBorder = isProfit ? 'rgba(52, 211, 153, 0.35)' : 'rgba(248, 113, 113, 0.35)';
-            let reasonText = '🎯 목표가 익절';
-            if (item.exitReason === 'STOP_LOSS') {
-              reasonText = '⛔ 손절 청산';
-            } else if (item.exitReason === 'TIME_OUT') {
-              reasonText = '⏰ 90분 타임아웃';
-              badgeBg = 'rgba(245, 158, 11, 0.15)';
-              badgeBorder = 'rgba(245, 158, 11, 0.35)';
-            } else if (item.exitReason === 'MARKET_CLOSE_EXIT') {
-              reasonText = '🚨 장마감 청산';
-              badgeBg = 'rgba(239, 68, 68, 0.15)';
-              badgeBorder = 'rgba(239, 68, 68, 0.35)';
-            }
+      // 4) 최대 손실 종목
+      const elWorstStock = document.getElementById('admin-stat-worst-stock');
+      const elWorstProfit = document.getElementById('admin-stat-worst-profit');
+      if (elWorstStock && elWorstProfit) {
+        if (m.worstItem && m.worstItem.pnlKrw < 0) {
+          elWorstStock.textContent = `${m.worstItem.stockName || '-'}`;
+          elWorstProfit.textContent = `${m.worstItem.pnlKrw.toLocaleString()}원 (${m.worstItem.returnPct || 0}%)`;
+          elWorstProfit.style.color = '#60a5fa';
+        } else {
+          elWorstStock.textContent = '기록 없음';
+          elWorstProfit.textContent = '-';
+          elWorstProfit.style.color = '#94a3b8';
+        }
+      }
+    },
 
-            const dateStr = item.closedAt ? new Date(item.closedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
-            const entryText = isItemUs ? `$${item.entryPrice}` : `${(item.entryPrice || 0).toLocaleString()}원`;
-            const exitText = isItemUs ? `$${item.exitPrice}` : `${(item.exitPrice || 0).toLocaleString()}원`;
-            const pnlText = isItemUs
-              ? `${sign}$${item.realizedPnl}${item.realizedPnlKrw ? ` (약 ${sign}${item.realizedPnlKrw.toLocaleString()}원)` : ''} (${sign}${item.returnPct || 0}%)`
-              : `${sign}${(item.realizedPnl || 0).toLocaleString()}원 (${sign}${item.returnPct || 0}%)`;
+    renderMonthlyBreakdown(year, monthlyMap) {
+      const elTitle = document.getElementById('admin-breakdown-year-title');
+      const container = document.getElementById('admin-monthly-breakdown-list');
+      if (elTitle) elTitle.textContent = `${year}년`;
+      if (!container) return;
 
-            return `
-              <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      const keys = Object.keys(monthlyMap).sort();
+      let html = '';
+
+      keys.forEach(k => {
+        const data = monthlyMap[k];
+        const monthNum = parseInt(k.split('-')[1], 10);
+        const sign = data.profitKrw > 0 ? '+' : '';
+        const color = data.profitKrw > 0 ? '#f87171' : (data.profitKrw < 0 ? '#60a5fa' : '#94a3b8');
+        const bg = data.profitKrw > 0 ? 'rgba(239, 68, 68, 0.1)' : (data.profitKrw < 0 ? 'rgba(96, 165, 250, 0.1)' : 'rgba(30, 41, 59, 0.4)');
+        const border = data.profitKrw > 0 ? 'rgba(239, 68, 68, 0.3)' : (data.profitKrw < 0 ? 'rgba(96, 165, 250, 0.3)' : 'rgba(255, 255, 255, 0.05)');
+
+        html += `
+          <div style="background: ${bg}; border: 1px solid ${border}; border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <strong style="font-size: 0.82rem; color: #cbd5e1;">${monthNum}월</strong>
+              <span style="font-size: 0.72rem; color: #94a3b8;">${data.trades}건</span>
+            </div>
+            <div style="font-size: 0.88rem; font-weight: 700; color: ${color}; text-align: right;">
+              ${sign}${data.profitKrw.toLocaleString()}원
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    },
+
+    renderHistoryList(items = [], monthDisplay = '') {
+      const elSecLabel = document.getElementById('admin-history-section-month-label');
+      const elTotalCount = document.getElementById('admin-history-total-count');
+      const emptyCard = document.getElementById('admin-trading-history-empty');
+      const listContainer = document.getElementById('admin-trading-history-list');
+
+      if (elSecLabel) elSecLabel.textContent = monthDisplay ? `${monthDisplay}` : '당월';
+
+      const allList = Array.isArray(items) ? items : [];
+      if (elTotalCount) elTotalCount.textContent = `총 ${allList.length}건`;
+
+      // 전략별 카운트 계산
+      const countAll = allList.length;
+      const countDebate = allList.filter(h => h.strategyType === 'DEBATE_RESERVATION' || (!h.strategyType && h.type !== 'CUSTOM_STRATEGY' && (!h.orderId || !String(h.orderId).startsWith('SCALP')))).length;
+      const countScalping = allList.filter(h => h.strategyType === 'SCALPING' || (h.orderId && String(h.orderId).startsWith('SCALP'))).length;
+
+      const elCntAll = document.getElementById('admin-count-hist-all');
+      const elCntDebate = document.getElementById('admin-count-hist-debate');
+      const elCntScp = document.getElementById('admin-count-hist-scalping');
+      if (elCntAll) elCntAll.textContent = countAll;
+      if (elCntDebate) elCntDebate.textContent = countDebate;
+      if (elCntScp) {
+        elCntScp.textContent = countScalping;
+        const scpBtn = elCntScp.closest('button');
+        if (scpBtn) scpBtn.style.display = countScalping > 0 ? 'inline-flex' : 'none';
+      }
+
+      if (countScalping === 0 && this.selectedStrategyTab === 'SCALPING') {
+        this.selectedStrategyTab = 'all';
+        const tabWrap = document.getElementById('admin-history-strategy-tabs');
+        if (tabWrap) {
+          tabWrap.querySelectorAll('.admin-history-tab').forEach(b => {
+            b.classList.toggle('active', b.dataset.strategy === 'all');
+          });
+        }
+      }
+
+      // 탭 필터링
+      const filter = this.selectedStrategyTab || 'all';
+      const filtered = allList.filter(h => {
+        if (filter === 'all') return true;
+        if (filter === 'DEBATE_RESERVATION') {
+          return h.strategyType === 'DEBATE_RESERVATION' || (!h.strategyType && h.type !== 'CUSTOM_STRATEGY' && (!h.orderId || !String(h.orderId).startsWith('SCALP')));
+        }
+        if (filter === 'SCALPING') {
+          return h.strategyType === 'SCALPING' || (h.orderId && String(h.orderId).startsWith('SCALP'));
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        if (emptyCard) emptyCard.style.display = 'flex';
+        if (listContainer) listContainer.style.display = 'none';
+        return;
+      }
+
+      if (emptyCard) emptyCard.style.display = 'none';
+      if (listContainer) {
+        listContainer.style.display = 'flex';
+
+        let html = '';
+        filtered.forEach(it => {
+          const isKr = it.market === 'KR' || it.currency === 'KRW';
+          const pnlKrw = Number(it.realizedPnlKrw || it.profitKrw || it.realizedPnl) || 0;
+          const returnPct = typeof it.returnPct === 'number' ? it.returnPct : parseFloat(it.returnPct) || 0;
+          const isWin = pnlKrw > 0;
+          const isLoss = pnlKrw < 0;
+          const pnlColor = isWin ? '#f87171' : (isLoss ? '#60a5fa' : '#94a3b8');
+          const pnlSign = pnlKrw > 0 ? '+' : '';
+          const retSign = returnPct > 0 ? '+' : '';
+
+          let stratBadge = '';
+          if (it.strategyType === 'SCALPING' || (it.orderId && String(it.orderId).startsWith('SCALP'))) {
+            stratBadge = '<span style="font-size: 0.72rem; background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.35); padding: 2px 7px; border-radius: 4px; font-weight: 700;">⚡ 초단타</span>';
+          } else {
+            stratBadge = '<span style="font-size: 0.72rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 7px; border-radius: 4px; font-weight: 700;">⚔️ AI 끝장토론</span>';
+          }
+
+          const closeTimeStr = it.closedAt ? new Date(it.closedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+          const exitReason = it.reasonTitle || it.exitReason || it.note || '청산 완료';
+          const qtyStr = it.totalQuantity || it.quantity || 1;
+          const priceStr = it.exitPrice ? `${isKr ? it.exitPrice.toLocaleString() + '원' : '$' + it.exitPrice}` : '';
+
+          html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 14px 18px; flex-wrap: wrap; gap: 12px; transition: transform 0.15s ease;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                ${stratBadge}
                 <div>
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="background: ${badgeBg}; color: ${pnlColor}; border: 1px solid ${badgeBorder}; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
-                      ${reasonText}
-                    </span>
-                    <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 0.7rem; padding: 1px 5px; border-radius: 3px;">
-                      ${isItemUs ? '미장' : '국장'}
-                    </span>
-                    <strong style="color: #f1f5f9; font-size: 0.92rem;">${item.stockName}</strong>
-                    <span style="color: #64748b; font-size: 0.78rem;">${item.symbol}</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <strong style="color: #ffffff; font-size: 1.05rem;">${it.stockName || '-'}</strong>
+                    <span style="color: #94a3b8; font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px;">${it.itemCode || ''}</span>
+                    <span style="font-size: 0.78rem; color: #cbd5e1;">${qtyStr}주 ${priceStr ? `(${priceStr})` : ''}</span>
                   </div>
-                  <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 3px;">
-                    매수: ${entryText} (${item.quantity || item.totalQuantity || 1}주) ➔ 매도: ${exitText} (${dateStr})
-                  </div>
-                </div>
-                <div style="text-align: right;">
-                  <span style="font-size: 1rem; font-weight: 800; color: ${pnlColor};">
-                    ${pnlText}
-                  </span>
+                  <div style="color: #64748b; font-size: 0.75rem; margin-top: 3px;">체결일시: ${closeTimeStr}</div>
                 </div>
               </div>
-            `;
-          }).join('');
-        } else {
-          historySec.style.display = 'none';
-        }
+              <div style="display: flex; align-items: center; gap: 16px; text-align: right;">
+                <div>
+                  <div style="font-size: 1.15rem; font-weight: 800; color: ${pnlColor};">${pnlSign}${pnlKrw.toLocaleString()}원</div>
+                  <div style="font-size: 0.82rem; font-weight: 700; color: ${pnlColor};">${retSign}${returnPct}%</div>
+                </div>
+                <div style="font-size: 0.8rem; color: #94a3b8; max-width: 220px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; background: rgba(30, 41, 59, 0.5); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);" title="${exitReason}">
+                  ${exitReason}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        listContainer.innerHTML = html;
       }
     }
   };

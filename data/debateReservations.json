@@ -1,1 +1,486 @@
-[]
+[
+  {
+    "id": "RES-1790780911541-GTW3R4",
+    "debateId": "debate_1790780745668",
+    "itemCode": "MANE",
+    "stockName": "Veradermics (베라더믹스)",
+    "market": "US",
+    "strategyType": "SMART_DIP",
+    "strategyTitle": "🪙 소수점 금액 매수 ($50)",
+    "currency": "USD",
+    "currentPrice": 120.99,
+    "currentPriceKrw": 163992,
+    "orders": [
+      {
+        "subIndex": 1,
+        "title": "🪙 소수점 시장가 매수 ($50)",
+        "price": 117,
+        "priceKrw": 158584,
+        "quantity": 0.4274,
+        "orderAmount": 50,
+        "orderType": "MARKET",
+        "desc": "지지 확인 후 일봉 5일선 종가 안착 시 매수"
+      }
+    ],
+    "totalQuantity": 0.4274,
+    "totalBudgetKrw": 67771,
+    "exitPlan": {
+      "targetProfitPct": 17.95,
+      "stopLossPct": -5.98,
+      "targetPrice": 138,
+      "stopLossPrice": 110,
+      "exitStrategyTitle": "🎯 맞춤 스윙 (목표가 138$ (+17.95%) / 손절가 110$ (-5.98%))",
+      "title": "🎯 맞춤 스윙 (목표가 138$ (+17.95%) / 손절가 110$ (-5.98%))"
+    },
+    "status": "FAILED",
+    "error": "토스증권 API 발주 거부 (소수점 미지원 종목 또는 호가 제한 - 1주 온주 매수 필요)",
+    "orderResults": [
+      {
+        "subIndex": 1,
+        "title": "🪙 소수점 시장가 매수 ($50)",
+        "submittedPrice": 117,
+        "quantity": 0.4274,
+        "orderAmount": 50,
+        "submittedAt": "2026-09-30T15:08:38.078Z",
+        "error": "토스증권 API 발주 거부 (소수점 미지원 종목 또는 호가 제한)",
+        "isSuccess": false
+      }
+    ],
+    "createdBy": "admin",
+    "createdAt": "2026-09-30T15:08:31.541Z",
+    "scheduledTargetSession": "US_REGULAR_OPEN",
+    "note": "AI끝장토론 의결 기반 예약매수 (5대 에이전트 공방 분석)",
+    "submittedAt": "2026-09-30T15:08:38.078Z",
+    "failedAt": "2026-09-30T15:08:38.078Z"
+  },
+  {
+    "id": "RES-1790779191829-8JB4NL",
+    "debateId": "debate-20260924-220032-PLTR",
+    "itemCode": "PLTR",
+    "stockName": "팔란티어",
+    "market": "US",
+    "strategyType": "SMART_DIP",
+    "strategyTitle": "🪙 소수점 금액 매수 ($50)",
+    "currency": "USD",
+    "currentPrice": 189.41,
+    "currentPriceKrw": 256552,
+    "orders": [
+      {
+        "subIndex": 1,
+        "title": "🪙 소수점 시장가 매수 ($50)",
+        "price": 138,
+        "priceKrw": 186918,
+        "quantity": 0.3623,
+        "orderAmount": 50,
+        "orderType": "MARKET",
+        "desc": "실서버 실측 검증용 소수점 예약"
+      }
+    ],
+    "totalQuantity": 0.3623,
+    "totalBudgetKrw": 67724,
+    "exitPlan": {
+      "targetProfitPct": 18.12,
+      "stopLossPct": -5.8,
+      "targetPrice": 163,
+      "stopLossPrice": 130,
+      "exitStrategyTitle": "🎯 맞춤 스윙 (목표가 163$ (+18.12%) / 손절가 130$ (-5.8%))",
+      "title": "🎯 맞춤 스윙 (목표가 163$ (+18.12%) / 손절가 130$ (-5.8%))"
+    },
+    "status": "CANCELLED",
+    "orderResults": [
+      {
+        "subIndex": 1,
+        "title": "🪙 소수점 시장가 매수 ($50)",
+        "orderId": "3nFsnCZCeWjOudDFgC5e-Cr-SwPOIK898jp3HBjoJ_s0qNcCuWm0V-_CqCyBg1ac",
+        "clientOrderId": "RES-8JB4NL-1",
+        "submittedPrice": 138,
+        "quantity": 0.3623,
+        "orderAmount": 50,
+        "submittedAt": "2026-09-30T14:40:10.857Z",
+        "isSuccess": true,
+        "status": "FILLED",
+        "filledPrice": 138
+      }
+    ],
+    "createdBy": "admin",
+    "createdAt": "2026-09-30T14:39:51.829Z",
+    "scheduledTargetSession": "US_REGULAR_OPEN",
+    "note": "AI끝장토론 의결 기반 예약매수 (5대 에이전트 공방 분석)",
+    "submittedAt": "2026-09-30T14:40:10.857Z",
+    "filledAt": "2026-09-30T14:40:40.797Z",
+    "finalFilledPrice": 138,
+    "finalFilledQty": 0.3623,
+    "closedAt": "2026-09-30T14:40:44.284Z",
+    "exitPrice": 189.315,
+    "exitReason": "🎯 AI 끝장토론 예약매매 목표가(+18.12%) 익절 청산",
+    "realizedPnlKrw": 18.59,
+    "returnPct": 37.18,
+    "cancelledAt": "2026-09-30T14:40:44.424Z",
+    "cancelledBy": "admin"
+  },
+  {
+    "id": "RES-1790726182048-4M1572",
+    "debateId": "debate_1790724502414",
+    "itemCode": "336260",
+    "stockName": "두산퓨얼셀",
+    "market": "KR",
+    "strategyType": "SMART_DIP",
+    "strategyTitle": "📉 스마트 눌림목 예약매수 (1주)",
+    "currency": "KRW",
+    "currentPrice": 45900,
+    "currentPriceKrw": 45900,
+    "orders": [
+      {
+        "subIndex": 1,
+        "title": "🎯 토론 맞춤 지지선 지정가 (1주)",
+        "price": 40700,
+        "priceKrw": 40700,
+        "quantity": 1,
+        "orderType": "LIMIT",
+        "desc": "지지 확인 후 일봉 5일선 종가 안착 시 매수"
+      }
+    ],
+    "totalQuantity": 1,
+    "totalBudgetKrw": 40700,
+    "exitPlan": {
+      "targetProfitPct": 23.83,
+      "stopLossPct": -6,
+      "targetPrice": 50400,
+      "stopLossPrice": 38258,
+      "title": "🎯 맞춤 스윙 (목표가 50,400원 (+23.83%) / 손절가 38,258원 (-6%))"
+    },
+    "status": "CANCELLED",
+    "orderResults": [
+      {
+        "subIndex": 1,
+        "title": "🎯 토론 맞춤 지지선 지정가 (1주)",
+        "orderId": "GUTLckOLSLcWWMEymadiubUUjkmj5pmcfHfNKRhQOKw3JD73INA7W0kWt2BjvCbfgfzme3859gEEkSGCNFhLOA",
+        "clientOrderId": "RES-4M1572-1",
+        "submittedPrice": 40700,
+        "quantity": 1,
+        "submittedAt": "2026-09-29T23:56:31.508Z",
+        "isSuccess": true
+      }
+    ],
+    "createdBy": "admin",
+    "createdAt": "2026-09-29T23:56:22.048Z",
+    "scheduledTargetSession": "KRX_REGULAR_OPEN",
+    "note": "AI끝장토론 의결 기반 예약매수 (5대 에이전트 공방 분석)",
+    "submittedAt": "2026-09-29T23:56:31.508Z",
+    "cancelledAt": "2026-09-30T13:54:24.052Z",
+    "cancelledBy": "admin"
+  },
+  {
+    "id": "RES-1790726172369-G8FC81",
+    "debateId": "debate_1790724538508",
+    "itemCode": "010170",
+    "stockName": "대한광통신",
+    "market": "KR",
+    "strategyType": "SMART_DIP",
+    "strategyTitle": "📉 스마트 눌림목 예약매수 (1주)",
+    "currency": "KRW",
+    "currentPrice": 16600,
+    "currentPriceKrw": 16600,
+    "orders": [
+      {
+        "subIndex": 1,
+        "title": "🎯 토론 맞춤 지지선 지정가 (1주)",
+        "price": 15400,
+        "priceKrw": 15400,
+        "quantity": 1,
+        "orderType": "LIMIT",
+        "desc": "지지 확인 후 일봉 5일선 종가 안착 시 매수"
+      }
+    ],
+    "totalQuantity": 1,
+    "totalBudgetKrw": 15400,
+    "exitPlan": {
+      "targetProfitPct": 24.03,
+      "stopLossPct": -6,
+      "targetPrice": 19100,
+      "stopLossPrice": 14476,
+      "title": "🎯 맞춤 스윙 (목표가 19,100원 (+24.03%) / 손절가 14,476원 (-6%))"
+    },
+    "status": "CANCELLED",
+    "orderResults": [
+      {
+        "subIndex": 1,
+        "title": "🎯 토론 맞춤 지지선 지정가 (1주)",
+        "orderId": "_EknraXTc97gjGn-loR1AT5PFXrwR4YZHUvXbjDu51_NIrc16T_vHy9wX9zJUeUHCFMzd9xlfeVJc_ngHVySlA",
+        "clientOrderId": "RES-G8FC81-1",
+        "submittedPrice": 15400,
+        "quantity": 1,
+        "submittedAt": "2026-09-29T23:56:32.555Z",
+        "isSuccess": true
+      }
+    ],
+    "createdBy": "admin",
+    "createdAt": "2026-09-29T23:56:12.369Z",
+    "scheduledTargetSession": "KRX_REGULAR_OPEN",
+    "note": "AI끝장토론 의결 기반 예약매수 (5대 에이전트 공방 분석)",
+    "submittedAt": "2026-09-29T23:56:32.555Z",
+    "cancelledAt": "2026-09-30T13:54:28.941Z",
+    "cancelledBy": "admin"
+  },
+  {
+    "id": "RES-1790638603289-EYBHUB",
+    "debateId": "debate_1790636767374",
+    "itemCode": "356680",
+    "stockName": "엑스게이트",
+    "market": "KR",
+    "strategyType": "MARKET_OPEN",
+    "strategyTitle": "⚡ 시초가 우선 체결 (1주)",
+    "currency": "KRW",
+    "currentPrice": 18510,
+    "currentPriceKrw": 18510,
+    "orders": [
+      {
+        "subIndex": 1,
+        "title": "⚡ 시초가 우선 체결 (1주)",
+        "price": 18510,
+        "priceKrw": 18510,
+        "quantity": 1,
+        "orderType": "LIMIT",
+        "desc": "개장(09:00) 시초가/동시호가 우선 체결 지정가(18,510원) 예약 (1주)"
+      }
+    ],
+    "totalQuantity": 1,
+    "totalBudgetKrw": 18510,
+    "exitPlan": {
+      "targetProfitPct": 3,
+      "stopLossPct": -2,
+      "exitStrategyTitle": "⚡ 단기 빠른 회전 모드 (익절 +3.0% / 손절 -2.0%)",
+      "isStrongThemeStock": false,
+      "matchedThemes": []
+    },
+    "status": "CLOSED",
+    "orderResults": [
+      {
+        "subIndex": 1,
+        "title": "⚡ 시초가 우선 체결 (1주)",
+        "orderId": "RyqzJWaj_BNyW5i9xcL1FRk-JEbHDZxYOoB8sZsrMKzXu-Ze5XfVLq2JHOWD71hTxJ6EdlF9hHuZp2vDn1nO3Q",
+        "clientOrderId": "RES-EYBHUB-1",
+        "submittedPrice": 18510,
+        "quantity": 1,
+        "submittedAt": "2026-09-28T23:36:56.084Z",
+        "isSuccess": true,
+        "status": "FILLED",
+        "filledPrice": 18510
+      }
+    ],
+    "createdBy": "admin",
+    "createdAt": "2026-09-28T23:36:43.289Z",
+    "scheduledTargetSession": "KRX_REGULAR_OPEN",
+    "note": "AI끝장토론 의결 기반 예약매수 (5대 에이전트 공방 분석)",
+    "submittedAt": "2026-09-28T23:36:56.084Z",
+    "filledAt": "2026-09-29T00:02:57.385Z",
+    "finalFilledPrice": 18510,
+    "finalFilledQty": 1,
+    "closedAt": "2026-09-29T02:55:28.159Z"
+  },
+  {
+    "id": "RES-1790638586834-F1YU5G",
+    "debateId": "debate_1790636946082",
+    "itemCode": "263860",
+    "stockName": "지니언스",
+    "market": "KR",
+    "strategyType": "MARKET_OPEN",
+    "strategyTitle": "⚡ 시초가 우선 체결 (1주)",
+    "currency": "KRW",
+    "currentPrice": 19300,
+    "currentPriceKrw": 19300,
+    "orders": [
+      {
+        "subIndex": 1,
+        "title": "⚡ 시초가 우선 체결 (1주)",
+        "price": 19300,
+        "priceKrw": 19300,
+        "quantity": 1,
+        "orderType": "LIMIT",
+        "desc": "개장(09:00) 시초가/동시호가 우선 체결 지정가(19,300원) 예약 (1주)"
+      }
+    ],
+    "totalQuantity": 1,
+    "totalBudgetKrw": 19300,
+    "exitPlan": {
+      "targetProfitPct": 3,
+      "stopLossPct": -2,
+      "exitStrategyTitle": "⚡ 단기 빠른 회전 모드 (익절 +3.0% / 손절 -2.0%)",
+      "isStrongThemeStock": false,
+      "matchedThemes": []
+    },
+    "status": "CLOSED",
+    "orderResults": [
+      {
+        "subIndex": 1,
+        "title": "⚡ 시초가 우선 체결 (1주)",
+        "orderId": "L-S9aPTYsNhlKFXZsTsQx2r2MCC2guP4Y07GsEDFfgJ88d4ZWXZTjQDLIwgCtstAZz3oMVi7-I-C4MFtO8Ii0Q",
+        "clientOrderId": "RES-F1YU5G-1",
+        "submittedPrice": 19300,
+        "quantity": 1,
+        "submittedAt": "2026-09-28T23:36:58.083Z",
+        "isSuccess": true,
+        "status": "FILLED",
+        "filledPrice": 19300
+      }
+    ],
+    "createdBy": "admin",
+    "createdAt": "2026-09-28T23:36:26.834Z",
+    "scheduledTargetSession": "KRX_REGULAR_OPEN",
+    "note": "AI끝장토론 의결 기반 예약매수 (5대 에이전트 공방 분석)",
+    "submittedAt": "2026-09-28T23:36:58.083Z",
+    "filledAt": "2026-09-29T00:33:55.184Z",
+    "finalFilledPrice": 19300,
+    "finalFilledQty": 1,
+    "closedAt": "2026-09-29T02:55:28.159Z"
+  },
+  {
+    "id": "RES-1790638580948-TM1Z5U",
+    "debateId": "debate_1790636980556",
+    "itemCode": "150900",
+    "stockName": "파수AI",
+    "market": "KR",
+    "strategyType": "MARKET_OPEN",
+    "strategyTitle": "⚡ 시초가 우선 체결 (1주)",
+    "currency": "KRW",
+    "currentPrice": 4015,
+    "currentPriceKrw": 4015,
+    "orders": [
+      {
+        "subIndex": 1,
+        "title": "⚡ 시초가 우선 체결 (1주)",
+        "price": 4015,
+        "priceKrw": 4015,
+        "quantity": 1,
+        "orderType": "LIMIT",
+        "desc": "개장(09:00) 시초가/동시호가 우선 체결 지정가(4,015원) 예약 (1주)"
+      }
+    ],
+    "totalQuantity": 1,
+    "totalBudgetKrw": 4015,
+    "exitPlan": {
+      "targetProfitPct": 3,
+      "stopLossPct": -2,
+      "exitStrategyTitle": "⚡ 단기 빠른 회전 모드 (익절 +3.0% / 손절 -2.0%)",
+      "isStrongThemeStock": false,
+      "matchedThemes": []
+    },
+    "status": "CLOSED",
+    "orderResults": [
+      {
+        "subIndex": 1,
+        "title": "⚡ 시초가 우선 체결 (1주)",
+        "orderId": "ggw-f3vKh9r-J74coeDpK2sHDBTGXXH2ghw-01tVICE8QQiNZwKjoM03xoviU5zVNZCQO6VSRF3d0zzVZb-d0A",
+        "clientOrderId": "RES-TM1Z5U-1",
+        "submittedPrice": 4015,
+        "quantity": 1,
+        "submittedAt": "2026-09-28T23:36:24.970Z",
+        "isSuccess": true,
+        "status": "FILLED",
+        "filledPrice": 4015
+      }
+    ],
+    "createdBy": "admin",
+    "createdAt": "2026-09-28T23:36:20.949Z",
+    "scheduledTargetSession": "KRX_REGULAR_OPEN",
+    "note": "AI끝장토론 의결 기반 예약매수 (5대 에이전트 공방 분석)",
+    "submittedAt": "2026-09-28T23:36:24.970Z",
+    "filledAt": "2026-09-29T00:00:57.084Z",
+    "finalFilledPrice": 4015,
+    "finalFilledQty": 1,
+    "closedAt": "2026-09-29T02:55:28.159Z"
+  },
+  {
+    "id": "RES-1790638416668-PYAVVL",
+    "debateId": "debate-20260929-073027-033100",
+    "itemCode": "033100",
+    "stockName": "제룡전기",
+    "market": "KR",
+    "strategyType": "SPLIT_BUY",
+    "strategyTitle": "🪜 2회 분할 예약매수 (각 1주)",
+    "currency": "KRW",
+    "currentPrice": 47050,
+    "currentPriceKrw": 47050,
+    "orders": [
+      {
+        "subIndex": 1,
+        "title": "🪜 1차 진입 (현재가 1주)",
+        "price": 47050,
+        "priceKrw": 47050,
+        "quantity": 1,
+        "orderType": "LIMIT",
+        "desc": "1차: 현재가 수준(47,050원) 즉시 진입 1주"
+      },
+      {
+        "subIndex": 2,
+        "title": "🪜 2차 지지선 눌림목 (1주)",
+        "price": 46109,
+        "priceKrw": 46109,
+        "quantity": 1,
+        "orderType": "LIMIT",
+        "desc": "2차: 지지선/눌림목 -2%(46,109원) 안전 분할 1주"
+      }
+    ],
+    "totalQuantity": 2,
+    "totalBudgetKrw": 93159,
+    "exitPlan": {
+      "targetProfitPct": 12,
+      "stopLossPct": -5,
+      "exitStrategyTitle": "🚀 강력 주도 테마 추세 스윙 모드 (목표가 +12.0% / 손절선 -5.0%)",
+      "isStrongThemeStock": true,
+      "matchedThemes": [
+        "AI",
+        "금리",
+        "금융"
+      ]
+    },
+    "status": "CANCELLED",
+    "orderResults": [],
+    "createdBy": "admin",
+    "createdAt": "2026-09-28T23:33:36.668Z",
+    "scheduledTargetSession": "KRX_REGULAR_OPEN",
+    "note": "AI끝장토론 의결 기반 예약매수 (5대 에이전트 공방 분석)",
+    "cancelledAt": "2026-09-28T23:33:36.861Z",
+    "cancelledBy": "admin"
+  },
+  {
+    "id": "RES-1790638405872-ZTRQY0",
+    "debateId": "debate_1790636980556",
+    "itemCode": "150900",
+    "stockName": "파수AI",
+    "market": "KR",
+    "strategyType": "SMART_DIP",
+    "strategyTitle": "📉 스마트 눌림목 예약매수 (1주)",
+    "currency": "KRW",
+    "currentPrice": 4015,
+    "currentPriceKrw": 4015,
+    "orders": [
+      {
+        "subIndex": 1,
+        "title": "📉 스마트 눌림목 지정가 (1주)",
+        "price": 3955,
+        "priceKrw": 3955,
+        "quantity": 1,
+        "orderType": "LIMIT",
+        "desc": "현재가 대비 -1.5% 눌림목(3,955원) 체결 예약 (1주)"
+      }
+    ],
+    "totalQuantity": 1,
+    "totalBudgetKrw": 3955,
+    "exitPlan": {
+      "targetProfitPct": 3,
+      "stopLossPct": -2,
+      "exitStrategyTitle": "⚡ 단기 빠른 회전 모드 (익절 +3.0% / 손절 -2.0%)",
+      "isStrongThemeStock": false,
+      "matchedThemes": []
+    },
+    "status": "CANCELLED",
+    "orderResults": [],
+    "createdBy": "admin",
+    "createdAt": "2026-09-28T23:33:25.873Z",
+    "scheduledTargetSession": "KRX_REGULAR_OPEN",
+    "note": "AI끝장토론 의결 기반 예약매수 (5대 에이전트 공방 분석)",
+    "cancelledAt": "2026-09-28T23:33:26.112Z",
+    "cancelledBy": "admin"
+  }
+]

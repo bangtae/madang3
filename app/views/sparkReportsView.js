@@ -6,6 +6,7 @@
     initialized: false,
     currentData: null,
     selectedReportId: null,
+    selectedHistoryIndex: 'latest',
     currentSummaryResult: null,
 
     isAdmin() {
@@ -130,9 +131,61 @@
       }
       const activeReport = reports.find(r => r.id === this.selectedReportId) || reports[0];
 
+      // 1. 7대 정기 보고서 최신 갱신 현황 요약 카드 그리드
+      let summaryGridHtml = `
+        <div style="margin-bottom: 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.15rem;">⚡</span>
+              <strong style="color: #60a5fa; font-size: 0.95rem;">Gemini Spark 7대 정기 보고서 최신 발행 및 수집 현황</strong>
+            </div>
+            <span style="font-size: 0.76rem; color: #94a3b8;">💡 카드를 클릭하면 해당 보고서로 즉시 전환됩니다.</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px;">
+      `;
+
+      reports.forEach(r => {
+        const isNew = Boolean(r.isNew || (r.collectedAt && (Date.now() - new Date(r.collectedAt).getTime() < 72 * 3600 * 1000)));
+        const isActive = activeReport && r.id === activeReport.id;
+        const collectedDate = r.collectedAt ? new Date(r.collectedAt) : null;
+        let dateStr = '수집 대기 중';
+        if (collectedDate && !isNaN(collectedDate.getTime())) {
+          const m = collectedDate.getMonth() + 1;
+          const d = collectedDate.getDate();
+          const h = String(collectedDate.getHours()).padStart(2, '0');
+          const mi = String(collectedDate.getMinutes()).padStart(2, '0');
+          dateStr = `${m}/${d} ${h}:${mi}`;
+        }
+
+        summaryGridHtml += `
+          <div class="spark-summary-card" data-report-id="${r.id}" style="
+            background: ${isActive ? 'rgba(56, 189, 248, 0.15)' : 'rgba(30, 41, 59, 0.75)'};
+            border: 1px solid ${isActive ? '#38bdf8' : (isNew ? 'rgba(16, 185, 129, 0.5)' : 'rgba(255, 255, 255, 0.08)')};
+            border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+          ">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 6px;">
+              <span style="font-size: 1.3rem;">${r.icon || '📄'}</span>
+              ${isNew ? '<span style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-size: 0.65rem; font-weight: 800; padding: 2px 7px; border-radius: 10px; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);">🟢 NEW 갱신</span>' : '<span style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); padding: 1px 6px; border-radius: 10px; font-size: 0.65rem;">보관 중</span>'}
+            </div>
+            <strong style="display: block; font-size: 0.88rem; color: ${isActive ? '#38bdf8' : '#f8fafc'}; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${r.categoryLabel || r.title}
+            </strong>
+            <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 3px;">
+              ⏱️ ${r.schedule || '정기 발행'}
+            </div>
+            <div style="font-size: 0.72rem; color: ${isNew ? '#34d399' : '#cbd5e1'}; font-weight: ${isNew ? '700' : 'normal'};">
+              🕒 최근 갱신: ${dateStr}
+            </div>
+          </div>
+        `;
+      });
+      summaryGridHtml += `</div></div>`;
+
+      // 2. 보고서 탭 목록
       let tabsHtml = '';
       reports.forEach(r => {
         const isActive = activeReport && r.id === activeReport.id;
+        const isNew = Boolean(r.isNew || (r.collectedAt && (Date.now() - new Date(r.collectedAt).getTime() < 72 * 3600 * 1000)));
         tabsHtml += `
           <button type="button" class="spark-report-tab ${isActive ? 'active' : ''}" data-report-id="${r.id}" style="
             display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s;
@@ -143,6 +196,7 @@
           ">
             <span>${r.icon || '📄'}</span>
             <span>${r.categoryLabel || r.title}</span>
+            ${isNew ? '<span style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 10px; margin-left: 2px; box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);">NEW</span>' : ''}
           </button>
         `;
       });
@@ -153,21 +207,56 @@
           </button>`
         : '';
 
+      // 3. 본문 리포트 상세 영역 및 히스토리 셀렉터
       let contentHtml = '';
       if (activeReport) {
+        let displayContent = activeReport.content;
+        let historySelectHtml = '';
+        const historyList = Array.isArray(activeReport.history) ? activeReport.history : [];
+
+        if (historyList.length > 0) {
+          const latestCollectedDateStr = activeReport.collectedAt ? new Date(activeReport.collectedAt).toLocaleDateString('ko-KR') : '현재';
+          let historyOptions = `<option value="latest">최신본 (${latestCollectedDateStr}) [현재 발행본]</option>`;
+          historyList.forEach((h, hIdx) => {
+            const hDate = h.collectedAt ? new Date(h.collectedAt).toLocaleDateString('ko-KR') : `이전 ${hIdx + 1}회차`;
+            historyOptions += `<option value="${hIdx}">📜 ${hDate} 발행본 (${hIdx + 1}회 전)</option>`;
+          });
+
+          if (this.selectedHistoryIndex !== 'latest' && this.selectedHistoryIndex !== null && historyList[this.selectedHistoryIndex]) {
+            const selectedH = historyList[this.selectedHistoryIndex];
+            displayContent = selectedH.content;
+          }
+
+          historySelectHtml = `
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+              <span style="font-size: 0.78rem; color: #94a3b8;">📜 발행 이력 (최대 5회분):</span>
+              <select id="select-spark-report-history" style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; color: #38bdf8; font-size: 0.78rem; padding: 4px 10px; cursor: pointer; font-weight: 600;">
+                ${historyOptions}
+              </select>
+            </div>
+          `;
+        }
+
+        const isReportNew = Boolean(activeReport.isNew || (activeReport.collectedAt && (Date.now() - new Date(activeReport.collectedAt).getTime() < 72 * 3600 * 1000)));
+
         contentHtml = `
           <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 24px; margin-top: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 16px; margin-bottom: 20px;">
               <div>
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
                   <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">
                     ${activeReport.categoryLabel || '경제 지표'}
                   </span>
+                  <span style="background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                    ⏱️ 정기 발행: ${activeReport.schedule || '정기'}
+                  </span>
+                  ${isReportNew ? '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">🟢 NEW 최근 갱신</span>' : ''}
                   <span style="font-size: 0.8rem; color: #94a3b8;">수집 출처: Gemini Spark (자동 수집 완료)</span>
                 </div>
                 <h3 style="margin: 0; font-size: 1.3rem; color: #f8fafc; font-weight: 700;">
                   ${activeReport.icon || '📊'} ${activeReport.title}
                 </h3>
+                ${historySelectHtml}
               </div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 ${summarizeBtnHtml}
@@ -178,15 +267,15 @@
             </div>
 
             <div class="spark-markdown-body" style="font-size: 0.95rem; line-height: 1.7; color: #e2e8f0;">
-              ${this.parseMarkdown(activeReport.content)}
+              ${this.parseMarkdown(displayContent)}
             </div>
           </div>
         `;
       }
 
       const headerDesc = isAdm
-        ? '매주 월요일 09시 Gemini Spark가 분석한 거시경제·금융·IT·부동산 보고서를 구글 드라이브에서 자동 수집하고 원본을 안전하게 완전 삭제합니다.'
-        : 'Gemini Spark가 분석한 국내외 최신 거시경제·금융·IT·부동산 심층 지표를 열람할 수 있습니다.';
+        ? 'Gemini Spark가 주기별(매월 1일·매주 월·첫째/셋째 주 월 09시)로 생성하는 7대 거시경제·금융·IT·부동산 보고서를 구글 드라이브에서 실시간 자동 감지·수집하고 원본을 안전하게 완전 삭제합니다.'
+        : 'Gemini Spark가 주기별로 분석한 7대 거시경제·금융·IT·부동산 최신 심층 지표를 열람할 수 있습니다.';
 
       const adminButtonsHtml = isAdm
         ? `<div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -196,7 +285,7 @@
             <button type="button" id="btn-spark-open-config" class="btn btn-secondary" style="padding: 9px 14px; background: rgba(51, 65, 85, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; color: #cbd5e1; font-size: 0.88rem; cursor: pointer;">
               ⚙️ 연동 설정
             </button>
-            <button type="button" id="btn-spark-reset-seed" class="btn btn-secondary" style="padding: 9px 12px; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #94a3b8; font-size: 0.82rem; cursor: pointer;" title="스크린샷 7개 기본 보고서로 복원">
+            <button type="button" id="btn-spark-reset-seed" class="btn btn-secondary" style="padding: 9px 12px; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #94a3b8; font-size: 0.82rem; cursor: pointer;" title="7개 표준 보고서로 복원">
               🔄 기본 복원
             </button>
           </div>`
@@ -209,7 +298,7 @@
             <div>
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                 <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 3px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 700;">
-                  ✨ Spark 주간 최신본 동기화
+                  ✨ Spark 주기별 최신본 실시간 동기화
                 </span>
                 <span style="font-size: 0.8rem; color: #94a3b8;">마지막 갱신: <strong style="color: #cbd5e1;">${updatedDate}</strong></span>
               </div>
@@ -223,6 +312,9 @@
             ${adminButtonsHtml}
           </div>
         </div>
+
+        <!-- 7대 보고서 최신 갱신 요약 현황 카드 그리드 -->
+        ${summaryGridHtml}
 
         <!-- 보고서 탭 목록 -->
         <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px; -webkit-overflow-scrolling: touch;">
@@ -304,16 +396,39 @@
         </div>
       `;
 
+      // 7대 요약 카드 클릭 이벤트 바인딩
+      container.querySelectorAll('.spark-summary-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const repId = card.getAttribute('data-report-id');
+          if (repId) {
+            this.selectedReportId = repId;
+            this.selectedHistoryIndex = 'latest';
+            this.renderView();
+          }
+        });
+      });
+
       // 탭 클릭 이벤트 바인딩
       container.querySelectorAll('.spark-report-tab').forEach(tab => {
         tab.addEventListener('click', () => {
           const repId = tab.getAttribute('data-report-id');
           if (repId) {
             this.selectedReportId = repId;
+            this.selectedHistoryIndex = 'latest';
             this.renderView();
           }
         });
       });
+
+      // 발행 이력 셀렉트 변경 이벤트 바인딩
+      const selHistory = document.getElementById('select-spark-report-history');
+      if (selHistory) {
+        selHistory.value = this.selectedHistoryIndex || 'latest';
+        selHistory.addEventListener('change', (e) => {
+          this.selectedHistoryIndex = e.target.value === 'latest' ? 'latest' : parseInt(e.target.value, 10);
+          this.renderView();
+        });
+      }
 
       // 복사 버튼 바인딩
       const btnCopy = document.getElementById('btn-spark-copy-content');

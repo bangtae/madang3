@@ -31,12 +31,13 @@ class StockAutoTrader {
       isActive: false,
       isWaitingMarketOpen: false,
       targetProfitPct: 2.5,
-      stopLossPct: -1.5,
+      stopLossPct: -2.0,
       currentPosition: null,
       lastCheckAt: null,
       history: []
     };
     this.isEnteringScalp = false; // 초단타 진입 중복 방지 락
+    this.hasNotifiedOpenWaiting = false; // 개장 후 3분 대기 알림 1회 플래그
   }
 
   async init() {
@@ -277,6 +278,10 @@ class StockAutoTrader {
     const seen = new Set();
     const cleanHistory = [];
     for (const h of journal.history) {
+      // 1. 더 이상 사용하지 않는 초단타 이력 영구 제외
+      if (h.strategyType === 'SCALPING' || String(h.id || '').startsWith('SCALP') || String(h.orderId || '').startsWith('SCALP')) {
+        continue;
+      }
       if (h.strategyType === 'DEBATE_RESERVATION') {
         const key = `${h.itemCode}-${(h.startedAt || '').slice(0, 10)}`;
         if (seen.has(key)) continue; // 중복 건너뜀
@@ -345,9 +350,6 @@ class StockAutoTrader {
             const diskIds = new Set(diskData.customStrategies.map(s => s.id));
             data.customStrategies = data.customStrategies.filter(s => diskIds.has(s.id));
           }
-          if (diskData.monthlyArchives && typeof diskData.monthlyArchives === 'object') {
-            data.monthlyArchives = { ...diskData.monthlyArchives, ...data.monthlyArchives };
-          }
         } catch (e) {}
       }
       this.recalculateStats(data);
@@ -360,10 +362,12 @@ class StockAutoTrader {
   }
 
   startDaemon() {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = setInterval(() => this.runTick(), this.tickIntervalMs);
-    console.log('[StockAutoTrader] Daemon started (5m interval - 1종목 1주 예약/매수 감시)');
-    setTimeout(() => this.runTick(), 1000);
+    // [제거 완료] 실시간 집중 포지션 및 맞춤전략 운용 중단 (AI 끝장토론 예약 및 초단타는 startMarketTimingDaemon에서 독립 운용)
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    console.log('[StockAutoTrader] Legacy 5m daemon is disabled.');
   }
 
   stopDaemon() {
@@ -2228,19 +2232,7 @@ class StockAutoTrader {
   }
 
   async checkMarketTimingsAndNotify() {
-    const now = new Date();
-    const kst = tossClient.getKstDate(now);
-    const day = kst.getDay(); // 0: 일, 6: 토
-    if (day === 0 || day === 6) return; // 주말 휴장
-    if (tossClient.isKrHoliday(kst)) return; // 공휴일 휴장
-
-    const ymd = `${kst.getFullYear()}-${String(kst.getMonth() + 1).padStart(2, '0')}-${String(kst.getDate()).padStart(2, '0')}`;
-    const h = kst.getHours();
-    const m = kst.getMinutes();
-    const totalMinutes = h * 60 + m;
-    const isDst = tossClient.isUsDstActive(now);
-
-    // 🌟 [AI 끝장토론 예약매수 엔진] 개장 시점 자동 발주, 체결 감시, 실시간 익절/손절 감시
+    // 🌟 [AI 끝장토론 예약매수 및 포지션 엔진] 국장/미장 개장 시점 자동 발주, 체결 감시, 실시간 익절/손절 감시
     try {
       await this.processScheduledReservations();
       await this.checkReservationExecutions();
@@ -2248,121 +2240,30 @@ class StockAutoTrader {
     } catch (rErr) {
       console.warn('[StockAutoTrader] Reservation scheduler check error:', rErr.message);
     }
+  }
 
-    // 1. 07:55 KST (475분) - 🌅 [NXT 프리마켓 개장 5분 전]
-    const key0755 = `${ymd}-NXT_0755`;
-    if (totalMinutes === 475 && !this.alertLog[key0755]) {
-      this.alertLog[key0755] = true;
-      telegramBot.sendGeneralMessage(
-        `🌅 <b>[NXT 넥스트레이드 프리마켓 개장 5분 전]</b>\n\n` +
-        `• <b>운영 세션:</b> 프리마켓 실시간 접속매매 (08:00 ~ 08:50)\n` +
-        `• <b>특징:</b> 정규장 시작 전 호재성 갭상승 종목의 얼리버드 거래\n` +
-        `• <b>주의:</b> 08:50부터는 시가 보호를 위해 신규 호가가 일시 정지됩니다.`
-      );
-    }
-
-    // 2. 08:55 KST (535분) - 🚀 [국장 정규장 개장 5분 전]
-    const key0855 = `${ymd}-KRX_0855`;
-    if (totalMinutes === 535 && !this.alertLog[key0855]) {
-      this.alertLog[key0855] = true;
-      const autoMsg = this.scalpingConfig.autoScheduleEnabled
-        ? `<b>개장 자동 실행 스케줄 ON</b> (09:00 정각에 자동 매수 발주가 집행됩니다)`
-        : `<b>수동 실행 모드</b> (개장 후 관리 화면에서 [⚡ 초단타 실행] 버튼을 눌러주세요)`;
-
-      telegramBot.sendGeneralMessage(
-        `🚀 <b>[국내 정규장 개장 5분 전 - 초단타 골든타임 준비!]</b>\n\n` +
-        `• <b>골든타임:</b> 09:00 ~ 09:30 (하루 중 거래대금/변동성 최고점)\n` +
-        `• <b>전략:</b> 실시간 거래대금 1위(10만원 이하) 1주 매수 ➔ +2.5% 익절 / -1.5% 손절\n` +
-        `• <b>현재 설정:</b> ${autoMsg}`
-      );
-    }
-
-    // 3. 09:00~09:30 KST (540~570분) - ⚡ [국장 정규장 개장! 초단타 골든타임]
-    const key0900 = `${ymd}-KRX_0900`;
-    if (totalMinutes >= 540 && totalMinutes < 570) {
-      if (!this.alertLog[key0900]) {
-        this.alertLog[key0900] = true;
-        telegramBot.sendGeneralMessage(
-          `⚡ <b>[국내 정규장 개장!] 초단타 최강 골든타임(09:00~09:30) 시작</b>\n\n` +
-          `• 한국거래소(KRX) 및 NXT 메인마켓이 공식 개장했습니다.\n` +
-          `• 토스증권 실시간 차트 거래대금 랭킹 1위 종목 초단타 진입 적기입니다!`
-        );
-      }
-
-      // 자동 스케줄이 켜져있거나 이미 대기 중인 경우 -> 즉시 진입 실행!
-      const keyAutoEntryKr = `${ymd}-KRX_AUTO_ENTRY`;
-      if ((this.scalpingConfig.autoScheduleEnabled || this.scalpingStatus.isWaitingMarketOpen) && !this.alertLog[keyAutoEntryKr]) {
-        if (this.scalpingOpenWaitTimer) {
-          clearInterval(this.scalpingOpenWaitTimer);
-          this.scalpingOpenWaitTimer = null;
-        }
-        if (this.scalpingStatus.currentPosition || this.isEnteringScalp) {
-          this.alertLog[keyAutoEntryKr] = true;
-          console.log('[ScalpingEngine] Auto schedule triggered during golden time, but position or entry already active.');
-        } else {
-          this.alertLog[keyAutoEntryKr] = true;
-          console.log('[ScalpingEngine] Auto schedule triggered during 09:00~09:30 golden time! Executing entry...');
-          this.scalpingStatus.isActive = true;
-          this.scalpingStatus.isWaitingMarketOpen = false;
-          this.saveScalpingStatus();
-          setTimeout(async () => {
-            await this.executeScalpingEntry('KR');
-          }, 2000); // 랭킹 집계 즉시 포착
-        }
-      }
-    }
-
-    // 4. 미국장 개장 5분 전 (서머타임: 22:25 KST / 겨울철: 23:25 KST)
-    const usNotifyMinutes = isDst ? 22 * 60 + 25 : 23 * 60 + 25;
-    const keyUs = `${ymd}-US_PRE`;
-    if (totalMinutes >= usNotifyMinutes && totalMinutes < usNotifyMinutes + 5 && !this.alertLog[keyUs]) {
-      this.alertLog[keyUs] = true;
-      const autoMsg = this.scalpingConfig.autoScheduleEnabled
-        ? `<b>개장 자동 실행 스케줄 ON</b> (${isDst ? '22:30' : '23:30'} 정각에 미국 주식 자동 매수 발주가 집행됩니다)`
-        : `<b>수동 실행 모드</b> (개장 후 관리 화면에서 [⚡ 미장 초단타 실행] 버튼을 눌러주세요)`;
-
-      telegramBot.sendGeneralMessage(
-        `🇺🇸 <b>[미국 정규장 개장 5분 전 - 초단타 골든타임 준비!]</b>\n\n` +
-        `• <b>운영 시간:</b> ${isDst ? '22:30 ~ 익일 05:00 KST (서머타임)' : '23:30 ~ 익일 06:00 KST'}\n` +
-        `• <b>전략:</b> 나스닥/S&P 실시간 거래대금 1위(1주 $100 이하) 매수 ➔ +2.5% 익절 / -1.5% 손절\n` +
-        `• <b>현재 설정:</b> ${autoMsg}`
-      );
-    }
-
-    // 5. 미국장 정규장 개장 골든타임 (서머타임: 22:30 KST / 겨울철: 23:30 KST) - ⚡ [미장 초단타 골든타임]
-    const usOpenMinutes = isDst ? 22 * 60 + 30 : 23 * 60 + 30;
-    const keyUsOpen = `${ymd}-US_OPEN`;
-    if (totalMinutes >= usOpenMinutes && totalMinutes < usOpenMinutes + 60) {
-      if (!this.alertLog[keyUsOpen]) {
-        this.alertLog[keyUsOpen] = true;
-        telegramBot.sendGeneralMessage(
-          `⚡ <b>[미국 정규장 개장!] 미장 초단타 골든타임(${isDst ? '22:30~00:00' : '23:30~01:00'}) 시작</b>\n\n` +
-          `• 뉴욕증권거래소(NYSE) 및 나스닥(NASDAQ)이 공식 개장했습니다.\n` +
-          `• 토스증권 실시간 차트 거래대금 상위($100 이하) 초단타 진입 적기입니다!`
-        );
-      }
-
-      // 자동 스케줄이 켜져있거나 미장 대기 중인 경우 -> 미장 즉시 진입 실행!
-      const keyAutoEntryUs = `${ymd}-US_AUTO_ENTRY`;
-      if ((this.scalpingConfig.autoScheduleEnabled || this.scalpingStatus.isWaitingMarketOpen) && !this.alertLog[keyAutoEntryUs]) {
-        if (this.scalpingOpenWaitTimer) {
-          clearInterval(this.scalpingOpenWaitTimer);
-          this.scalpingOpenWaitTimer = null;
-        }
-        if (this.scalpingStatus.currentPosition || this.isEnteringScalp) {
-          this.alertLog[keyAutoEntryUs] = true;
-          console.log('[ScalpingEngine] Auto schedule triggered at US open, but position or entry already active.');
-        } else {
-          this.alertLog[keyAutoEntryUs] = true;
-          console.log('[ScalpingEngine] Auto schedule triggered during US golden time! Executing entry for US stock...');
-          this.scalpingStatus.isActive = true;
-          this.scalpingStatus.isWaitingMarketOpen = false;
-          this.saveScalpingStatus();
-          setTimeout(async () => {
-            await this.executeScalpingEntry('US');
-          }, 3000); // 랭킹 집계 즉시 포착
-        }
-      }
+  /**
+   * 정규장 개장 후 경과 분(Minute) 계산
+   * - 개장 전: 음수 (< 0)
+   * - 개장 직후 3분 이내: 0, 1, 2 (시초가 갭상승 노이즈/차익매물 대기 구간)
+   * - 개장 3분 경과: >= 3 (안정적 스캘핑 진입 가능 구간)
+   */
+  getMinutesSinceMarketOpen(market = 'KR') {
+    const now = new Date();
+    if (market === 'US') {
+      const etDate = tossClient.getEtDate(now);
+      const day = etDate.getDay();
+      if (day === 0 || day === 6 || tossClient.isUsHoliday(etDate)) return -1;
+      const etMinutes = etDate.getHours() * 60 + etDate.getMinutes();
+      // 미국 정규장 09:30 ET (570분) 기준
+      return etMinutes - 570;
+    } else {
+      const kstDate = tossClient.getKstDate(now);
+      const day = kstDate.getDay();
+      if (day === 0 || day === 6 || tossClient.isKrHoliday(kstDate)) return -1;
+      const kstMinutes = kstDate.getHours() * 60 + kstDate.getMinutes();
+      // 한국 정규장 09:00 KST (540분) 기준
+      return kstMinutes - 540;
     }
   }
 
@@ -2381,14 +2282,20 @@ class StockAutoTrader {
     const session = tossClient.getCurrentScalpingSession();
     const market = targetMarket || session.market;
     const isMarketOpen = tossClient.isRegularMarketOpen(market);
+    const minutesPassed = this.getMinutesSinceMarketOpen(market);
+    const isUs = market === 'US';
+    const marketLabel = isUs ? '미장(나스닥/S&P)' : '국장(KRX)';
+    const priceLimit = isUs ? '총 예산 $100 이하' : '총 예산 10만원 이하';
+    const targetStabilizeTime = isUs ? (session.isDst ? '오늘 밤 22:33' : '오늘 밤 23:33') : '아침 09:03';
 
-    if (!isMarketOpen) {
-      const isUs = market === 'US';
-      const promptText = session.nextOpenPrompt;
+    // 🌟 [개장 전이거나 개장 직후 3분 미만인 경우: 시초가 지지 확인 대기 모드 활성화]
+    if (!isMarketOpen || minutesPassed < 3) {
+      const promptText = (!isMarketOpen) ? session.nextOpenPrompt : targetStabilizeTime;
 
       this.scalpingStatus.isWaitingMarketOpen = true;
       this.scalpingStatus.waitingMarket = market;
       this.scalpingStatus.currentPosition = null;
+      this.hasNotifiedOpenWaiting = false;
       this.saveScalpingStatus();
 
       if (this.scalpingOpenWaitTimer) clearInterval(this.scalpingOpenWaitTimer);
@@ -2406,38 +2313,53 @@ class StockAutoTrader {
             this.saveScalpingStatus();
             return;
           }
-          console.log(`[ScalpingEngine] ${checkMarket} Market open detected! Executing scalping entry...`);
+
+          // 🌟 [스캘퍼 3분 대기 원칙] 개장 후 3분(180초) 동안 시초가 지지 및 차익실현 매물 소화 확인
+          const currentMinsPassed = this.getMinutesSinceMarketOpen(checkMarket);
+          if (currentMinsPassed < 3) {
+            if (!this.hasNotifiedOpenWaiting) {
+              this.hasNotifiedOpenWaiting = true;
+              console.log(`[ScalpingEngine] ${checkMarket} market open detected! Waiting 3 minutes (until ${targetStabilizeTime}) for opening range stabilization...`);
+              telegramBot.sendGeneralMessage(
+                `⏰ <b>[토스증권] ${checkMarket === 'US' ? '미장' : '국장'} 정규장 개장 감지! (시초가 3분 안정화 대기)</b>\n\n` +
+                `• <b>전략:</b> 개장 직후 갭상승 차익실현 매물 폭탄 회피 (3분 대기 원칙)\n` +
+                `• <b>진입 예정:</b> <b>${targetStabilizeTime}</b> (개장 3분 경과 안착 시점)\n` +
+                `• <b>진입 조건:</b> 당일 양봉(+0.3%~+8.5%) 지지 & 3X 레버리지 제외 거래대금 1위`
+              );
+            }
+            return; // 3분이 될 때까지 5초 주기로 계속 대기
+          }
+
+          console.log(`[ScalpingEngine] ${checkMarket} 3-minute stabilization complete! Executing scalping entry...`);
           const entryRes = await this.executeScalpingEntry(checkMarket);
           if (entryRes && entryRes.success) {
             clearInterval(this.scalpingOpenWaitTimer);
             this.scalpingOpenWaitTimer = null;
+            this.hasNotifiedOpenWaiting = false;
             this.scalpingStatus.isWaitingMarketOpen = false;
             this.saveScalpingStatus();
           } else {
-            console.log(`[ScalpingEngine] Live ${checkMarket} rankings data not ready yet... will retry in 5s`);
+            console.log(`[ScalpingEngine] Live ${checkMarket} eligible bullish candidates not ready yet... will retry in 5s`);
           }
         }
-      }, 5000); // 5초마다 개장 여부 폴링
-
-      const marketLabel = isUs ? '미장(나스닥/S&P)' : '국장(KRX)';
-      const priceLimit = isUs ? '총 예산 $100 이하' : '총 예산 10만원 이하';
+      }, 5000); // 5초마다 개장 및 3분 경과 여부 폴링
 
       telegramBot.sendGeneralMessage(
-        `⚡ <b>[토스증권 ${marketLabel} 개장 초단타 스캘핑 대기]</b>\n\n` +
-        `• <b>운용 모드:</b> ${marketLabel} 개장 자동 대기 활성화\n` +
-        `• <b>실행 예정:</b> ${promptText} 개장 직후\n` +
-        `• <b>대상 기준:</b> 개장 직후 실시간 거래대금 1위 (${priceLimit})\n` +
-        '• <b>원칙:</b> 예산 한도 내 자동 수량 시장가 매수 ➔ <b>30분 단위 타임디케이 청산</b>'
+        `⚡ <b>[토스증권 ${marketLabel} 초단타 스캘핑 대기]</b>\n\n` +
+        `• <b>운용 모드:</b> 시초가 3분 안정화 대기 가동\n` +
+        `• <b>실행 예정:</b> <b>${promptText}</b> (개장 3분 후 시초가 지지 확인 시점)\n` +
+        `• <b>진입 필터:</b> 당일 양봉(+0.3%~+8.5%) & 3X 레버리지 전면 차단 (${priceLimit})\n` +
+        '• <b>손절/익절:</b> 손절선 -2.0% (노이즈 방어) / 익절선 +2.5% (30분 타임디케이)'
       );
 
       return {
         success: true,
-        message: `${marketLabel} 개장 대기 모드가 활성화되었습니다. ${promptText} 개장 즉시 거래대금 1위 종목을 매수합니다.`,
+        message: `${marketLabel} 초단타 대기 모드가 활성화되었습니다. ${promptText} 시초가 3분 안착 확인 후 양봉 1위 종목으로 안전 진입합니다.`,
         status: this.getScalpingStatus()
       };
     }
 
-    // 장중: 지금 즉시 거래대금 1위 발굴 및 매수 진입
+    // 장중(이미 개장 3분 경과): 즉시 당일 양봉 유효 종목으로 발굴 및 진입
     this.scalpingStatus.isWaitingMarketOpen = false;
     this.saveScalpingStatus();
     const entryResult = await this.executeScalpingEntry(market);
@@ -2508,27 +2430,46 @@ class StockAutoTrader {
         };
       }
 
+      // 최대 3순위까지 순차적으로 주문 시도 (거부 시 차순위 자동 재시도)
       let buyRes = null;
       let targetStock = null;
       let quantity = 1;
-      let totalInvested = 0;
       let entryPrice = 0;
+      let totalInvested = 0;
+      let isSplitBuy = false;
+      let totalAffordableQty = 1;
+      let firstQty = 1;
+      let remainingSplitQty = 0;
 
-      // 최대 3순위까지 순차적으로 주문 시도 (거부 시 차순위 자동 재시도)
       const maxAttempts = Math.min(candidates.length, 3);
       for (let i = 0; i < maxAttempts; i++) {
         const cand = candidates[i];
         const candPrice = cand.currentPrice > 0 ? cand.currentPrice : (isUs ? 10.0 : 10000);
         const maxBudget = isUs ? 100.0 : 100000;
-        const candQty = Math.max(1, Math.floor(maxBudget / candPrice));
+        const totalQty = Math.max(1, Math.floor(maxBudget / candPrice));
 
-        console.log(`[ScalpingEngine] Attempting buy #${i + 1}/${maxAttempts}: ${cand.stockName} (${cand.symbol}) ${candQty}주 @ ${candPrice}...`);
+        // 🌟 10만원 이하로 2주 이상 매수 가능한 경우: 1차 50% 분할 매수 시도
+        let orderQty = totalQty;
+        if (totalQty >= 2) {
+          orderQty = Math.floor(totalQty / 2);
+          isSplitBuy = true;
+          totalAffordableQty = totalQty;
+          firstQty = orderQty;
+          remainingSplitQty = totalQty - orderQty;
+        } else {
+          isSplitBuy = false;
+          totalAffordableQty = 1;
+          firstQty = 1;
+          remainingSplitQty = 0;
+        }
+
+        console.log(`[ScalpingEngine] Attempting buy #${i + 1}/${maxAttempts}: ${cand.stockName} (${cand.symbol}) ${orderQty}주 (계획총량: ${totalQty}주, 분할매수: ${isSplitBuy}) @ ${candPrice}...`);
 
         const orderRes = await tossClient.submitOrder({
           symbol: cand.symbol,
           side: 'BUY',
           orderType: 'MARKET',
-          quantity: candQty,
+          quantity: orderQty,
           clientOrderId: `SCALP-${Date.now()}`
         });
 
@@ -2536,9 +2477,9 @@ class StockAutoTrader {
         if (orderRes && orderRes.success) {
           buyRes = orderRes;
           targetStock = cand;
-          quantity = candQty;
+          quantity = orderQty;
           entryPrice = candPrice;
-          totalInvested = isUs ? parseFloat((candPrice * candQty).toFixed(2)) : (candPrice * candQty);
+          totalInvested = isUs ? parseFloat((candPrice * orderQty).toFixed(2)) : (candPrice * orderQty);
           console.log(`[ScalpingEngine] Buy order SUCCESS for ${cand.stockName} (orderId: ${orderRes.orderId})`);
           break;
         } else {
@@ -2551,7 +2492,7 @@ class StockAutoTrader {
           telegramBot.sendGeneralMessage(
             `⚠️ <b>[토스증권 초단타 매수 주문 실패]</b>\n\n` +
             `• <b>시도 종목:</b> ${cand.stockName} (<code>${cand.symbol}</code>)\n` +
-            `• <b>수량:</b> ${candQty}주 (단가: ${candPrice.toLocaleString()}원)\n` +
+            `• <b>수량:</b> ${orderQty}주 (단가: ${candPrice.toLocaleString()}원)\n` +
             `• <b>거부 사유:</b> <code>${errMsg}</code>\n` +
             `${nextPrompt}`
           );
@@ -2573,10 +2514,10 @@ class StockAutoTrader {
       let targetPrice, stopPrice;
       if (isUs) {
         targetPrice = parseFloat((entryPrice * 1.025).toFixed(2));
-        stopPrice = parseFloat((entryPrice * 0.985).toFixed(2));
+        stopPrice = parseFloat((entryPrice * 0.980).toFixed(2));
       } else {
         targetPrice = Math.round(entryPrice * 1.025);
-        stopPrice = Math.round(entryPrice * 0.985);
+        stopPrice = Math.round(entryPrice * 0.980);
       }
 
       this.scalpingStatus.currentPosition = {
@@ -2591,7 +2532,7 @@ class StockAutoTrader {
         targetPrice,
         stopLossPrice: stopPrice,
         targetPct: 2.5,
-        stopLossPct: -1.5,
+        stopLossPct: -2.0,
         decayStage: 1,
         elapsedMinutes: 0,
         returnPct: 0.0,
@@ -2599,7 +2540,13 @@ class StockAutoTrader {
         orderId: buyRes.orderId || null,
         enteredAt: new Date().toISOString(),
         lastCheckedAt: new Date().toISOString(),
-        status: 'MONITORING'
+        status: 'MONITORING',
+        isSplitBuy,
+        splitStage: isSplitBuy ? 1 : 0,
+        totalPlannedQty: isSplitBuy ? totalAffordableQty : quantity,
+        firstQty: quantity,
+        remainingSplitQty: isSplitBuy ? remainingSplitQty : 0,
+        firstEntryPrice: entryPrice
       };
 
       this.scalpingStatus.isActive = true;
@@ -2611,23 +2558,28 @@ class StockAutoTrader {
       const formattedTarget = isUs ? `$${targetPrice}` : `${targetPrice.toLocaleString()}원`;
       const formattedStop = isUs ? `$${stopPrice}` : `${stopPrice.toLocaleString()}원`;
       const marketTitle = isUs ? '🇺🇸 [미장 거래대금 1위 초단타 스캘핑 진입!]' : '⚡ [국장 거래대금 1위 초단타 스캘핑 진입!]';
+      const splitBuyNotice = isSplitBuy
+        ? `\n• <b>분할 매수:</b> 1차 50% 우선 진입 (${quantity}/${totalAffordableQty}주) ➔ 잔여 ${remainingSplitQty}주는 눌림목(-0.5%) 또는 1분 경과 안착 시 2차 추가 매수`
+        : '';
 
       telegramBot.sendGeneralMessage(
         `${marketTitle}\n\n` +
         `• <b>종목명:</b> ${targetStock.stockName} (<code>${targetStock.symbol}</code>)\n` +
-        `• <b>매수 수량:</b> <b>${quantity}주</b> (단가: ${formattedEntry} / 총액: <b>${formattedTotalInvested}</b>)\n` +
+        `• <b>매수 수량:</b> <b>${quantity}주</b> (단가: ${formattedEntry} / 총액: <b>${formattedTotalInvested}</b>)` +
+        `${splitBuyNotice}\n` +
         `• <b>초기 목표가(+2.5%):</b> <b>${formattedTarget}</b>\n` +
-        `• <b>초기 손절가(-1.5%):</b> <b>${formattedStop}</b>\n` +
-        `• <b>동적 밴드 압축:</b> 30분(+1.5%/-1.0%) ➔ 60분(+0.8%/-0.5%) ➔ 90분/장마감 강제청산\n` +
+        `• <b>초기 손절가(-2.0%):</b> <b>${formattedStop}</b> (노이즈 방어 버퍼 적용)\n` +
+        `• <b>동적 밴드 압축:</b> 30분(+1.5%/-1.2%) ➔ 60분(+0.8%/-0.6%) ➔ 90분/장마감 강제청산\n` +
         `• <b>감시 모드:</b> 5초 실시간 시세 초고속 감시`
       );
 
       // 5초 감시 타이머 가동
       this.startScalpingMonitorTimer();
 
+      const splitMsg = isSplitBuy ? ` [1차 분할 매수 ${quantity}/${totalAffordableQty}주]` : '';
       return {
         success: true,
-        message: `${targetStock.stockName} (${targetStock.symbol}) ${quantity}주 (총액: ${formattedTotalInvested}) 초단타 매수 진입 완료 (+2.5% 익절 / -1.5% 손절 감시 시작)`,
+        message: `${targetStock.stockName} (${targetStock.symbol}) ${quantity}주 (총액: ${formattedTotalInvested})${splitMsg} 초단타 매수 진입 완료 (+2.5% 익절 / -1.5% 손절 감시 시작)`,
         position: this.scalpingStatus.currentPosition,
         status: this.getScalpingStatus()
       };
@@ -2722,18 +2674,18 @@ class StockAutoTrader {
 
       let stage = 1;
       let targetPct = 2.5;
-      let stopLossPct = -1.5;
+      let stopLossPct = -2.0;
 
       if (elapsedMinutes >= 90) {
         stage = 4; // 90분 이상 타임아웃 강제 청산
       } else if (elapsedMinutes >= 60) {
         stage = 3;
         targetPct = 0.8;
-        stopLossPct = -0.5;
+        stopLossPct = -0.6;
       } else if (elapsedMinutes >= 30) {
         stage = 2;
         targetPct = 1.5;
-        stopLossPct = -1.0;
+        stopLossPct = -1.2;
       }
 
       // 동적 목표가 및 손절가 계산
@@ -2871,9 +2823,114 @@ class StockAutoTrader {
         );
 
         await this.handleScalpingExit(pos, livePrice, pnl, pnlKrw, returnPct, 'STOP_LOSS', `⛔ 초단타 ${stopLossPct}% 손절 청산 (제${stage}단계, ${marketLabel})`, sellRes?.orderId, fxRate);
+        return;
+      }
+
+      // ==========================================
+      // 🌟 [포지션 유지 중: 2차 분할 매수 조건 검사 및 집행]
+      // 10만원 예산 내 2주 이상 매수 가능 종목으로 1차(50%) 진입 완료된 경우
+      // (1) 1차 진입가 대비 -0.5% 이하 눌림목 발생 시 평단가 인하 매수, OR
+      // (2) 1차 진입 후 1분(60초) 경과 시 안정적 안착으로 잔여 50% 분할 매수 집행
+      // ==========================================
+      if (
+        pos.isSplitBuy &&
+        pos.splitStage === 1 &&
+        pos.remainingSplitQty > 0 &&
+        !this.isExecutingSecondSplitBuy
+      ) {
+        const isDipTrigger = returnPct <= -0.5; // -0.5% 이하 눌림목
+        const isTimeTrigger = elapsedMinutes >= 1 && returnPct > -1.2; // 1분 경과 안정 안착
+
+        if (isDipTrigger || isTimeTrigger) {
+          const triggerReason = isDipTrigger
+            ? `📉 1차 진입가 대비 눌림목 발생(${returnPct}%) 평단가 최적화 매수`
+            : `⏳ 1차 진입 후 1분 경과 안정 안착(${returnPct}%) 잔여 물량 분할 매수`;
+
+          await this.executeSecondSplitBuy(pos, livePrice, triggerReason, isUs);
+        }
       }
     } catch (err) {
       console.error('[ScalpingEngine] checkScalpingPosition error:', err.message);
+    }
+  }
+
+  async executeSecondSplitBuy(pos, livePrice, triggerReason, isUs) {
+    if (this.isExecutingSecondSplitBuy) return;
+    this.isExecutingSecondSplitBuy = true;
+
+    try {
+      const secondQty = pos.remainingSplitQty;
+      const marketLabel = isUs ? '미장' : '국장';
+      console.log(`[ScalpingEngine] Executing 2nd split buy for ${pos.stockName} (${pos.symbol}): ${secondQty} shares @ ${livePrice} (${triggerReason})...`);
+
+      const orderRes = await tossClient.submitOrder({
+        symbol: pos.symbol,
+        side: 'BUY',
+        orderType: 'MARKET',
+        quantity: secondQty,
+        clientOrderId: `SCALP-SPLIT2-${Date.now()}`
+      });
+
+      if (orderRes && orderRes.success) {
+        const oldQty = pos.quantity;
+        const oldEntryPrice = pos.entryPrice;
+        const newTotalQty = oldQty + secondQty;
+        const secondPrice = livePrice > 0 ? livePrice : oldEntryPrice;
+
+        // 가중 평균 매수가(평단가) 계산
+        const rawAvg = ((oldEntryPrice * oldQty) + (secondPrice * secondQty)) / newTotalQty;
+        const newEntryPrice = isUs ? parseFloat(rawAvg.toFixed(2)) : Math.round(rawAvg);
+        const newTotalInvested = isUs ? parseFloat((newEntryPrice * newTotalQty).toFixed(2)) : (newEntryPrice * newTotalQty);
+
+        pos.quantity = newTotalQty;
+        pos.entryPrice = newEntryPrice;
+        pos.totalInvested = newTotalInvested;
+        pos.splitStage = 2;
+        pos.remainingSplitQty = 0;
+
+        // 신규 평단가 기준으로 목표가 및 손절가 재계산
+        let newTarget, newStop;
+        if (isUs) {
+          newTarget = parseFloat((newEntryPrice * (1 + pos.targetPct / 100)).toFixed(2));
+          newStop = parseFloat((newEntryPrice * (1 + pos.stopLossPct / 100)).toFixed(2));
+        } else {
+          newTarget = Math.round(newEntryPrice * (1 + pos.targetPct / 100));
+          newStop = Math.round(newEntryPrice * (1 + pos.stopLossPct / 100));
+        }
+        pos.targetPrice = newTarget;
+        pos.stopLossPrice = newStop;
+
+        this.saveScalpingStatus();
+
+        const formattedSecondPrice = isUs ? `$${secondPrice}` : `${secondPrice.toLocaleString()}원`;
+        const formattedNewEntry = isUs ? `$${newEntryPrice}` : `${newEntryPrice.toLocaleString()}원`;
+        const formattedNewTotal = isUs ? `$${newTotalInvested}` : `${newTotalInvested.toLocaleString()}원`;
+        const formattedNewTarget = isUs ? `$${newTarget}` : `${newTarget.toLocaleString()}원`;
+        const formattedNewStop = isUs ? `$${newStop}` : `${newStop.toLocaleString()}원`;
+
+        telegramBot.sendGeneralMessage(
+          `⚡ <b>[토스증권] ${marketLabel} 초단타 2차 분할 매수 체결 완료!</b>\n\n` +
+          `• <b>종목명:</b> ${pos.stockName} (<code>${pos.symbol}</code>)\n` +
+          `• <b>체결 사유:</b> ${triggerReason}\n` +
+          `• <b>2차 추가 매수:</b> <b>+${secondQty}주</b> (단가: ${formattedSecondPrice})\n` +
+          `• <b>최종 보유 수량:</b> <b>${newTotalQty}주 전량 체결</b> (총 투자금: ${formattedNewTotal})\n` +
+          `• <b>조정된 최종 평단가:</b> <b>${formattedNewEntry}</b>\n` +
+          `• <b>재설정 목표가(+${pos.targetPct}%):</b> <b>${formattedNewTarget}</b>\n` +
+          `• <b>재설정 손절가(${pos.stopLossPct}%):</b> <b>${formattedNewStop}</b>\n\n` +
+          `🎯 <i>평단가가 최적화되어 5초 실시간 동적 감시를 지속합니다.</i>`
+        );
+      } else {
+        const errMsg = orderRes?.error || `HTTP ${orderRes?.status || 'Unknown'}`;
+        console.error(`[ScalpingEngine] 2nd split buy rejected for ${pos.stockName}:`, errMsg);
+        // 주문 거부 시 추가 시도를 중단하고 기존 1차 물량만으로 정상 감시 진행
+        pos.splitStage = 2;
+        pos.remainingSplitQty = 0;
+        this.saveScalpingStatus();
+      }
+    } catch (e) {
+      console.error('[ScalpingEngine] executeSecondSplitBuy exception:', e.message);
+    } finally {
+      this.isExecutingSecondSplitBuy = false;
     }
   }
 
@@ -2993,9 +3050,56 @@ class StockAutoTrader {
   }
 
   /**
+   * 토론 판정 결과(승리 에이전트, 스코어, 테마 등) 분석 기반 AI 1픽 최적 전략 판정
+   */
+  determineRecommendedStrategy(debateItem) {
+    const judge = debateItem?.judge_decision || {};
+    const winnerPersona = (judge.winner_persona || '').trim();
+    const winnerScore = parseFloat(judge.winner_total_score || 0);
+    const winnerReason = (judge.winner_reason || '').trim();
+
+    // 1) 기술적분석가 승리 또는 거래량/모멘텀 돌파형
+    if (winnerPersona.includes('기술') || winnerPersona.includes('technical')) {
+      return {
+        strategyType: 'BREAKOUT_OPEN',
+        strategyTitle: '⚡ [AI 1픽] 초단타 시초가 돌파 매수',
+        shortTitle: '초단타 시초가 돌파',
+        badge: '🏆 AI 1픽 · 초단타',
+        reason: winnerReason || `기술적분석가 승리 (${winnerScore}점) - 5일선 돌파 및 개장 시초가 지지 확인 진입`,
+        winnerPersona: '기술적분석가',
+        winnerScore
+      };
+    }
+
+    // 2) 단가/차티스트 승리 (눌림목/가격 효율)
+    if (winnerPersona.includes('단가') || winnerPersona.includes('danka') || winnerPersona.includes('차티스트')) {
+      return {
+        strategyType: 'PULLBACK_SUPPORT',
+        strategyTitle: '📉 [AI 1픽] 단타 지지선 반등 매수',
+        shortTitle: '단타 지지선 반등',
+        badge: '🏆 AI 1픽 · 단타',
+        reason: winnerReason || `단가 에이전트 승리 (${winnerScore}점) - 지지선 터치 후 1틱 이상 호가 반등 확인 시 진입`,
+        winnerPersona: '단가/차티스트',
+        winnerScore
+      };
+    }
+
+    // 3) 성장론자, 신중론자, 주린이 등 기본 안전 분할형
+    return {
+      strategyType: 'SPLIT_ACCUMULATION',
+      strategyTitle: '🪜 [AI 1픽] 스윙 2회 분할 안심 매수',
+      shortTitle: '스윙 2회 분할',
+      badge: '🏆 AI 1픽 · 스윙',
+      reason: winnerReason || `${winnerPersona || '심의위원회'} 의결 (${winnerScore}점) - 1차 진입 + 지지선 반등 2차 분할`,
+      winnerPersona: winnerPersona || '심의위원회',
+      winnerScore
+    };
+  }
+
+  /**
    * 토론 내용(지지선, DART 수급, 테마 등) 분석 기반 3대 전략 가격 및 매도 계획 도출
    */
-  calculateDebateReservationStrategy(debateItem, strategyType, liveQuote, fxRate = 1350) {
+  calculateDebateReservationStrategy(debateItem, requestedStrategyType, liveQuote, fxRate = 1350) {
     const isKrStock = /^[0-9]{6}$/.test(debateItem.item_code);
     const currency = isKrStock ? 'KRW' : 'USD';
     const rawPrice = liveQuote && liveQuote.lastPrice > 0 ? liveQuote.lastPrice : parseFloat(String(debateItem.current_price || '0').replace(/[^0-9.]/g, ''));
@@ -3010,10 +3114,17 @@ class StockAutoTrader {
       usdPrice = parseFloat((krwPrice / fxRate).toFixed(2));
     }
 
-    // 10만원 이하 검증 (규칙 엄수)
-    if (krwPrice > 100000) {
+    // 10만원 이하 검증 (국장 종목만 1주 단위 엄수, 미장은 소수점 금액 매수 지원)
+    if (isKrStock && krwPrice > 100000) {
       throw new Error(`원화 환산가(${krwPrice.toLocaleString()}원)가 10만원 이하 매매 제한을 초과합니다.`);
     }
+
+    // AI 1픽 최적 전략 판정 및 전략 유형 정규화
+    const recommended = this.determineRecommendedStrategy(debateItem);
+    let strategyType = requestedStrategyType || recommended.strategyType;
+    if (strategyType === 'SMART_DIP') strategyType = 'PULLBACK_SUPPORT';
+    if (strategyType === 'MARKET_OPEN') strategyType = 'BREAKOUT_OPEN';
+    if (strategyType === 'SPLIT_BUY') strategyType = 'SPLIT_ACCUMULATION';
 
     // 토론 내 지지선 분석 (기술분석가, 단가 에이전트 발언 파싱)
     let dipPct = 1.5; // 기본 -1.5% 눌림목
@@ -3032,87 +3143,84 @@ class StockAutoTrader {
       }
     }
 
-    // 체결 후 적응형 매도(익절/손절) 전략 계산 (주도 테마 & 거래대금 연동)
+    // 2단계 분할 익절(+3.5% 50%매도) 및 본전 스탑 상향, 트레일링 스탑(-2.5%), 하드 손절(-5.0%)
     const judge = debateItem.judge_decision || {};
     const themes = Array.isArray(judge.daily_themes) ? judge.daily_themes : [];
-    const winnerScore = parseFloat(judge.winner_total_score || 0);
+    const isStrongThemeStock = themes.some(t => ['AI', '반도체', '원전', '전력', '로봇', '바이오'].includes(t)) || recommended.winnerScore >= 120;
 
-    // AI, 반도체, 전력, 원전 등 강력 테마나 점수 120점 이상 고득점 종목 판정
-    const hasCoreTheme = themes.some(t => ['AI', '반도체', '원전', '전력', '로봇', '바이오'].includes(t));
-    const isStrongThemeStock = hasCoreTheme || winnerScore >= 120;
-
-    let targetProfitPct = 3.0; // 기본 빠른 회전 모드 (+3.0%)
-    let stopLossPct = -2.0;    // 기본 단기 손절선 (-2.0%)
-    let exitStrategyTitle = '⚡ 단기 빠른 회전 모드 (익절 +3.0% / 손절 -2.0%)';
-
-    if (isStrongThemeStock) {
-      targetProfitPct = 12.0; // 강력 주도 테마 추세 스윙 모드 (+12.0%)
-      stopLossPct = -5.0;     // 손절 여유 (-5.0%)
-      exitStrategyTitle = '🚀 강력 주도 테마 추세 스윙 모드 (목표가 +12.0% / 손절선 -5.0%)';
-    }
+    let targetProfitPct = 3.5;  // 1차 분할 익절 기준 (+3.5%)
+    let stopLossPct = -5.0;     // 하드 손절선 (-5.0%)
+    let trailingStopPct = 2.5;  // 최고점 대비 트레일링 스탑 (-2.5%)
+    let exitStrategyTitle = '🎯 AI 2단계 익절 (+3.5% 50%청산 ➔ 본전스탑 ➔ 최고점 -2.5% 트레일링 ➔ 하드손절 -5%)';
 
     let orders = [];
 
-    if (strategyType === 'SMART_DIP') {
-      // 1️⃣ 스마트 눌림목 예약매수 (무조건 1주)
+    if (strategyType === 'PULLBACK_SUPPORT') {
+      // 1️⃣ 단타 지지선 눌림목 반등 확인 매수
       let buyPriceKrw = supportPrice > 0 ? supportPrice : Math.round(krwPrice * (1 - dipPct / 100));
       let buyPriceUsd = isKrStock ? 0 : parseFloat((usdPrice * (1 - dipPct / 100)).toFixed(2));
       const finalPrice = isKrStock ? buyPriceKrw : buyPriceUsd;
 
       orders.push({
         subIndex: 1,
-        title: '📉 스마트 눌림목 지정가 (1주)',
+        title: '📉 지지선 반등 확인 (1주)',
         price: finalPrice,
         priceKrw: buyPriceKrw,
         quantity: 1,
         orderType: 'LIMIT',
         desc: supportPrice > 0
-          ? `기술분석가 지지선(${supportPrice.toLocaleString()}원) 체결 예약 (1주)`
-          : `현재가 대비 -${dipPct}% 눌림목(${buyPriceKrw.toLocaleString()}원) 체결 예약 (1주)`
+          ? `토론 지지선(${supportPrice.toLocaleString()}원) 터치 후 1틱 반등 확인 시 발주 (1주)`
+          : `현재가 대비 -${dipPct}% 눌림목(${buyPriceKrw.toLocaleString()}원) 터치 후 1틱 반등 확인 시 발주 (1주)`
       });
-    } else if (strategyType === 'MARKET_OPEN') {
-      // 2️⃣ 시초가 우선 체결 예약매수 (무조건 1주)
+    } else if (strategyType === 'BREAKOUT_OPEN') {
+      // 2️⃣ 초단타 시초가 돌파 확인 매수
       orders.push({
         subIndex: 1,
-        title: '⚡ 시초가 우선 체결 (1주)',
+        title: '⚡ 시초가 안착 돌파 (1주)',
         price: rawPrice,
         priceKrw: krwPrice,
         quantity: 1,
         orderType: 'LIMIT',
-        desc: `개장(09:00) 시초가/동시호가 우선 체결 지정가(${krwPrice.toLocaleString()}원) 예약 (1주)`
+        desc: `09:00 개장 후 시초가 지지 & 양봉 안착 확인 시 즉시 발주 (1주, 30분 타임아웃)`
       });
-    } else if (strategyType === 'SPLIT_BUY') {
-      // 3️⃣ 2회 분할 예약매수 (각 1주)
-      // 1차: 현재가 수준 1주
+    } else if (strategyType === 'SPLIT_ACCUMULATION') {
+      // 3️⃣ 스윙 2회 분할 안심 매수
       orders.push({
         subIndex: 1,
-        title: '🪜 1차 진입 (현재가 1주)',
+        title: '🪜 1차 시초가 진입 (1주)',
         price: rawPrice,
         priceKrw: krwPrice,
         quantity: 1,
         orderType: 'LIMIT',
-        desc: `1차: 현재가 수준(${krwPrice.toLocaleString()}원) 즉시 진입 1주`
+        desc: `1차: 개장 시초가 안착 즉시 진입 1주 (${krwPrice.toLocaleString()}원)`
       });
 
-      // 2차: 지지선 또는 -2% 눌림목 1주
       const split2Krw = supportPrice > 0 ? supportPrice : Math.round(krwPrice * 0.98);
       const split2Usd = isKrStock ? 0 : parseFloat((usdPrice * 0.98).toFixed(2));
       orders.push({
         subIndex: 2,
-        title: '🪜 2차 지지선 눌림목 (1주)',
+        title: '🪜 2차 지지선 반등 (1주)',
         price: isKrStock ? split2Krw : split2Usd,
         priceKrw: split2Krw,
         quantity: 1,
         orderType: 'LIMIT',
-        desc: `2차: 지지선/눌림목 -2%(${split2Krw.toLocaleString()}원) 안전 분할 1주`
+        desc: `2차: 지지선/눌림목(${split2Krw.toLocaleString()}원) 반등 확인 시 안전 분할 1주`
       });
     } else {
       throw new Error(`지원하지 않는 예약 전략 유형입니다: ${strategyType}`);
     }
 
+    const stratTitles = {
+      'PULLBACK_SUPPORT': '📉 단타 지지선 반등 매수',
+      'BREAKOUT_OPEN': '⚡ 초단타 시초가 돌파 매수',
+      'SPLIT_ACCUMULATION': '🪜 스윙 2회 분할 안심 매수'
+    };
+
     return {
       strategyType,
-      strategyTitle: strategyType === 'SMART_DIP' ? '📉 스마트 눌림목 예약매수 (1주)' : (strategyType === 'MARKET_OPEN' ? '⚡ 시초가 우선 체결 (1주)' : '🪜 2회 분할 예약매수 (각 1주)'),
+      strategyTitle: stratTitles[strategyType] || strategyType,
+      isAiRecommended: strategyType === recommended.strategyType,
+      recommendedInfo: recommended,
       itemCode: debateItem.item_code,
       stockName: debateItem.stock_name,
       currency,
@@ -3122,8 +3230,13 @@ class StockAutoTrader {
       totalQuantity: orders.reduce((sum, o) => sum + o.quantity, 0),
       totalBudgetKrw: orders.reduce((sum, o) => sum + (o.priceKrw * o.quantity), 0),
       exitPlan: {
-        targetProfitPct,
-        stopLossPct,
+        firstTargetProfitPct: 3.5,
+        targetProfitPct: 3.5,
+        stopLossPct: -5.0,
+        trailingStopPct: 2.5,
+        breakEvenRaise: true,
+        basketMaxRatio: 0.10,
+        timeoutMinutes: 30,
         exitStrategyTitle,
         isStrongThemeStock,
         matchedThemes: themes.slice(0, 3)
@@ -3134,7 +3247,7 @@ class StockAutoTrader {
   /**
    * AI 끝장토론 예약매수 신청 접수 (관리자 전용)
    */
-  async createDebateReservation({ debateId, itemCode, strategyType, adminUser = 'admin' }) {
+  async createDebateReservation({ debateId, itemCode, strategyType, customPlan = null, adminUser = 'admin' }) {
     let debateList = [];
     if (fs.existsSync(this.debateLogsFile)) {
       debateList = JSON.parse(fs.readFileSync(this.debateLogsFile, 'utf8'));
@@ -3150,6 +3263,72 @@ class StockAutoTrader {
     const fxRate = await tossClient.fetchUsdkrwRate();
 
     const plan = this.calculateDebateReservationStrategy(debateItem, strategyType, liveQuote, fxRate);
+
+    // 🌟 [관리자 모달 맞춤 전략(customPlan) 적용] 토론에서 추출된 지지선/목표가/손절가 최우선 반영
+    if (customPlan) {
+      const isKrStock = /^[0-9]{6}$/.test(cleanCode);
+      const buyPrice = parseFloat(customPlan.buyPrice) || plan.orders[0].price;
+      const isFractional = !isKrStock && (customPlan.isFractional || customPlan.orderAmount);
+      const orderAmountUsd = isFractional ? (parseFloat(customPlan.orderAmount) || 50) : null;
+
+      let qty = parseInt(customPlan.quantity, 10) || 1;
+      let totalBudgetKrw = 0;
+
+      if (isFractional && orderAmountUsd > 0) {
+        totalBudgetKrw = Math.round(orderAmountUsd * fxRate);
+        qty = parseFloat((orderAmountUsd / buyPrice).toFixed(4));
+      } else {
+        const buyPriceKrw = isKrStock ? buyPrice : Math.round(buyPrice * fxRate);
+        totalBudgetKrw = buyPriceKrw * qty;
+      }
+
+      if (totalBudgetKrw > 100000) {
+        throw new Error(`총 매수 예정금액(${totalBudgetKrw.toLocaleString()}원)이 10만원 이하 매매 제한을 초과합니다.`);
+      }
+
+      const targetPrice = parseFloat(customPlan.targetPrice) || (isKrStock ? Math.round(buyPrice * 1.12) : parseFloat((buyPrice * 1.12).toFixed(2)));
+      const stopPrice = parseFloat(customPlan.stopLossPrice) || (isKrStock ? Math.round(buyPrice * 0.94) : parseFloat((buyPrice * 0.94).toFixed(2)));
+      const targetPct = parseFloat((((targetPrice - buyPrice) / buyPrice) * 100).toFixed(2));
+      const stopPct = parseFloat((((stopPrice - buyPrice) / buyPrice) * 100).toFixed(2));
+
+      if (isFractional && orderAmountUsd > 0) {
+        plan.orders = [{
+          subIndex: 1,
+          title: `🪙 소수점 시장가 매수 ($${orderAmountUsd})`,
+          price: buyPrice,
+          priceKrw: Math.round(buyPrice * fxRate),
+          quantity: qty,
+          orderAmount: orderAmountUsd,
+          orderType: 'MARKET',
+          desc: customPlan.strategyNote || `미국 주식 소수점 금액 매수 ($${orderAmountUsd}, 약 ${qty}주)`
+        }];
+        plan.totalQuantity = qty;
+        plan.totalBudgetKrw = totalBudgetKrw;
+        plan.strategyTitle = `🪙 소수점 금액 매수 ($${orderAmountUsd})`;
+      } else {
+        const buyPriceKrw = isKrStock ? buyPrice : Math.round(buyPrice * fxRate);
+        plan.orders = [{
+          subIndex: 1,
+          title: `🎯 토론 맞춤 지지선 지정가 (${qty}주)`,
+          price: buyPrice,
+          priceKrw: buyPriceKrw,
+          quantity: qty,
+          orderType: 'LIMIT',
+          desc: customPlan.strategyNote || `AI끝장토론 맞춤 지지선 예약 (1차 매수)`
+        }];
+        plan.totalQuantity = qty;
+        plan.totalBudgetKrw = totalBudgetKrw;
+      }
+
+      plan.exitPlan = {
+        targetProfitPct: targetPct,
+        stopLossPct: stopPct,
+        targetPrice: targetPrice,
+        stopLossPrice: stopPrice,
+        exitStrategyTitle: `🎯 맞춤 스윙 (목표가 ${targetPrice.toLocaleString()}${isKrStock ? '원' : '$'} (+${targetPct}%) / 손절가 ${stopPrice.toLocaleString()}${isKrStock ? '원' : '$'} (${stopPct}%))`,
+        title: `🎯 맞춤 스윙 (목표가 ${targetPrice.toLocaleString()}${isKrStock ? '원' : '$'} (+${targetPct}%) / 손절가 ${stopPrice.toLocaleString()}${isKrStock ? '원' : '$'} (${stopPct}%))`
+      };
+    }
 
     const reservations = this.getDebateReservations();
 
@@ -3185,24 +3364,104 @@ class StockAutoTrader {
     reservations.unshift(newReservation);
     this.saveDebateReservations(reservations);
 
-    // 텔레그램 알림 전송
-    const orderDescLines = plan.orders.map(o => `• <b>${o.title}:</b> ${o.price.toLocaleString()}원 × ${o.quantity}주 (${o.desc})`).join('\n');
-    telegramBot.sendGeneralMessage(
-      `🎯 <b>[토스증권 AI 끝장토론 예약매수 접수 완료]</b>\n\n` +
-      `• <b>종목명:</b> ${newReservation.stockName} (${newReservation.itemCode})\n` +
-      `• <b>전략 유형:</b> ${newReservation.strategyTitle}\n` +
-      `• <b>현재가:</b> ${newReservation.currentPriceKrw.toLocaleString()}원\n` +
-      `• <b>예약 발주 계획:</b>\n${orderDescLines}\n` +
-      `• <b>총 예약 수량:</b> ${newReservation.totalQuantity}주 (총 ${newReservation.totalBudgetKrw.toLocaleString()}원)\n` +
-      `• <b>체결 후 매도 전략:</b> ${plan.exitPlan.exitStrategyTitle}\n\n` +
-      `⏰ 개장 골든타임(08:00 프리마켓 또는 08:55 동시호가)에 토스증권 API로 자동 발주됩니다.`
-    );
+    // 🌟 [정규장 즉시 발주 vs 개장 전 예약 분기]
+    const now = new Date();
+    const isKr = newReservation.market === 'KR';
+    const unit = isKr ? '원' : '$';
 
-    return {
-      success: true,
-      reservation: newReservation,
-      message: `[${newReservation.stockName}] ${newReservation.strategyTitle} 예약매수가 성공적으로 접수되었습니다. 개장 시 자동 발주됩니다.`
-    };
+    let isMarketOpenNow = false;
+    if (isKr) {
+      isMarketOpenNow = tossClient.isRegularMarketOpen('KR');
+    } else {
+      // 미국장: 정규장(09:30~16:00 ET) 중 소수점 시장가 주문 가능 시간(09:30~15:00 ET) 고려
+      const et = tossClient.getEtDate(now);
+      const etDay = et.getDay();
+      const etMinutes = et.getHours() * 60 + et.getMinutes();
+      const isUsRegularDay = (etDay >= 1 && etDay <= 5 && !tossClient.isUsHoliday(et));
+      isMarketOpenNow = isUsRegularDay && (etMinutes >= 570 && etMinutes <= 900);
+    }
+
+    const orderDescLines = plan.orders.map(o => {
+      if (o.orderAmount) {
+        return `• <b>${o.title}:</b> $${o.orderAmount} 시장가 소수점 (약 ${o.quantity}주, ${o.desc})`;
+      }
+      return `• <b>${o.title}:</b> ${o.price.toLocaleString()}${unit} × ${o.quantity}주 (${o.desc})`;
+    }).join('\n');
+
+    let conditionMet = false;
+    let triggerReason = '';
+    const livePrice = liveQuote && liveQuote.lastPrice > 0 ? liveQuote.lastPrice : plan.currentPrice;
+    const openPrice = liveQuote && liveQuote.openPrice ? liveQuote.openPrice : plan.currentPrice;
+
+    if (isMarketOpenNow) {
+      if (newReservation.strategyType === 'BREAKOUT_OPEN') {
+        if (openPrice > 0 && livePrice >= openPrice && livePrice <= openPrice * 1.025) {
+          conditionMet = true;
+          triggerReason = `시초가(${openPrice.toLocaleString()}${unit}) 대비 안착 확인 즉시 발주`;
+        }
+      } else if (newReservation.strategyType === 'PULLBACK_SUPPORT') {
+        const supportPrice = newReservation.orders[0]?.price || Math.round(plan.currentPrice * 0.985);
+        if (livePrice <= supportPrice * 1.008 && livePrice >= supportPrice) {
+          conditionMet = true;
+          triggerReason = `지지선(${supportPrice.toLocaleString()}${unit}) 반등 확인 즉시 발주`;
+        }
+      } else {
+        conditionMet = true;
+        triggerReason = '1차 분할 즉시 진입 발주';
+      }
+    }
+
+    if (isMarketOpenNow && conditionMet) {
+      // 🚀 정규장 운영 중이며 조건 즉시 충족 -> 토스증권 API 즉시 발주 실행
+      console.log(`[DebateReservation] ⚡ 정규장 조건 충족 즉시 발주: ${newReservation.stockName} - ${triggerReason}`);
+      newReservation.triggerReason = triggerReason;
+      await this.executeReservationOrders(newReservation);
+      this.saveDebateReservations(reservations);
+
+      setTimeout(async () => {
+        try {
+          await this.checkReservationExecutions();
+        } catch (e) {}
+      }, 1500);
+
+      const isSuccess = newReservation.status === 'ORDER_SUBMITTED' || newReservation.status === 'FILLED';
+      const statusTitle = isKr ? '국내 정규장' : '미국 정규장';
+
+      return {
+        success: isSuccess,
+        isImmediate: true,
+        reservation: newReservation,
+        message: isSuccess
+          ? `[${newReservation.stockName}] ${statusTitle} 조건 충족(${triggerReason})으로 토스증권에 즉시 발주되었습니다.`
+          : `[${newReservation.stockName}] 토스증권 발주 실패: ${newReservation.error || '거부됨'}`
+      };
+    } else {
+      // ⏳ 개장 전 또는 정규장 중 조건 대기 -> 백엔드 실시간 감시 엔진 큐에 등록 (30분 타임아웃 감시)
+      const isDst = tossClient.isUsDstActive(now);
+      const usOpenTime = isDst ? '22:30' : '23:30';
+      const openScheduleDesc = isKr
+        ? (isMarketOpenNow ? '정규장 실시간 지지/안착 조건 감시 중 (30분 타임아웃)' : '오전 09:00 (KRX 개장 시 조건 감시 시작)')
+        : (isMarketOpenNow ? '미국 정규장 실시간 조건 감시 중 (30분 타임아웃)' : `밤 ${usOpenTime} KST (미국 정규장 개장 시 조건 감시 시작)`);
+
+      telegramBot.sendGeneralMessage(
+        `🎯 <b>[토스증권 AI 끝장토론 조건부 예약매수 접수 완료]</b>\n\n` +
+        `• <b>종목명:</b> ${newReservation.stockName} (${newReservation.itemCode})\n` +
+        `• <b>시장:</b> ${isKr ? '국내(KR)' : `미국(US, ${isDst ? '서머타임 적용' : '표준시'})`}\n` +
+        `• <b>전략:</b> ${newReservation.strategyTitle}\n` +
+        `• <b>현재가:</b> ${newReservation.currentPrice.toLocaleString()}${unit} ${!isKr ? `(약 ${newReservation.currentPriceKrw.toLocaleString()}원)` : ''}\n` +
+        `• <b>발주 계획:</b>\n${orderDescLines}\n` +
+        `• <b>총 예약 수량:</b> 약 ${newReservation.totalQuantity}주 (총 약 ${newReservation.totalBudgetKrw.toLocaleString()}원)\n` +
+        `• <b>청산 원칙:</b> ${plan.exitPlan.exitStrategyTitle}\n\n` +
+        `⏰ <b>실시간 감시:</b> ${openScheduleDesc} (30분 내 조건 미충족 시 안전 자동 취소)`
+      );
+
+      return {
+        success: true,
+        isImmediate: false,
+        reservation: newReservation,
+        message: `[${newReservation.stockName}] ${newReservation.strategyTitle} 조건부 예약매수가 접수되었습니다. (${openScheduleDesc})`
+      };
+    }
   }
 
   /**
@@ -3253,7 +3512,115 @@ class StockAutoTrader {
   }
 
   /**
-   * 개장 골든타임 시 예약 큐에서 대기 중인 주문 자동 발주
+   * 토스증권 API로 예약 주문 실제 발주 실행 (정규장 즉시 발주 및 개장 스케줄러 공용)
+   */
+  async executeReservationOrders(res) {
+    console.log(`[DebateReservation] 🚀 주문 발주 시작: ${res.stockName} (${res.itemCode}) - ${res.strategyTitle}`);
+    const orderResults = [];
+
+    for (const ord of res.orders) {
+      try {
+        const submitParams = {
+          symbol: res.itemCode,
+          side: 'BUY',
+          clientOrderId: `RES-${res.id.slice(-6)}-${ord.subIndex}`
+        };
+
+        if (ord.orderAmount && Number(ord.orderAmount) > 0) {
+          // 🌟 소수점 금액 시장가 매수 (MARKET)
+          submitParams.orderType = 'MARKET';
+          submitParams.orderAmount = ord.orderAmount;
+        } else {
+          submitParams.orderType = ord.orderType || 'LIMIT';
+          submitParams.quantity = ord.quantity || 1;
+          if (submitParams.orderType === 'LIMIT') {
+            submitParams.price = ord.price || ord.priceKrw;
+          }
+        }
+
+        const submitRes = await tossClient.submitOrder(submitParams);
+
+        if (!submitRes || !submitRes.success || !submitRes.orderId) {
+          const errMsg = submitRes?.error || '토스증권 API 발주 거부 (소수점 미지원 종목 또는 증거금 부족)';
+          console.error(`[DebateReservation] Order rejected for ${res.stockName}:`, errMsg);
+          orderResults.push({
+            subIndex: ord.subIndex,
+            title: ord.title,
+            error: errMsg,
+            isSuccess: false
+          });
+        } else {
+          orderResults.push({
+            subIndex: ord.subIndex,
+            title: ord.title,
+            orderId: submitRes.orderId,
+            clientOrderId: submitRes.clientOrderId,
+            submittedPrice: ord.price,
+            quantity: ord.quantity,
+            orderAmount: ord.orderAmount,
+            submittedAt: new Date().toISOString(),
+            isSuccess: true
+          });
+        }
+      } catch (ordErr) {
+        console.error(`[DebateReservation] Order submit failed for ${res.stockName}:`, ordErr.message);
+        orderResults.push({
+          subIndex: ord.subIndex,
+          title: ord.title,
+          error: ordErr.message,
+          isSuccess: false
+        });
+      }
+    }
+
+    const anySuccess = orderResults.some(o => o.isSuccess);
+    if (anySuccess) {
+      res.status = 'ORDER_SUBMITTED';
+      res.orderResults = orderResults;
+      res.submittedAt = new Date().toISOString();
+
+      telegramBot.sendGeneralMessage(
+        `🚀 <b>[토스증권 예약매수 발주 완료]</b>\n\n` +
+        `• <b>종목명:</b> ${res.stockName} (${res.itemCode})\n` +
+        `• <b>시장:</b> ${res.market === 'US' ? '미국(US)' : '국내(KR)'}\n` +
+        `• <b>전략:</b> ${res.strategyTitle}\n` +
+        `• <b>발주 주문 번호:</b> ${orderResults.filter(o => o.orderId).map(o => o.orderId).join(', ')}\n` +
+        `• <b>체결 감시:</b> 체결 완료 시 자동 익절/손절 운용 포지션으로 인계됩니다.`
+      );
+    } else {
+      res.status = 'FAILED';
+      res.orderResults = orderResults;
+      res.failedAt = new Date().toISOString();
+      const firstErr = orderResults.map(o => o.error).filter(Boolean)[0] || '발주 거부';
+      res.error = firstErr;
+
+      const isUs = res.market === 'US';
+      let tipMsg = '';
+      if (isUs) {
+        tipMsg = '💡 미국 주식 소수점 매매 미지원 종목이거나 호가 제한일 수 있습니다. (필요 시 1주 온주 매수 검토)';
+      } else {
+        if (firstErr.includes('invalid-token') || firstErr.includes('토큰')) {
+          tipMsg = '💡 토스증권 API 인증 토큰을 자동으로 재갱신했습니다. 잠시 후 다시 시도해 주세요.';
+        } else if (firstErr.includes('잔고') || firstErr.includes('증거금') || firstErr.includes('부족')) {
+          tipMsg = '💡 토스증권 계좌의 원화 예수금 잔고를 확인해 주세요.';
+        } else {
+          tipMsg = '💡 정규장 호가 범위 또는 종목 거래 상태를 확인해 주세요.';
+        }
+      }
+
+      telegramBot.sendGeneralMessage(
+        `⚠️ <b>[토스증권 예약매수 발주 실패 안내]</b>\n\n` +
+        `• <b>종목명:</b> ${res.stockName} (${res.itemCode}) [${isUs ? '미국(US)' : '국내(KR)'}]\n` +
+        `• <b>사유:</b> ${firstErr}\n` +
+        `${tipMsg}`
+      );
+    }
+
+    return anySuccess;
+  }
+
+  /**
+   * 개장 및 실시간 감시 엔진: 대기 중인 예약 주문의 조건 감시(시초가 안착, 지지선 반등) 및 30분 타임아웃 처리
    */
   async processScheduledReservations() {
     const reservations = this.getDebateReservations();
@@ -3262,71 +3629,117 @@ class StockAutoTrader {
 
     const now = new Date();
     const kst = tossClient.getKstDate(now);
-    const day = kst.getDay();
-    if (day === 0 || day === 6) return; // 주말
+    const kstDay = kst.getDay();
+    const kstMinutes = kst.getHours() * 60 + kst.getMinutes();
 
-    const h = kst.getHours();
-    const m = kst.getMinutes();
-    const totalMinutes = h * 60 + m;
+    // 국장 정규장: 09:00(540) ~ 15:20(920)
+    const isKrTradingDay = (kstDay >= 1 && kstDay <= 5 && !tossClient.isKrHoliday(kst));
+    const isKrMarketOpen = isKrTradingDay && (kstMinutes >= 540 && kstMinutes <= 920);
 
-    // 국장 발주 허용 시간: 08:00~08:50 (NXT 프리마켓) 또는 08:50~15:20 (KRX 개장/정규장)
-    const isKrOrderWindow = (totalMinutes >= 480 && totalMinutes <= 920);
+    // 미장 정규장: 09:30(570) ~ 15:00(900) ET
+    const et = tossClient.getEtDate(now);
+    const etDay = et.getDay();
+    const etMinutes = et.getHours() * 60 + et.getMinutes();
+    const isUsTradingDay = (etDay >= 1 && etDay <= 5 && !tossClient.isUsHoliday(et));
+    const isUsMarketOpen = isUsTradingDay && (etMinutes >= 570 && etMinutes <= 900);
 
+    let changed = false;
     for (const res of pendingList) {
-      if (res.market === 'KR' && isKrOrderWindow) {
-        console.log(`[DebateReservation] 🚀 예약 주문 자동 발주 시작: ${res.stockName} (${res.itemCode}) - ${res.strategyTitle}`);
-        const orderResults = [];
+      const isKr = res.market === 'KR';
+      const isMarketOpen = isKr ? isKrMarketOpen : isUsMarketOpen;
 
-        for (const ord of res.orders) {
-          try {
-            const submitRes = await tossClient.submitOrder({
-              symbol: res.itemCode,
-              side: 'BUY',
-              orderType: ord.orderType || 'LIMIT',
-              quantity: ord.quantity || 1,
-              price: ord.price || ord.priceKrw,
-              clientOrderId: `RES-${res.id.slice(-6)}-${ord.subIndex}`
-            });
+      if (!isMarketOpen) {
+        // 개장 전 또는 마감 후에는 조건 감시를 보류하고 대기 유지
+        continue;
+      }
 
-            orderResults.push({
-              subIndex: ord.subIndex,
-              title: ord.title,
-              orderId: submitRes.orderId,
-              clientOrderId: submitRes.clientOrderId,
-              submittedPrice: ord.price,
-              quantity: ord.quantity,
-              submittedAt: new Date().toISOString(),
-              isSuccess: true
-            });
-          } catch (ordErr) {
-            console.error(`[DebateReservation] Order submit failed for ${res.stockName}:`, ordErr.message);
-            orderResults.push({
-              subIndex: ord.subIndex,
-              title: ord.title,
-              error: ordErr.message,
-              isSuccess: false
-            });
+      // 1. 30분 타임아웃 감시 (개장 30분 내 조건 미충족 시 안전 자동 취소)
+      const createdAtMs = new Date(res.createdAt).getTime();
+      let openTimeTodayMs = 0;
+      if (isKr) {
+        const openDate = new Date(kst);
+        openDate.setHours(9, 0, 0, 0);
+        openTimeTodayMs = openDate.getTime();
+      } else {
+        const openDate = new Date(et);
+        openDate.setHours(9, 30, 0, 0);
+        openTimeTodayMs = openDate.getTime();
+      }
+      const monitorStartMs = Math.max(createdAtMs, openTimeTodayMs);
+      const elapsedMinutes = (Date.now() - monitorStartMs) / (60 * 1000);
+
+      const timeoutLimit = res.exitPlan?.timeoutMinutes || 30;
+      if (elapsedMinutes >= timeoutLimit) {
+        console.log(`[DebateReservation] ⏳ 30분 타임아웃 만료로 주문 자동 취소: ${res.stockName} (${res.itemCode})`);
+        res.status = 'CANCELLED';
+        res.cancelledAt = new Date().toISOString();
+        res.cancelReason = '30분간 진입 조건(시초가 안착 또는 지지선 반등) 미충족으로 안전 자동 취소';
+        changed = true;
+
+        telegramBot.sendGeneralMessage(
+          `⏳ <b>[토스증권 AI 끝장토론 예약 주문 안전 자동 취소 안내]</b>\n\n` +
+          `• <b>종목명:</b> ${res.stockName} (${res.itemCode})\n` +
+          `• <b>전략:</b> ${res.strategyTitle}\n` +
+          `• <b>사유:</b> 개장 후 30분 동안 진입 조건(시초가 안착/지지선 반등) 미충족\n` +
+          `• <b>리스크 통제:</b> 급락 리스크 방지 및 추세 수급 원칙에 따라 주문을 취소하고 자금을 안전하게 보존합니다.`
+        );
+        continue;
+      }
+
+      // 2. 실시간 시세 조회 및 조건부 발주 트리거 판정
+      try {
+        const quote = await tossClient.getQuote(res.itemCode);
+        if (!quote || quote.lastPrice <= 0) continue;
+
+        const livePrice = quote.lastPrice;
+        const openPrice = quote.openPrice || quote.basePrice || res.currentPrice;
+        const prevPrice = res.lastTrackedPrice || livePrice;
+        res.lastTrackedPrice = livePrice;
+
+        let conditionMet = false;
+        let triggerReason = '';
+
+        const stratType = res.strategyType;
+
+        if (stratType === 'BREAKOUT_OPEN') {
+          // 시초가 안착 돌파: 시초가 이상 지지 (+0.0% ~ +2.5%) 확인 시 진입
+          if (openPrice > 0 && livePrice >= openPrice && livePrice <= openPrice * 1.025) {
+            conditionMet = true;
+            triggerReason = `시초가(${openPrice.toLocaleString()}원) 대비 지지 및 안착 확인 (${livePrice.toLocaleString()}원)`;
           }
+        } else if (stratType === 'PULLBACK_SUPPORT') {
+          // 지지선 눌림목 반등: 지지선 터치 후 1틱 이상 호가 반등 확인 시 진입
+          const targetSupport = res.orders[0]?.price || Math.round(res.currentPrice * 0.985);
+          if (livePrice <= targetSupport * 1.008) {
+            if (livePrice >= prevPrice && livePrice >= targetSupport) {
+              conditionMet = true;
+              triggerReason = `지지선(${targetSupport.toLocaleString()}원) 터치 후 반등 확인 (${livePrice.toLocaleString()}원)`;
+            }
+          }
+        } else if (stratType === 'SPLIT_ACCUMULATION') {
+          // 2회 분할 매수: 개장 시 1차 시초가 즉시 진입
+          conditionMet = true;
+          triggerReason = `1차 시초가 분할 진입 조건 충족 (${livePrice.toLocaleString()}원)`;
+        } else {
+          // 기본 조건 충족
+          conditionMet = true;
+          triggerReason = `기본 진입 조건 충족 (${livePrice.toLocaleString()}원)`;
         }
 
-        const anySuccess = orderResults.some(o => o.isSuccess);
-        if (anySuccess) {
-          res.status = 'ORDER_SUBMITTED';
-          res.orderResults = orderResults;
-          res.submittedAt = new Date().toISOString();
-
-          telegramBot.sendGeneralMessage(
-            `🚀 <b>[토스증권 예약매수 자동 발주 완료]</b>\n\n` +
-            `• <b>종목명:</b> ${res.stockName} (${res.itemCode})\n` +
-            `• <b>전략:</b> ${res.strategyTitle}\n` +
-            `• <b>발주 주문 번호:</b> ${orderResults.filter(o => o.orderId).map(o => o.orderId).join(', ')}\n` +
-            `• <b>체결 감시:</b> 체결 완료 시 자동 익절/손절 매매일지로 인계됩니다.`
-          );
+        if (conditionMet) {
+          console.log(`[DebateReservation] 🚀 체결 조건 충족 발주: ${res.stockName} - ${triggerReason}`);
+          res.triggerReason = triggerReason;
+          await this.executeReservationOrders(res);
+          changed = true;
         }
+      } catch (qErr) {
+        console.warn(`[DebateReservation] Quote check error for ${res.stockName}:`, qErr.message);
       }
     }
 
-    this.saveDebateReservations(reservations);
+    if (changed) {
+      this.saveDebateReservations(reservations);
+    }
   }
 
   /**
@@ -3346,10 +3759,20 @@ class StockAutoTrader {
         if (!ord.orderId) continue;
         try {
           const detail = await tossClient.getOrderDetail(ord.orderId);
-          if (detail && (detail.status === 'FILLED' || detail.executedQuantity > 0)) {
+          const isOrderFilled = detail && (
+            detail.status === 'FILLED' ||
+            detail.orderStatus === 'FILLED' ||
+            detail.executionStatus === 'FILLED' ||
+            parseFloat(detail.executedQuantity || 0) > 0 ||
+            parseFloat(detail.filledQuantity || 0) > 0 ||
+            parseFloat(detail.execution?.filledQuantity || 0) > 0
+          );
+
+          if (isOrderFilled) {
             isFilled = true;
-            filledQty += (detail.executedQuantity || ord.quantity || 1);
-            filledPrice = detail.averageExecutionPrice || ord.submittedPrice;
+            const execQty = parseFloat(detail.executedQuantity || detail.filledQuantity || detail.execution?.filledQuantity || ord.quantity || 1);
+            filledQty += execQty;
+            filledPrice = parseFloat(detail.averageExecutionPrice || detail.averageFilledPrice || detail.execution?.averageFilledPrice || ord.submittedPrice || ord.price || 0);
             ord.status = 'FILLED';
             ord.filledPrice = filledPrice;
           }
@@ -3407,13 +3830,17 @@ class StockAutoTrader {
           const isKr = res.market === 'KR';
           const fx = await tossClient.fetchUsdkrwRate();
           const exitPlan = res.exitPlan || {};
+          const targetPrice = (exitPlan.targetPrice > 0)
+            ? exitPlan.targetPrice
+            : (isKr
+              ? Math.round(filledPrice * (1 + (exitPlan.targetProfitPct || 10.0) / 100))
+              : parseFloat((filledPrice * (1 + (exitPlan.targetProfitPct || 10.0) / 100)).toFixed(2)));
 
-          const targetPrice = isKr
-            ? Math.round(filledPrice * (1 + (exitPlan.targetProfitPct || 3.0) / 100))
-            : parseFloat((filledPrice * (1 + (exitPlan.targetProfitPct || 3.0) / 100)).toFixed(2));
-          const stopLossPrice = isKr
-            ? Math.round(filledPrice * (1 + (exitPlan.stopLossPct || -2.0) / 100))
-            : parseFloat((filledPrice * (1 + (exitPlan.stopLossPct || -2.0) / 100)).toFixed(2));
+          const stopLossPrice = (exitPlan.stopLossPrice > 0)
+            ? exitPlan.stopLossPrice
+            : (isKr
+              ? Math.round(filledPrice * (1 + (exitPlan.stopLossPct || -6.0) / 100))
+              : parseFloat((filledPrice * (1 + (exitPlan.stopLossPct || -6.0) / 100)).toFixed(2)));
 
           const existingPos = journal.reservationPositions.find(p => p.stockCode === res.itemCode);
           if (!existingPos) {
@@ -3521,23 +3948,72 @@ class StockAutoTrader {
           const isKr = pos.market === 'KR';
           pos.currentPriceKrw = isKr ? livePrice : Math.round(livePrice * fxRate);
 
+          // 최고점(Peak High) 갱신 추적 (트레일링 스탑용)
+          if (!pos.peakPrice || livePrice > pos.peakPrice) {
+            pos.peakPrice = livePrice;
+          }
+
           const pnlPerShare = livePrice - pos.entryPrice;
           const returnPct = parseFloat(((pnlPerShare / pos.entryPrice) * 100).toFixed(2));
           pos.returnPct = returnPct;
           pos.unrealizedPnl = parseFloat((pnlPerShare * pos.quantity).toFixed(2));
           pos.unrealizedPnlKrw = isKr ? Math.round(pos.unrealizedPnl) : Math.round(pos.unrealizedPnl * fxRate);
 
-          // 1. 목표가 도달 익절 매도 판정
-          const isTargetReached = (livePrice >= pos.targetPrice);
-          // 2. 손절선 도달 손절 매도 판정
+          // 🌟 1단계: +3.5% 1차 분할 익절 및 본전 스탑 상향
+          const targetProfitPct = pos.targetProfitPct || 3.5;
+          if (!pos.firstTpTaken && returnPct >= targetProfitPct) {
+            const totalQty = pos.quantity;
+            const sellQty = totalQty > 1 ? Math.floor(totalQty / 2) : 0; // 2주 이상이면 50% 분할 매도
+
+            if (sellQty > 0) {
+              console.log(`[DebateReservation] 🎯 1차 익절(+${returnPct}%): ${pos.stockName} ${sellQty}주 분할 매도 발주`);
+              try {
+                await tossClient.submitOrder({
+                  symbol: pos.stockCode,
+                  side: 'SELL',
+                  orderType: 'MARKET',
+                  quantity: sellQty,
+                  clientOrderId: `TP1-${pos.stockCode}-${Date.now().toString().slice(-6)}`
+                });
+                pos.quantity -= sellQty;
+                pos.partialSoldQty = (pos.partialSoldQty || 0) + sellQty;
+              } catch (tpErr) {
+                console.error(`[DebateReservation] TP1 sell failed for ${pos.stockName}:`, tpErr.message);
+              }
+            }
+
+            pos.firstTpTaken = true;
+            pos.isBreakEvenRaised = true;
+            pos.stopLossPrice = pos.entryPrice; // 본전 보호: 손절가를 매수가로 즉시 상향!
+
+            telegramBot.sendGeneralMessage(
+              `🎯 <b>[토스증권 AI 1차 분할 익절 및 본전 보호 발동]</b>\n\n` +
+              `• <b>종목명:</b> ${pos.stockName} (${pos.stockCode})\n` +
+              `• <b>수익률:</b> <b>+${returnPct}%</b> (현재가: ${livePrice.toLocaleString()}원)\n` +
+              `• <b>1차 익절 실행:</b> ${sellQty > 0 ? `${sellQty}주 분할 매도 완료 (잔여 ${pos.quantity}주)` : '1주 보유로 잔여 추세 추종 유지'}\n` +
+              `• <b>🛡️ 본전 보호 발동:</b> 손절가를 매수가(${pos.entryPrice.toLocaleString()}원)로 상향하여 <b>원금 손실 위험 0%</b> 확정!\n` +
+              `• <b>⚡ 트레일링 스탑 가동:</b> 최고가(${pos.peakPrice.toLocaleString()}원) 대비 -2.5% 하락 시 잔여 물량 전량 청산`
+            );
+          }
+
+          // 🌟 2단계: 트레일링 스탑 (1차 익절 후 최고점 대비 -2.5% 하락 감지 시 잔여 물량 전량 시장가 매도)
+          let isTrailingStop = false;
+          if (pos.firstTpTaken && pos.peakPrice > 0) {
+            const dropFromPeak = parseFloat((((livePrice - pos.peakPrice) / pos.peakPrice) * 100).toFixed(2));
+            if (dropFromPeak <= -2.5) {
+              isTrailingStop = true;
+            }
+          }
+
+          // 🌟 3단계: 손절 판정 (하드 손절 -5.0% 또는 본전 상향 스탑 도달 시)
           const isStopLossReached = (livePrice <= pos.stopLossPrice);
 
-          if (isTargetReached || isStopLossReached) {
-            const isProfit = isTargetReached;
-            const reasonCode = isProfit ? 'TAKE_PROFIT' : 'STOP_LOSS';
-            const reasonTitle = isProfit
-              ? `🎯 AI 끝장토론 예약매매 목표가(+${pos.targetProfitPct}%) 익절 청산`
-              : `⛔ AI 끝장토론 예약매매 손절선(${pos.stopLossPct}%) 손절 청산`;
+          if (isTrailingStop || isStopLossReached) {
+            const isProfit = returnPct > 0;
+            const reasonCode = isTrailingStop ? 'TRAILING_STOP' : (pos.isBreakEvenRaised ? 'BREAK_EVEN_STOP' : 'HARD_STOP_LOSS');
+            const reasonTitle = isTrailingStop
+              ? `⚡ 최고점(${pos.peakPrice.toLocaleString()}원) 대비 -2.5% 트레일링 스탑 청산`
+              : (pos.isBreakEvenRaised ? `🛡️ 본전 보호 스탑 발동 청산 (원금 보존)` : `⛔ -5.0% 하드 손절 청산`);
 
             console.log(`[DebateReservation] ${reasonTitle}: ${pos.stockName} (${returnPct}%, 현재가 ${livePrice}원)`);
 
@@ -3598,7 +4074,7 @@ class StockAutoTrader {
                 sellOrderId: sellOrderId || null,
                 startedAt: pos.enteredAt,
                 closedAt: new Date().toISOString(),
-                note: `AI 끝장토론 [${pos.strategyTitle || '예약매수'}] 자동 청산 (${pos.exitStrategyTitle || '적응형 매도'})`
+                note: `AI 끝장토론 [${pos.strategyTitle || '예약매수'}] 자동 청산 (${reasonTitle})`
               };
               journal.history.unshift(journalItem);
             }

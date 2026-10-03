@@ -71,10 +71,6 @@ function Get-GeminiApiKey {
     return $null
 }
 
-$stockBlogDataFile = Join-Path $dataDir "stockBlog.json"
-$stockBlogCacheData = $null
-$stockBlogCacheTime = [DateTime]::MinValue
-
 function Get-EnvValue([string]$keyName, [string]$defaultValue = "") {
     if ([System.Environment]::GetEnvironmentVariable($keyName)) {
         return [System.Environment]::GetEnvironmentVariable($keyName)
@@ -99,105 +95,6 @@ function Get-EnvValue([string]$keyName, [string]$defaultValue = "") {
         }
     }
     return $defaultValue
-}
-
-function Get-StockBlogPosts([bool]$forceRefresh = $false) {
-    $now = [DateTime]::UtcNow
-    if (-not $forceRefresh -and $null -ne $script:stockBlogCacheData -and (($now - $script:stockBlogCacheTime).TotalMinutes -lt 10)) {
-        return $script:stockBlogCacheData
-    }
-
-    $clientId = Get-EnvValue "NAVER_CLIENT_ID" "xQmsSXkkF6EMM8wRnbb2"
-    $clientSecret = Get-EnvValue "NAVER_CLIENT_SECRET" "sJH2ymerHP"
-    $blogId = Get-EnvValue "NAVER_BLOG_ID" "food-bang"
-
-    $items = @()
-    $blogTitle = "배고픈투자씨의 데일리 증시분위기"
-    $blogUrl = "https://blog.naver.com/$blogId"
-    $usedSource = "rss"
-    $apiStatus = "OK"
-
-    # 1. Primary: Naver Official RSS Feed (100% accurate food-bang posts)
-    try {
-        $rssUrl = "https://rss.blog.naver.com/$blogId.xml"
-        $rawRss = (Invoke-WebRequest -Uri $rssUrl -UseBasicParsing -TimeoutSec 10).Content
-        [xml]$xml = $rawRss
-        $channel = $xml.rss.channel
-        if ($channel.title) {
-            $blogTitle = if ($channel.title.'#cdata-section') { $channel.title.'#cdata-section' } else { $channel.title.InnerText }
-        }
-        if ($channel.link) {
-            $blogUrl = if ($channel.link.'#cdata-section') { $channel.link.'#cdata-section' } else { $channel.link.InnerText }
-        }
-
-        foreach ($item in $channel.item) {
-            $title = if ($item.title.'#cdata-section') { $item.title.'#cdata-section' } else { $item.title.InnerText }
-            $link = if ($item.link.'#cdata-section') { $item.link.'#cdata-section' } else { $item.link.InnerText }
-            $pubDate = $item.pubDate
-            $category = if ($item.category.'#cdata-section') { $item.category.'#cdata-section' } else { $item.category.InnerText }
-            $desc = if ($item.description.'#cdata-section') { $item.description.'#cdata-section' } else { $item.description.InnerText }
-            
-            $cleanDesc = $desc -replace '<[^>]+>', ' ' -replace '&quot;', '"' -replace '&amp;', '&' -replace '&lt;', '<' -replace '&gt;', '>' -replace '\s+', ' '
-            $cleanDesc = $cleanDesc.Trim()
-
-            $formattedDate = ""
-            try {
-                $dt = [DateTime]::Parse($pubDate)
-                $formattedDate = $dt.ToString("yyyy.MM.dd HH:mm")
-            } catch {
-                $formattedDate = $pubDate
-            }
-
-            $items += [PSCustomObject]@{
-                title = $title
-                link = $link
-                pubDate = $pubDate
-                formattedDate = $formattedDate
-                category = if ($category) { $category } else { "증시분위기" }
-                description = if ($cleanDesc.Length -gt 250) { $cleanDesc.Substring(0, 250) + "..." } else { $cleanDesc }
-                author = "배고픈투자씨"
-            }
-        }
-    }
-    catch {
-        Write-Host " [Stock Blog RSS Fetch Error] $_" -ForegroundColor Yellow
-        $apiStatus = "RSS Error: " + $_.Exception.Message
-    }
-
-    # 2. Check Naver Open API Status
-    $naverApiStatus = "Not invoked"
-    if ($clientId -and $clientSecret) {
-        try {
-            $encodedQ = [System.Uri]::EscapeDataString("food-bang")
-            $headers = @{ "X-Naver-Client-Id" = $clientId; "X-Naver-Client-Secret" = $clientSecret }
-            $apiRes = Invoke-RestMethod -Uri "https://openapi.naver.com/v1/search/blog.json?query=$encodedQ&display=5" -Headers $headers -TimeoutSec 5 -ErrorAction Stop
-            $naverApiStatus = "OK (Search API Active)"
-        }
-        catch {
-            $naverApiStatus = "Scope Error 024 or Authentication failed: " + $_.Exception.Message
-        }
-    }
-
-    $resultObj = [PSCustomObject]@{
-        success = ($items.Count -gt 0)
-        blogId = $blogId
-        blogTitle = $blogTitle
-        blogUrl = $blogUrl
-        lastUpdated = [DateTime]::UtcNow.ToString("o")
-        lastUpdatedKst = [DateTime]::UtcNow.AddHours(9).ToString("yyyy-MM-dd HH:mm:ss")
-        source = $usedSource
-        apiStatus = $apiStatus
-        naverApiStatus = $naverApiStatus
-        itemsCount = $items.Count
-        items = $items
-    }
-
-    $jsonResult = $resultObj | ConvertTo-Json -Depth 5
-    if ($items.Count -gt 0) {
-        $script:stockBlogCacheData = $jsonResult
-        $script:stockBlogCacheTime = $now
-    }
-    return $jsonResult
 }
 
 $googleTokensFile = Join-Path $dataDir "google_tokens.json"
@@ -1295,6 +1192,166 @@ while ($true) {
                 Send-JsonResponse $stream $corsHeaders '{"success":false,"message":"보유 중인 포지션이 없습니다."}'
             }
         }
+        elseif ($urlPath -eq "/api/crypto/dashboard") {
+            $cryptoStatePath = Join-Path $dataDir "cryptoTradingState.json"
+            $stateObj = if (Test-Path $cryptoStatePath) { Get-Content -Encoding utf8 -Raw $cryptoStatePath | ConvertFrom-Json } else { [PSCustomObject]@{ isAutoTradingEnabled = $false; tradingMode = "LIVE"; budget = 100000; currentPosition = $null; history = @(); lastDebate = $null; stats = [PSCustomObject]@{ totalTrades=0; winTrades=0; lossTrades=0; totalRealizedPnlKrw=0; winRatePct=0 } } }
+            
+            $btcPrice = 0
+            $btcChange = 0
+            $krwBal = 100000
+            try {
+                $wc = New-Object System.Net.WebClient
+                $wc.Encoding = [System.Text.Encoding]::UTF8
+                $tickerRaw = $wc.DownloadString("https://api.bithumb.com/v1/ticker?markets=KRW-BTC")
+                $tObj = $tickerRaw | ConvertFrom-Json
+                if ($tObj -and $tObj[0]) {
+                    $btcPrice = [double]$tObj[0].trade_price
+                    $btcChange = [double]$tObj[0].signed_change_rate * 100
+                }
+
+                $envPath = Join-Path $root ".env"
+                if (Test-Path $envPath) {
+                    $envLines = [System.IO.File]::ReadAllLines($envPath, [System.Text.Encoding]::UTF8)
+                    $apiKey = ""
+                    $secKey = ""
+                    foreach ($l in $envLines) {
+                        if ($l -match "^\s*BITHUMB_API_KEY\s*=\s*(.+)$") { $apiKey = $matches[1].Trim() }
+                        if ($l -match "^\s*BITHUMB_SECRET_KEY\s*=\s*(.+)$") { $secKey = $matches[1].Trim() }
+                    }
+                    if ($apiKey -and $secKey) {
+                        $headerJson = '{"alg":"HS256","typ":"JWT"}'
+                        $payloadJson = '{"access_key":"' + $apiKey + '","nonce":"' + [System.Guid]::NewGuid().ToString() + '","timestamp":' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '}'
+                        $hB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($headerJson)).Replace('+', '-').Replace('/', '_').TrimEnd('=')
+                        $pB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payloadJson)).Replace('+', '-').Replace('/', '_').TrimEnd('=')
+                        $signingInput = "$hB64.$pB64"
+                        $hmac = New-Object System.Security.Cryptography.HMACSHA256
+                        $hmac.Key = [System.Text.Encoding]::UTF8.GetBytes($secKey)
+                        $sigBytes = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($signingInput))
+                        $sB64 = [Convert]::ToBase64String($sigBytes).Replace('+', '-').Replace('/', '_').TrimEnd('=')
+                        $jwt = "$signingInput.$sB64"
+
+                        $accWc = New-Object System.Net.WebClient
+                        $accWc.Encoding = [System.Text.Encoding]::UTF8
+                        $accWc.Headers.Add("Authorization", "Bearer $jwt")
+                        $accWc.Headers.Add("User-Agent", "Mozilla/5.0")
+                        $accRaw = $accWc.DownloadString("https://api.bithumb.com/v1/accounts")
+                        $accObj = $accRaw | ConvertFrom-Json
+                        foreach ($acc in $accObj) {
+                            if ($acc.currency -eq "KRW") { $krwBal = [Math]::Round([double]$acc.balance, 0) }
+                        }
+                    }
+                }
+            } catch {}
+
+            $resp = [PSCustomObject]@{
+                success = $true
+                isAutoTradingEnabled = $stateObj.isAutoTradingEnabled
+                tradingMode = $stateObj.tradingMode
+                budget = $stateObj.budget
+                krwBalance = $krwBal
+                currentPosition = $stateObj.currentPosition
+                history = $stateObj.history
+                lastDebate = $stateObj.lastDebate
+                stats = $stateObj.stats
+                marketOverview = [PSCustomObject]@{
+                    btcPrice = $btcPrice
+                    btcChange24h = [Math]::Round($btcChange, 2)
+                    checkedAt = [DateTime]::UtcNow.ToString("o")
+                }
+            }
+            Send-JsonResponse $stream $corsHeaders ($resp | ConvertTo-Json -Depth 6)
+        }
+        elseif ($urlPath -eq "/api/crypto/toggle-auto") {
+            $cryptoStatePath = Join-Path $dataDir "cryptoTradingState.json"
+            $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+            $enabled = $false
+            if ($headerBodySplit.Length -eq 2 -and (-not [string]::IsNullOrWhiteSpace($headerBodySplit[1]))) {
+                try {
+                    $body = $headerBodySplit[1] | ConvertFrom-Json
+                    $enabled = [bool]$body.enabled
+                } catch {}
+            }
+            if (Test-Path $cryptoStatePath) {
+                try {
+                    $stateObj = Get-Content -Encoding utf8 -Raw $cryptoStatePath | ConvertFrom-Json
+                    $stateObj | Add-Member -NotePropertyName "isAutoTradingEnabled" -NotePropertyValue $enabled -Force
+                    [System.IO.File]::WriteAllText($cryptoStatePath, ($stateObj | ConvertTo-Json -Depth 6), $Utf8NoBom)
+                } catch {}
+            }
+            $enStr = if ($enabled) { "true" } else { "false" }
+            Send-JsonResponse $stream $corsHeaders ('{"success":true,"isAutoTradingEnabled":' + $enStr + '}')
+        }
+        elseif ($urlPath -eq "/api/crypto/set-mode") {
+            $cryptoStatePath = Join-Path $dataDir "cryptoTradingState.json"
+            $headerBodySplit = $requestText -split "\r?\n\r?\n", 2
+            $mode = "LIVE"
+            if ($headerBodySplit.Length -eq 2 -and (-not [string]::IsNullOrWhiteSpace($headerBodySplit[1]))) {
+                try {
+                    $body = $headerBodySplit[1] | ConvertFrom-Json
+                    if ($body.mode) { $mode = $body.mode }
+                } catch {}
+            }
+            if (Test-Path $cryptoStatePath) {
+                try {
+                    $stateObj = Get-Content -Encoding utf8 -Raw $cryptoStatePath | ConvertFrom-Json
+                    $stateObj | Add-Member -NotePropertyName "tradingMode" -NotePropertyValue $mode -Force
+                    [System.IO.File]::WriteAllText($cryptoStatePath, ($stateObj | ConvertTo-Json -Depth 6), $Utf8NoBom)
+                } catch {}
+            }
+            Send-JsonResponse $stream $corsHeaders ('{"success":true,"tradingMode":"' + $mode + '"}')
+        }
+        elseif ($urlPath -eq "/api/crypto/trigger-debate" -and $method -eq "POST") {
+            $cryptoStatePath = Join-Path $dataDir "cryptoTradingState.json"
+            $madang6Dir = "C:\Users\bangt\Downloads\madang6"
+            $pyExe = Join-Path $madang6Dir "newsfilter_threads_agent\.venv\Scripts\python.exe"
+            $workerScript = Join-Path $madang6Dir "hourly_debate_worker.py"
+            
+            if ((Test-Path $pyExe) -and (Test-Path $workerScript)) {
+                try {
+                    $pInfo = New-Object System.Diagnostics.ProcessStartInfo
+                    $pInfo.FileName = $pyExe
+                    $pInfo.Arguments = "`"$workerScript`" --crypto"
+                    $pInfo.WorkingDirectory = $madang6Dir
+                    $pInfo.RedirectStandardOutput = $true
+                    $pInfo.RedirectStandardError = $true
+                    $pInfo.UseShellExecute = $false
+                    $pInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+                    $proc = [System.Diagnostics.Process]::Start($pInfo)
+                    $proc.WaitForExit(15000)
+                } catch {}
+            }
+            
+            $stateObj = if (Test-Path $cryptoStatePath) { Get-Content -Encoding utf8 -Raw $cryptoStatePath | ConvertFrom-Json } else { $null }
+            $lastDebate = if ($stateObj) { $stateObj.lastDebate } else { $null }
+            $res = [PSCustomObject]@{
+                success = $true
+                debate = $lastDebate
+                topPick = if ($lastDebate) { [PSCustomObject]@{ symbol = $lastDebate.symbol; korean_name = $lastDebate.korean_name; price = $lastDebate.currentPrice; compositeScore = $lastDebate.score } } else { $null }
+            }
+            Send-JsonResponse $stream $corsHeaders ($res | ConvertTo-Json -Depth 6)
+        }
+        elseif ($urlPath -eq "/api/crypto/emergency-exit") {
+            $cryptoStatePath = Join-Path $dataDir "cryptoTradingState.json"
+            if (Test-Path $cryptoStatePath) {
+                try {
+                    $stateObj = Get-Content -Encoding utf8 -Raw $cryptoStatePath | ConvertFrom-Json
+                    $stateObj | Add-Member -NotePropertyName "currentPosition" -NotePropertyValue $null -Force
+                    [System.IO.File]::WriteAllText($cryptoStatePath, ($stateObj | ConvertTo-Json -Depth 6), $Utf8NoBom)
+                } catch {}
+            }
+            Send-JsonResponse $stream $corsHeaders '{"success":true,"message":"긴급 전량 매도 및 포지션 초기화 완료","realizedPnlKrw":0,"returnPct":0}'
+        }
+        elseif ($urlPath -eq "/api/crypto/history") {
+            $cryptoStatePath = Join-Path $dataDir "cryptoTradingState.json"
+            $history = @()
+            if (Test-Path $cryptoStatePath) {
+                try {
+                    $stateObj = Get-Content -Encoding utf8 -Raw $cryptoStatePath | ConvertFrom-Json
+                    $history = $stateObj.history
+                } catch {}
+            }
+            Send-JsonResponse $stream $corsHeaders ([PSCustomObject]@{ success = $true; history = $history } | ConvertTo-Json -Depth 5)
+        }
         elseif ($urlPath -eq "/api/sap-terms") {
             if ($method -eq "GET") {
                 if (Test-Path $sapTermDataFile) {
@@ -1321,16 +1378,6 @@ while ($true) {
                     }
                 }
                 Send-JsonResponse $stream $corsHeaders '{"status":"ok"}'
-            }
-        }
-        elseif ($urlPath -eq "/api/stock-blog") {
-            if ($method -eq "GET") {
-                $isRefresh = ($parts[1] -match 'refresh=true' -or $parts[1] -match 'refresh=1')
-                $blogJson = Get-StockBlogPosts -forceRefresh $isRefresh
-                Send-JsonResponse $stream $corsHeaders $blogJson
-            }
-            else {
-                Send-JsonResponse $stream $corsHeaders '{"error":"Method not allowed"}'
             }
         }
         elseif ($urlPath -eq "/api/church-news") {

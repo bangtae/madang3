@@ -2631,6 +2631,21 @@ body.is-guest-mode .user-badge {
 /* ==========================================================================
    메뉴 권한 설정 (Menu Configuration) 스타일
    ========================================================================== */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.menu-config-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.menu-config-table th {
+  white-space: nowrap;
+}
+
 .menu-config-table td {
   padding: 14px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -2646,6 +2661,16 @@ body.is-guest-mode .user-badge {
 
 .menu-config-item-title .icon {
   font-size: 1.2rem;
+}
+
+.toggle-item-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-toggle-label {
+  display: none;
 }
 
 /* Custom Toggle Switch */
@@ -2700,6 +2725,104 @@ input:checked + .slider:before {
 input:disabled + .slider {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* 모바일 전용 반응형 카드-리스트 뷰 전환 */
+@media screen and (max-width: 768px) {
+  .menu-config-table thead {
+    display: none;
+  }
+
+  .menu-config-table,
+  .menu-config-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .menu-config-table tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "name name"
+      "desc desc"
+      "guest admin";
+    gap: 10px;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .menu-config-table tr:hover {
+    border-color: rgba(99, 102, 241, 0.35);
+  }
+
+  .menu-config-table td {
+    display: block;
+    padding: 0 !important;
+    border: none !important;
+    box-sizing: border-box;
+  }
+
+  .menu-config-table td.col-name {
+    grid-area: name;
+  }
+
+  .menu-config-table td.col-desc {
+    grid-area: desc;
+    font-size: 0.82rem;
+    color: #94a3b8;
+    line-height: 1.45;
+    padding-bottom: 8px !important;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08) !important;
+    margin-bottom: 2px;
+  }
+
+  .menu-config-table td.col-guest {
+    grid-area: guest;
+    text-align: left !important;
+  }
+
+  .menu-config-table td.col-admin {
+    grid-area: admin;
+    text-align: right !important;
+  }
+
+  .toggle-item-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .mobile-toggle-label {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    white-space: nowrap;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .menu-config-table tr {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "name"
+      "desc"
+      "guest"
+      "admin";
+    gap: 8px;
+  }
 }
 
 /* ==========================================================================
@@ -5759,7 +5882,8 @@ input:disabled + .slider {
 }
 
 /* ========================================================
-   배고픈투자씨 데일리 네이버 블로그 (Stock Blog) 스타일
+   방태 데일리 뉴스 및 블로그 카드 공용 레이아웃 스타일
+   (참고: bloggerNewsView.js 및 하위 호환 레이아웃에서 공유 사용)
 ======================================================== */
 @keyframes spin {
   from { transform: rotate(0deg); }

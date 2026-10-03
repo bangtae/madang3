@@ -1,64 +1,114 @@
 {
-  "lastUpdated": "2026-09-29T16:01:32.723033",
+  "lastUpdated": "2026-10-01T18:52:03.668363",
   "totalSources": 17,
   "recentChanges": [
+    {
+      "id": "google_kr",
+      "source": "구글 트렌드 (KR)",
+      "region": "KR",
+      "prev_title": "눈꺼풀",
+      "new_title": "시어머니",
+      "link": "https://trends.google.com/trending/rss?geo=KR",
+      "raw_item": {
+        "id": "google_kr",
+        "source": "구글 트렌드 (KR)",
+        "region": "KR",
+        "title": "시어머니",
+        "link": "https://trends.google.com/trending/rss?geo=KR",
+        "image_url": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSNegwGgI5JEe0vjQsyjRl6XA1G9e-HVmo_I1BiD00kpGo-VAfkflLC26F3Rwo",
+        "image_source": "뉴스1",
+        "traffic": "20000+",
+        "news_title": "시어머니상 내내 폰 보고 실실거린 아내…\"남편이 장모상서 게임 하면 좋냐\"",
+        "news_snippet": ""
+      }
+    },
     {
       "id": "signal_bz",
       "source": "시그널 실시간 검색어",
       "region": "KR",
-      "prev_title": "아시안게임 관련 소식",
-      "new_title": "이소희-백하나 금메달",
+      "prev_title": "김종호 컴파운드 금메달",
+      "new_title": "윤규성 품새 금메달!",
       "link": "https://signal.bz/",
       "raw_item": {
         "id": "signal_bz",
         "source": "시그널 실시간 검색어",
         "region": "KR",
-        "title": "이소희-백하나 금메달",
+        "title": "윤규성 품새 금메달!",
         "link": "https://signal.bz/"
       }
     },
     {
-      "id": "naver_webtoon",
-      "source": "네이버 웹툰 (MONDAY) 1위",
+      "id": "daum_cafe",
+      "source": "다음 카페 인기글",
       "region": "KR",
-      "prev_title": "절대군림",
-      "new_title": "신체",
-      "link": "https://comic.naver.com/webtoon/list?titleId=844058",
+      "prev_title": "방울토마토 열매가 안생기네요",
+      "new_title": "광수 버블 구경하는데 팬들 말 다 유재석 목소리로 들려",
+      "link": "https://m.cafe.daum.net/",
+      "raw_item": {
+        "id": "daum_cafe",
+        "source": "다음 카페 인기글",
+        "region": "KR",
+        "title": "광수 버블 구경하는데 팬들 말 다 유재석 목소리로 들려",
+        "link": "https://m.cafe.daum.net/"
+      }
+    },
+    {
+      "id": "naver_webtoon",
+      "source": "네이버 웹툰 (WEDNESDAY) 1위",
+      "region": "KR",
+      "prev_title": "광마회귀",
+      "new_title": "화산귀환",
+      "link": "https://comic.naver.com/webtoon/list?titleId=769209",
       "raw_item": {
         "id": "naver_webtoon",
-        "source": "네이버 웹툰 (MONDAY) 1위",
+        "source": "네이버 웹툰 (WEDNESDAY) 1위",
         "region": "KR",
-        "title": "신체",
-        "link": "https://comic.naver.com/webtoon/list?titleId=844058"
+        "title": "화산귀환",
+        "link": "https://comic.naver.com/webtoon/list?titleId=769209"
       }
     },
     {
       "id": "google_us",
       "source": "구글 트렌드 (US)",
       "region": "US",
-      "prev_title": "hurricane nolo",
-      "new_title": "delta",
+      "prev_title": "coffee shops near me",
+      "new_title": "cornell 7 case",
       "link": "https://trends.google.com/trending/rss?geo=US",
       "raw_item": {
         "id": "google_us",
         "source": "구글 트렌드 (US)",
         "region": "US",
-        "title": "delta",
+        "title": "cornell 7 case",
         "link": "https://trends.google.com/trending/rss?geo=US"
+      }
+    },
+    {
+      "id": "hacker_news",
+      "source": "Hacker News (글로벌 1위)",
+      "region": "GLOBAL",
+      "prev_title": "Gemini 4 Argon",
+      "new_title": "OpenDLSS: A Vulkan Reimplementation of Nvidia's DLSS 5 Neural Rendering Network",
+      "link": "https://github.com/maanHimself/OpenDLSS-NR",
+      "raw_item": {
+        "id": "hacker_news",
+        "source": "Hacker News (글로벌 1위)",
+        "region": "GLOBAL",
+        "title": "OpenDLSS: A Vulkan Reimplementation of Nvidia's DLSS 5 Neural Rendering Network",
+        "link": "https://github.com/maanHimself/OpenDLSS-NR"
       }
     },
     {
       "id": "product_hunt",
       "source": "Product Hunt (일간 1위)",
       "region": "GLOBAL",
-      "prev_title": "VibeDefend by CybeDefend",
-      "new_title": "Harness Router",
+      "prev_title": "Cura",
+      "new_title": "AuthMonster",
       "link": "https://www.producthunt.com",
       "raw_item": {
         "id": "product_hunt",
         "source": "Product Hunt (일간 1위)",
         "region": "GLOBAL",
-        "title": "Harness Router",
+        "title": "AuthMonster",
         "link": "https://www.producthunt.com"
       }
     },
@@ -66,15 +116,15 @@
       "id": "coingecko_trending",
       "source": "CoinGecko 트렌딩 코인 1위",
       "region": "GLOBAL",
-      "prev_title": "Firo (FIRO)",
-      "new_title": "Quant (QNT)",
-      "link": "https://www.coingecko.com/en/coins/quant-network",
+      "prev_title": "Edel (EDEL)",
+      "new_title": "NEAR Protocol (NEAR)",
+      "link": "https://www.coingecko.com/en/coins/near",
       "raw_item": {
         "id": "coingecko_trending",
         "source": "CoinGecko 트렌딩 코인 1위",
         "region": "GLOBAL",
-        "title": "Quant (QNT)",
-        "link": "https://www.coingecko.com/en/coins/quant-network"
+        "title": "NEAR Protocol (NEAR)",
+        "link": "https://www.coingecko.com/en/coins/near"
       }
     }
   ],
@@ -83,43 +133,43 @@
       "id": "google_kr",
       "source": "구글 트렌드 (KR)",
       "region": "KR",
-      "title": "부부",
+      "title": "시어머니",
       "link": "https://trends.google.com/trending/rss?geo=KR",
-      "image_url": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcRLnmgpCostvAk0beh9LebcuOaOZyZ3KgDwByt7htaqSHCy4Y9mPu6mwSy-TRQ",
-      "image_source": "경기일보",
+      "image_url": "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSNegwGgI5JEe0vjQsyjRl6XA1G9e-HVmo_I1BiD00kpGo-VAfkflLC26F3Rwo",
+      "image_source": "뉴스1",
       "traffic": "20000+",
-      "news_title": "가평군, 신혼부부 주거비 부담 던다…대출이자 최대 150만원 지원",
+      "news_title": "시어머니상 내내 폰 보고 실실거린 아내…\"남편이 장모상서 게임 하면 좋냐\"",
       "news_snippet": ""
     },
     {
       "id": "signal_bz",
       "source": "시그널 실시간 검색어",
       "region": "KR",
-      "title": "이소희-백하나 금메달",
+      "title": "윤규성 품새 금메달!",
       "link": "https://signal.bz/"
     },
     {
       "id": "blackkiwi",
       "source": "블랙키위 (네이버 급상승)",
       "region": "KR",
-      "title": "암살자들",
+      "title": "닛몰캐쉬",
       "link": "https://blackkiwi.net/service/trend"
     },
     {
       "id": "namu_wiki",
       "source": "나무위키 실시간 검색어",
       "region": "KR",
-      "title": "닛몰캐쉬",
-      "link": "https://namu.wiki/w/%EB%8B%9B%EB%AA%B0%EC%BA%90%EC%89%AC",
-      "image_url": "https://i.namu.wiki/i/DD61OJc2PZv_y68pIldQ6k84Io4mnWhsyLkxDADTbLovJkWUNFYF_VIVuiLc7uE1Ba_ujLHZivYpmQHyGB5K8flj1Z4SvQisQyj0fAZol7kPL6vs6QlYufXGLqwTWlZyLbYPDOgOPeroMFC4SL4JgTE1UOuDTNnM6QzNm_dwe6g.webp",
+      "title": "허미미",
+      "link": "https://namu.wiki/w/%ED%97%88%EB%AF%B8%EB%AF%B8",
+      "image_url": "https://i.namu.wiki/i/O1VPZnJU4eRGcNIqi-gLnEamlS0GOurfT2H5MFra1-eCMRcDQUeLqOwcFt6lZhASaeQUvL1CNmj8nMI9NMdWKFRpRtazJYjdv6vEAOKAKPlY1Q10TOD-A-yeDwMIByNPK1T7ZpdcCcoOEb-2RdLFeNfZRzkktWlgh8K9g5QBFyo.webp",
       "image_source": "나무위키 (namu.wiki)",
-      "doc_desc": "대한민국 의  인플루언서 . 실용무용을 전공한 전직  백업댄서 로, 과거  방탄소년단  무대에 올라가본 경험이 있다"
+      "doc_desc": "대한민국 의 여성  유도  선수.  2024 파리 올림픽 의  은메달 리스트다. 생애 아버지가  재일교포 , 어머니"
     },
     {
       "id": "daum_cafe",
       "source": "다음 카페 인기글",
       "region": "KR",
-      "title": "공개 후 업계 뒤집어지고 난리났던 영화...jpg",
+      "title": "광수 버블 구경하는데 팬들 말 다 유재석 목소리로 들려",
       "link": "https://m.cafe.daum.net/"
     },
     {
@@ -131,10 +181,10 @@
     },
     {
       "id": "naver_webtoon",
-      "source": "네이버 웹툰 (MONDAY) 1위",
+      "source": "네이버 웹툰 (WEDNESDAY) 1위",
       "region": "KR",
-      "title": "신체",
-      "link": "https://comic.naver.com/webtoon/list?titleId=844058"
+      "title": "화산귀환",
+      "link": "https://comic.naver.com/webtoon/list?titleId=769209"
     },
     {
       "id": "kyobo_book",
@@ -154,43 +204,43 @@
       "id": "playboard_v-tuber",
       "source": "유튜브 V-Tuber/테크 1위 채널",
       "region": "KR",
-      "title": "통깡이",
-      "link": "https://www.youtube.com/channel/UCQcxskNI68kTk_LKi3IGVCw"
+      "title": "아오쿠모 린 AOKUMO RIN",
+      "link": "https://www.youtube.com/channel/UCQmcltnre6aG9SkDRYZqFIg"
     },
     {
       "id": "google_us",
       "source": "구글 트렌드 (US)",
       "region": "US",
-      "title": "delta",
+      "title": "cornell 7 case",
       "link": "https://trends.google.com/trending/rss?geo=US"
     },
     {
       "id": "github_trending",
       "source": "GitHub Trending (글로벌 1위)",
       "region": "GLOBAL",
-      "title": "debpalash/VoiceStudio",
-      "link": "https://github.com/debpalash/VoiceStudio"
+      "title": "NVIDIA/OpenShell",
+      "link": "https://github.com/NVIDIA/OpenShell"
     },
     {
       "id": "hacker_news",
       "source": "Hacker News (글로벌 1위)",
       "region": "GLOBAL",
-      "title": "Phyllotaxis: An audio-reactive LED display",
-      "link": "https://jagi.studio/posts/phyllotaxis/"
+      "title": "OpenDLSS: A Vulkan Reimplementation of Nvidia's DLSS 5 Neural Rendering Network",
+      "link": "https://github.com/maanHimself/OpenDLSS-NR"
     },
     {
       "id": "product_hunt",
       "source": "Product Hunt (일간 1위)",
       "region": "GLOBAL",
-      "title": "Harness Router",
+      "title": "AuthMonster",
       "link": "https://www.producthunt.com"
     },
     {
       "id": "coingecko_trending",
       "source": "CoinGecko 트렌딩 코인 1위",
       "region": "GLOBAL",
-      "title": "Quant (QNT)",
-      "link": "https://www.coingecko.com/en/coins/quant-network"
+      "title": "NEAR Protocol (NEAR)",
+      "link": "https://www.coingecko.com/en/coins/near"
     },
     {
       "id": "detailed_tech-blogs",

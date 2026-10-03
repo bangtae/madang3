@@ -447,56 +447,23 @@
         }
       }
 
-      // 5-3. 실전 매매일지 (StockJournalView)
-      if (window.StockJournalView) {
-        const cp = window.StockJournalView.currentPosition;
-        if (cp && (cp.stockName || cp.itemCode)) {
-          const pScore = checkStockMatch(cp.stockName, cp.itemCode, `${cp.debateSummary || ''} ${cp.status || ''}`);
-          if (pScore > 0) {
-            const entryStr = cp.entryPrice ? `평단: ${Number(cp.entryPrice).toLocaleString()}원` : '';
-            const targetStr = cp.targetPrice ? `목표: ${Number(cp.targetPrice).toLocaleString()}원` : '';
-            const stopStr = cp.stopLossPrice ? `손절: ${Number(cp.stopLossPrice).toLocaleString()}원` : '';
-            const qtyStr = cp.quantity ? `수량: ${cp.quantity}주` : '';
-            const posDetail = [qtyStr, entryStr, targetStr, stopStr].filter(Boolean).join(' | ');
+      // 5-3. 주식 자동매매 & 실전 매매 기록 (StockTradingAdminView)
+      if (window.StockTradingAdminView) {
+        const historyItems = typeof window.StockTradingAdminView.getAllHistoryItems === 'function'
+          ? window.StockTradingAdminView.getAllHistoryItems()
+          : [];
 
-            results.push({
-              score: pScore + 5,
-              type: '실전 매매일지',
-              title: `[실전보유] ${cp.stockName} (${cp.itemCode}) 현재 포지션`,
-              summary: `${posDetail} ${cp.debateSummary ? `| ${cp.debateSummary}` : ''}`,
-              targetView: 'stock-journal',
-              id: cp.orderId || 'current_position'
-            });
-          }
-        }
-
-        if (Array.isArray(window.StockJournalView.customStrategies)) {
-          for (const strat of window.StockJournalView.customStrategies) {
-            const stScore = checkStockMatch(strat.stockName, strat.itemCode, `${strat.notes || ''} ${strat.note || ''}`);
-            if (stScore > 0) {
-              results.push({
-                score: stScore,
-                type: '실전 매매일지',
-                title: `[맞춤전략] ${strat.stockName} (${strat.itemCode}) 감시 전략`,
-                summary: strat.note || strat.notes || `진입가: ${strat.buyTriggerPrice || strat.entryPrice || '-'}`,
-                targetView: 'stock-journal',
-                id: strat.id
-              });
-            }
-          }
-        }
-
-        if (Array.isArray(window.StockJournalView.historyList)) {
-          for (const hist of window.StockJournalView.historyList) {
+        if (Array.isArray(historyItems)) {
+          for (const hist of historyItems) {
             const hScore = checkStockMatch(hist.stockName, hist.itemCode, `${hist.strategyType || ''}`);
             if (hScore > 0) {
               results.push({
                 score: hScore,
-                type: '실전 매매일지',
+                type: '주식자동매매',
                 title: `[매매완료] ${hist.stockName} (${hist.itemCode}) 매매 기록`,
                 summary: `수익률: ${hist.returnPct ?? '-'}% | 실현손익: ${hist.realizedPnlKrw ? `${Number(hist.realizedPnlKrw).toLocaleString()}원` : '-'}`,
-                targetView: 'stock-journal',
-                id: hist.id
+                targetView: 'stock-trading-admin',
+                id: hist.id || hist.orderId
               });
             }
           }

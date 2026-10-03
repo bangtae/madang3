@@ -1331,9 +1331,8 @@ window.AppController = {
       'stock-temp': 'invest',
       'spark-reports': 'invest',
       'stock-debate': 'invest',
-      'stock-blog': 'invest',
+      'crypto-trading': 'invest',
       'blogger-news': 'invest',
-      'stock-journal': 'invest',
       'planet-world': 'life',
       'trend-ranking': 'life',
       'church-news': 'life',
@@ -1487,12 +1486,8 @@ window.AppController = {
       if (viewSparkReports) viewSparkReports.classList.add('hidden');
       const viewStockDebate = document.getElementById('view-stock-debate');
       if (viewStockDebate) viewStockDebate.classList.add('hidden');
-      const viewStockBlog = document.getElementById('view-stock-blog');
-      if (viewStockBlog) viewStockBlog.classList.add('hidden');
       const viewBloggerNews = document.getElementById('view-blogger-news');
       if (viewBloggerNews) viewBloggerNews.classList.add('hidden');
-      const viewStockJournal = document.getElementById('view-stock-journal');
-      if (viewStockJournal) viewStockJournal.classList.add('hidden');
       const viewStockTradingAdmin = document.getElementById('view-stock-trading-admin');
       if (viewStockTradingAdmin) viewStockTradingAdmin.classList.add('hidden');
       if (viewThreadsAgent) viewThreadsAgent.classList.add('hidden');
@@ -1559,18 +1554,20 @@ window.AppController = {
           window.StockDebateView.render();
         });
       }
+    } else if (sideView === 'crypto-trading') {
+      const viewCryptoTrading = document.getElementById('view-crypto-trading');
+      if (viewCryptoTrading) viewCryptoTrading.classList.remove('hidden');
+      if (window.CryptoTradingModel && window.CryptoTradingView) {
+        window.CryptoTradingView.init();
+        window.CryptoTradingModel.loadDashboard().then(() => {
+          window.CryptoTradingView.render();
+        });
+      }
     } else if (sideView === 'spark-reports') {
       const viewSparkReports = document.getElementById('view-spark-reports');
       if (viewSparkReports) viewSparkReports.classList.remove('hidden');
       if (window.SparkReportsView) {
         window.SparkReportsView.init();
-      }
-    } else if (sideView === 'stock-blog') {
-      const viewStockBlog = document.getElementById('view-stock-blog');
-      if (viewStockBlog) viewStockBlog.classList.remove('hidden');
-      if (window.StockBlogView) {
-        window.StockBlogView.init();
-        window.StockBlogView.loadPosts();
       }
     } else if (sideView === 'blogger-news') {
       const viewBloggerNews = document.getElementById('view-blogger-news');
@@ -1578,13 +1575,6 @@ window.AppController = {
       if (window.BloggerNewsView) {
         window.BloggerNewsView.init();
         window.BloggerNewsView.loadPosts();
-      }
-    } else if (sideView === 'stock-journal') {
-      const viewStockJournal = document.getElementById('view-stock-journal');
-      if (viewStockJournal) viewStockJournal.classList.remove('hidden');
-      if (window.StockJournalView) {
-        window.StockJournalView.init();
-        window.StockJournalView.loadStatus();
       }
     } else if (sideView === 'dashboard') {
       if (viewDashboard) viewDashboard.classList.remove('hidden');
@@ -1732,7 +1722,7 @@ window.AppController = {
     const btnResetUrl = document.getElementById('btn-threads-dashboard-reset-url');
     const btnCloseUrl = document.getElementById('btn-threads-dashboard-close-url');
 
-    const defaultUrl = 'https://struggle-loud-burlington-trade.trycloudflare.com/';
+    const defaultUrl = 'https://willing-unavailable-improvement-chambers.trycloudflare.com/';
     let currentUrl = defaultUrl;
 
     try {
@@ -1836,9 +1826,8 @@ window.AppController = {
       { id: "stock-temp", name: "K증시 온도", icon: "☀️", category: "invest", statCardId: "card-stat-stock-temp", guest: true, admin: true, description: "일별 K증시 호재 vs 악재 감정 지수 및 분위기 실시간 요약" },
       { id: "spark-reports", name: "Gemini Spark 경제리포트", icon: "✨", category: "invest", statCardId: "card-stat-spark-reports", guest: true, admin: true, description: "Gemini Spark 주간 거시경제·금융·IT·부동산 심층 보고서 및 내용요약 4.1 스레드 타래 연동" },
       { id: "stock-debate", name: "AI 끝장 토론실", icon: "🔥", category: "invest", statCardId: "card-stat-stock-debate", guest: true, admin: true, description: "서브에이전트 5인의 실시간 격론 및 상호 반박 끝장 토론 피드" },
-      { id: "stock-blog", name: "배고픈투자씨 데일리", icon: "📰", category: "invest", statCardId: "card-stat-stock-blog", guest: true, admin: true, description: "배고픈투자씨 네이버 블로그 최신 증시분위기 리포트 및 게시글 실시간 연동" },
+      { id: "crypto-trading", name: "코인 자동화투자", icon: "🪙", category: "invest", statCardId: "card-stat-crypto-trading", guest: true, admin: true, description: "빗썸 Open API & 10대 소스 기반 24시간 1개 종목 10만원 분할 스윙 자동매매 및 AI 끝장토론" },
       { id: "blogger-news", name: "방태 데일리 뉴스", icon: "🌐", category: "invest", statCardId: "card-stat-blogger-news", guest: true, admin: true, description: "구글 Blogger API v3 기반 bangtae.blogspot.com 데일리 뉴스요약 연동" },
-      { id: "stock-journal", name: "주식 매매일지", icon: "📑", category: "invest", statCardId: "card-stat-stock-journal", guest: true, admin: true, description: "토스증권 Open API & AI 끝장토론 의결 기반 10만원 이하 1주 단일 매매·익절·손절 자동매매 및 실시간 매매일지" },
       { id: "api-info", name: "API 정보", icon: "📚", category: "main", statCardId: "card-stat-apis", guest: true, admin: true, description: "API 정보 목록 및 세부 개발 명세 조회" },
       { id: "ai-models", name: "AI 서비스 정보", icon: "🤖", category: "ai", statCardId: "card-stat-ai-services", guest: true, admin: true, description: "최신 AI 모델 및 서비스 정보 목록 조회" },
       { id: "ai-terms", name: "AI 용어 & 마인드맵", icon: "🧠", category: "ai", statCardId: "card-stat-ai-terms", guest: true, admin: true, description: "AI 관련 기술 개념 및 마인드맵 학습" },
@@ -1852,7 +1841,7 @@ window.AppController = {
       { id: "ip-blacklist", name: "IP 블랙리스트", icon: "⛔", category: "admin", guest: false, admin: true, description: "접속 차단 IP 주소 관리" },
       { id: "ip-logs", name: "외부 유입 IP 로그", icon: "🌐", category: "admin", guest: false, admin: true, description: "서버 외부 접속 차단/허용 로그 기록" },
       { id: "batch-register", name: "API정보 일괄등록", icon: "📥", category: "admin", guest: false, admin: true, description: "엑셀 파일 업로드를 통한 API bulk 등록" },
-      { id: "stock-trading-admin", name: "주식 자동매매 제어", icon: "🤖", category: "admin", guest: false, admin: true, description: "토스증권 Open API 기반 끝장토론 의결 종목 10만원 이하 1주 단일 예약매매 및 계좌/API 통합 제어" },
+      { id: "stock-trading-admin", name: "주식자동매매", icon: "🤖", category: "admin", guest: false, admin: true, description: "토스증권 Open API 기반 주식 자동매매 설정 및 매매완료 이력·연간/월간 총 실현수익 통계" },
       { id: "madang-proposals", name: "madang 시스템 개선 제안서", icon: "🚀", category: "admin", guest: false, admin: true, description: "madang3 포털 및 madang6 멀티에이전트 아키텍처 개선 제안서 및 실전 로드맵" },
       { id: "menu-config", name: "메뉴 권한 설정", icon: "⚙️", category: "admin", guest: false, admin: true, description: "게스트 및 관리자 모드 메뉴 노출 설정" }
     ];
@@ -1860,8 +1849,9 @@ window.AppController = {
     try {
       const res = await fetch('/api/menu-config');
       if (res.ok) {
-        const data = await res.json();
+        let data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
+          data = data.filter(i => i.id !== 'stock-blog');
           const existingIds = new Set(data.map(i => i.id));
           defaultMenus.forEach(d => {
             if (!existingIds.has(d.id)) data.push(d);
@@ -1877,13 +1867,17 @@ window.AppController = {
     const local = localStorage.getItem('portal_menu_config');
     if (local) {
       try {
-        const parsed = JSON.parse(local);
-        const existingIds = new Set(parsed.map(i => i.id));
-        defaultMenus.forEach(d => {
-          if (!existingIds.has(d.id)) parsed.push(d);
-        });
-        this.menuConfig = parsed;
-        return;
+        let parsed = JSON.parse(local);
+        if (Array.isArray(parsed)) {
+          parsed = parsed.filter(i => i.id !== 'stock-blog');
+          const existingIds = new Set(parsed.map(i => i.id));
+          defaultMenus.forEach(d => {
+            if (!existingIds.has(d.id)) parsed.push(d);
+          });
+          this.menuConfig = parsed;
+          localStorage.setItem('portal_menu_config', JSON.stringify(parsed));
+          return;
+        }
       } catch (e) {}
     }
     this.menuConfig = defaultMenus;
@@ -1986,24 +1980,30 @@ window.AppController = {
     (this.menuConfig || []).forEach(item => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>
+        <td class="col-name">
           <div class="menu-config-item-title">
             <span class="icon">${item.icon || '📄'}</span>
             <span>${item.name}</span>
           </div>
         </td>
-        <td style="color: var(--text-secondary); font-size: 0.85rem;">${item.description || ''}</td>
-        <td style="text-align: center;">
-          <label class="switch-label">
-            <input type="checkbox" class="chk-guest-toggle" data-id="${item.id}" ${item.guest ? 'checked' : ''} />
-            <span class="slider"></span>
-          </label>
+        <td class="col-desc" style="color: var(--text-secondary); font-size: 0.85rem;">${item.description || ''}</td>
+        <td class="col-guest" style="text-align: center;">
+          <div class="toggle-item-box">
+            <span class="mobile-toggle-label">⚡ 게스트 노출</span>
+            <label class="switch-label">
+              <input type="checkbox" class="chk-guest-toggle" data-id="${item.id}" ${item.guest ? 'checked' : ''} />
+              <span class="slider"></span>
+            </label>
+          </div>
         </td>
-        <td style="text-align: center;">
-          <label class="switch-label">
-            <input type="checkbox" class="chk-admin-toggle" data-id="${item.id}" ${item.admin ? 'checked' : ''} ${item.id === 'menu-config' ? 'disabled' : ''} />
-            <span class="slider"></span>
-          </label>
+        <td class="col-admin" style="text-align: center;">
+          <div class="toggle-item-box">
+            <span class="mobile-toggle-label">🔑 관리자 노출</span>
+            <label class="switch-label">
+              <input type="checkbox" class="chk-admin-toggle" data-id="${item.id}" ${item.admin ? 'checked' : ''} ${item.id === 'menu-config' ? 'disabled' : ''} />
+              <span class="slider"></span>
+            </label>
+          </div>
         </td>
       `;
       tbody.appendChild(tr);
